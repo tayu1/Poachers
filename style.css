@@ -1936,6 +1936,7 @@ body {
   body {
     overflow-y: auto !important;
     height: auto !important;
+    overflow-x: hidden !important;
   }
 
   .game-container {
@@ -1943,6 +1944,7 @@ body {
     grid-template-rows: auto !important;
     height: auto !important;
     overflow-y: visible !important;
+    overflow-x: hidden !important;
     padding: 10px;
     gap: 20px;
   }
