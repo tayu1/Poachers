@@ -596,6 +596,7 @@ function evaluateMoveWithLookahead(gameState, move, myTeam, activePlayer, region
 }
 
 function getOpponentWorstCase(gameState, myTeam, activePlayer, regionProbs, P, baseScore, actionBonus = 0) {
+  if (baseScore >= 100000 || baseScore <= -100000) return baseScore;
   // ─── Ply 2: Opponent's best tactical reply (captures/attacks only) ───
   const oppPlayer = gameState.turn;
   const oppTeam = PLAYER_TEAMS[oppPlayer];
@@ -655,6 +656,7 @@ function getOpponentWorstCase(gameState, myTeam, activePlayer, regionProbs, P, b
 }
 
 function getCounterBestCase(gameState, myTeam, activePlayer, regionProbs, P, baseScore, actionBonus = 0) {
+  if (baseScore >= 100000 || baseScore <= -100000) return baseScore;
   // ─── Ply 3: Our best counter-response (captures/attacks/promotions only) ───
   const counterPlayer = gameState.turn;
   const counterTeam = PLAYER_TEAMS[counterPlayer];

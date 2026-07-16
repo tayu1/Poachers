@@ -142,6 +142,14 @@ try {
 }
 
 function getBotMove(gameState, botWeights) {
+  if (botModule && botModule.getBestMove) {
+    try {
+      return botModule.getBestMove(gameState, botWeights);
+    } catch (err) {
+      console.error('Bot module crashed, falling back to random move:', err);
+    }
+  }
+
   // The bot files are browser-oriented (attach to window), so we need to
   // use the engine's getAllLegalMovesForActivePlayer and pick a random legal move
   // as a fallback. For proper bot AI, we'd need to refactor bots for Node.
