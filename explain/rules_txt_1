@@ -1,0 +1,52 @@
+Poachers
+
+Setup:
+
+4 players. 2 teams. north-south . and east-west.
+Each team use same color for all its pieces.
+You control your team’s pieces that’s on your half of the board.
+You can move and attack onthe entire board. After your piece cross the center line your teammate controls it.
+
+Each player has positional cards : S-N team cars corresponds to : (3 left, 2 center , 3 right ) colums
+ E-W team  :( 3 upper, 2 center , 3 bottom )rows
+
+Your hill: the center squares (of the 2*2green box) on your half of the board.
+
+movement:
+Pawn : 4 orthogonal direction. Attack on 4 diagonals.
+pawns on the flank (red squeres): cant attack each other (this rule drops once the first piece enters the center hill).
+
+Kings: can’t cross the half line. cant touch enemy kings.
+King capture and being captured without combat.
+
+Cards deal: at the start each player get 8 cards -  you choose 3 for positional cards and 5 left for your base.
+On game start, the positional cards all open.
+Each player have a “base” deck only he see. Max capacity: 5 cards.
+
+Card Switch: Before your move you can make one switch between your positional cards or base cards, or between two of your positional cards.
+Card refill: After your move. if you have a piece in your hill. You get a card for your base deck.
+
+Combat: 
+We use the positional cards of 4 sides, according to the attacked square (defender) coordinates. Each team uses two opposite postional cards.
+3 public cards are always open. 2 more are opened on combat. 
+The team with best poker hand win (5 public cards, 2 cards for each team)
+A draw - the attacker wins.
+
+If you win you capture.
+If you loose : Rooks and bishops slide until they touch to defender. Other pisces stay in place.
+
+After combat, Card refresh:
+all 7 used cards are cleared back to the main deck.
+3 new public card are opened.
+After a combat players fill the positional card from their base deck.
+
+Pawn promotion : 
+This is done by a player instead of a board move.
+You can promote a pawn that’s on your hill
+You choose from your teams captured pieces.
+Rules that prevent promotions: 
+King : For each team -  Only one king on each half of the board. 
+King Can’t touch enemy king.
+Bishops:  For each team - one on light squares and one for dark squares.
+
+Game end : When a team looses both kings they loose.

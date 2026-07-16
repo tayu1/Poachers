@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Poachers - Board Game</title>
+  <meta name="description" content="Poachers - A strategic 4-player online board game combining chess and poker.">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css?v=30">
+</head>
+<body>
+
+  <!-- ==================== MULTIPLAYER LOBBY OVERLAY ==================== -->
+  <div id="lobby-overlay" class="fullscreen-overlay">
+    <div class="lobby-container">
+      <div class="lobby-header">
+        <h1 class="lobby-title">POACHERS</h1>
+        <p class="lobby-subtitle">Strategic Chess × Poker Board Game</p>
+      </div>
+
+      <div class="lobby-main">
+        <!-- Left: Create / Join -->
+        <div class="lobby-panel lobby-panel-create">
+          <h2>Enter the Arena</h2>
+
+          <div class="lobby-field">
+            <label for="lobby-player-name">Your Nickname</label>
+            <input type="text" id="lobby-player-name" placeholder="Enter nickname..." maxlength="20" autocomplete="off" spellcheck="false">
+          </div>
+
+          <button id="lobby-create-room" class="btn primary-btn lobby-btn">
+            <span class="btn-icon">⚔️</span> Create Room
+          </button>
+
+          <div class="lobby-divider"><span>OR JOIN</span></div>
+
+          <div class="lobby-field lobby-join-field">
+            <label for="lobby-join-code">Room Code</label>
+            <div class="lobby-join-row">
+              <input type="text" id="lobby-join-code" placeholder="ABC123" maxlength="6" autocomplete="off" spellcheck="false">
+              <button id="lobby-join-code-btn" class="btn secondary-btn">Join</button>
+            </div>
+          </div>
+
+          <div id="lobby-error" class="lobby-error hidden"></div>
+        </div>
+
+        <!-- Right: Room List -->
+        <div class="lobby-panel lobby-panel-rooms">
+          <div class="lobby-rooms-header">
+            <h2>Open Rooms</h2>
+            <button id="lobby-refresh-rooms" class="btn icon-btn-sm" title="Refresh">↻</button>
+          </div>
+          <div id="lobby-rooms-list" class="lobby-rooms-list">
+            <div class="no-rooms">No open rooms. Create one!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ROOM WAITING OVERLAY ==================== -->
+  <div id="room-overlay" class="fullscreen-overlay hidden">
+    <div class="room-container">
+      <div class="room-header">
+        <h2>Game Room</h2>
+        <div class="room-code-block">
+          <span class="room-code-label">ROOM CODE</span>
+          <span class="room-code-value" id="room-code-display">------</span>
+          <button id="room-copy-code" class="btn icon-btn-sm" title="Copy code">📋</button>
+        </div>
+      </div>
+
+      <div id="room-seats" class="room-seats">
+        <!-- 4 seat cards rendered by multiplayer.js -->
+      </div>
+
+      <div id="room-status" class="room-status">Waiting for host to start...</div>
+      <div id="room-error" class="room-error hidden"></div>
+
+      <div class="room-actions">
+        <button id="room-start-game" class="btn primary-btn hidden">Start Game</button>
+        <button id="room-leave" class="btn secondary-btn">Leave Room</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== GAME OVER SCREEN ==================== -->
+  <div id="game-over-overlay" class="overlay hidden">
+    <div class="overlay-card">
+      <h2 id="winner-announcement">Team A Wins!</h2>
+      <p>Both of the opposing team's Kings have been captured.</p>
+      <div class="overlay-buttons" style="display: flex; gap: 10px; margin-top: 15px;">
+        <button id="btn-restart-overlay" class="btn primary-btn">Rematch</button>
+        <button id="btn-close-overlay" class="btn secondary-btn">Review Game</button>
+        <button id="btn-back-to-lobby" class="btn secondary-btn">Back to Lobby</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN GAME UI ==================== -->
+  <div class="game-container hidden">
+    
+    <!-- LEFT COLUMN: Menu & Controls (1, 13, 10, 9) -->
+    <aside class="sidebar-left">
+      <!-- Title & Score (13) -->
+      <div class="card header-card">
+        <h1>POACHERS</h1>
+        <div class="match-score" id="score-display">
+          <div class="score-team team-a-text">
+            <span class="team-label">TEAM N-S</span>
+            <span class="score-val" id="score-a">0</span>
+          </div>
+          <div class="score-divider">:</div>
+          <div class="score-team team-b-text">
+            <span class="team-label">TEAM E-W</span>
+            <span class="score-val" id="score-b">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Online Room Info Card -->
+      <div class="card online-info-card" id="online-info-card">
+        <h3>ONLINE GAME</h3>
+        <div class="online-room-code" id="online-room-code"></div>
+        <div class="online-players-list" id="online-players-list">
+          <!-- N: nickname, E: Bot, etc. -->
+        </div>
+      </div>
+
+      <!-- Controls Menu (1) -->
+      <div class="card menu-card">
+        <h3>CONTROLS</h3>
+        <button id="btn-new-game" class="btn primary-btn">New Match</button>
+        
+        <div class="control-group">
+          <label>Rotate Board</label>
+          <button id="btn-rotate-board" class="btn secondary-btn">Rotate 90°</button>
+        </div>
+
+        <div class="control-group" id="speed-control-group">
+          <label>Game Speed</label>
+          <div class="speed-slider-container">
+            <input type="range" id="speed-slider" min="1" max="5" value="3">
+            <span id="speed-value">Normal</span>
+          </div>
+        </div>
+
+        <div class="control-group" id="bot-toggles-group">
+          <label>Bot Toggles</label>
+          <div class="bot-toggles-grid">
+            <button id="bot-toggle-0" class="btn bot-btn">North: Human</button>
+            <button id="bot-toggle-1" class="btn bot-btn">East: Human</button>
+            <button id="bot-toggle-2" class="btn bot-btn">South: Human</button>
+            <button id="bot-toggle-3" class="btn bot-btn">West: Human</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Replay Controls (10) -->
+      <div class="card replay-card">
+        <h3>REPLAY NAVIGATION</h3>
+        <div class="replay-buttons">
+          <button id="btn-replay-prev" class="btn icon-btn" title="Previous Move" disabled>
+             <span class="arrow-icon">←</span>
+          </button>
+          <div class="replay-status" id="replay-step-info">LIVE GAME</div>
+          <button id="btn-replay-next" class="btn icon-btn" title="Next Move" disabled>
+             <span class="arrow-icon">→</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Game Log (9) -->
+      <div class="card log-card">
+        <h3>GAME LOG</h3>
+        <div class="log-entries" id="log-entries">
+          <div class="log-entry system-msg">Game ready. Press New Match to start.</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER COLUMN: Game Board & Cards (2, 3, 5, 6, 4) -->
+    <main class="board-area">
+      
+      <!-- Central Board Wrapper containing Board (2) + Positional Cards (3) on 4 sides + Flop (5) + Turn/River (6) + Base Deck (4) -->
+      <div class="board-layout-wrapper">
+        
+        <!-- Left Public Cards Container (Flop & Turn/River) -->
+        <div class="left-public-container">
+          <div class="cards-column" id="public-flop">
+            <div class="playing-card card-back"></div>
+            <div class="playing-card card-back"></div>
+            <div class="playing-card card-back"></div>
+          </div>
+          <div class="cards-column" id="public-turn-river">
+            <div class="playing-card card-back locked"></div>
+            <div class="playing-card card-back locked"></div>
+          </div>
+        </div>
+
+        <!-- Rotateable Game Area (Only board and positional cards) -->
+        <div class="game-rotation-wrapper">
+          <!-- North Positional Cards (Top) -->
+          <div class="lcr-container north-lcr" id="north-lcr">
+            <span class="lcr-player-indicator">N</span>
+            <div class="lcr-card-wrapper" data-idx="0">
+              <div class="playing-card card-back" id="card-n-0"></div>
+            </div>
+            <div class="lcr-card-wrapper" data-idx="1">
+              <div class="playing-card card-back" id="card-n-1"></div>
+            </div>
+            <div class="lcr-card-wrapper" data-idx="2">
+              <div class="playing-card card-back" id="card-n-2"></div>
+            </div>
+          </div>
+
+          <!-- West Positional Cards (Left) -->
+          <div class="lcr-container west-lcr" id="west-lcr">
+            <span class="lcr-player-indicator">W</span>
+            <div class="lcr-card-wrapper" data-idx="0">
+              <div class="playing-card card-back" id="card-w-0"></div>
+            </div>
+            <div class="lcr-card-wrapper" data-idx="1">
+              <div class="playing-card card-back" id="card-w-1"></div>
+            </div>
+            <div class="lcr-card-wrapper" data-idx="2">
+              <div class="playing-card card-back" id="card-w-2"></div>
+            </div>
+          </div>
+
+          <!-- Main 8x8 Board (2) -->
+          <div class="board-frame">
+            <div id="board" class="chess-board">
+              <!-- 64 cells generated dynamically -->
+            </div>
+          </div>
+
+          <!-- East Positional Cards (Right) -->
+          <div class="lcr-container east-lcr" id="east-lcr">
+            <span class="lcr-player-indicator">E</span>
+            <div class="lcr-card-wrapper" data-idx="0">
+              <div class="playing-card card-back" id="card-e-0"></div>
+            </div>
+            <div class="lcr-card-wrapper" data-idx="1">
+              <div class="playing-card card-back" id="card-e-1"></div>
+            </div>
+            <div class="lcr-card-wrapper" data-idx="2">
+              <div class="playing-card card-back" id="card-e-2"></div>
+            </div>
+          </div>
+
+          <!-- South Positional Cards (Bottom) -->
+          <div class="lcr-container south-lcr" id="south-lcr">
+            <span class="lcr-player-indicator">S</span>
+            <div class="lcr-card-wrapper" data-idx="0">
+              <div class="playing-card card-back" id="card-s-0"></div>
+            </div>
+            <div class="lcr-card-wrapper" data-idx="1">
+              <div class="playing-card card-back" id="card-s-1"></div>
+            </div>
+            <div class="lcr-card-wrapper" data-idx="2">
+              <div class="playing-card card-back" id="card-s-2"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Player's Base Deck (4) (Outside rotation) -->
+        <div class="base-deck-wrapper hidden" id="base-deck">
+          <div class="base-deck-header" style="text-align: center; margin-bottom: 5px; font-family: var(--font-title); font-size: 0.85rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em;">
+            YOUR BASE DECK <span style="font-size: 0.75rem; color: var(--color-green); margin-left: 5px; font-weight: 400;">(Select a card and click another to swap)</span>
+          </div>
+          <div class="base-deck-cards" id="base-deck-cards">
+            <!-- 5 Base cards -->
+            <div class="playing-card card-back"></div>
+            <div class="playing-card card-back"></div>
+            <div class="playing-card card-back"></div>
+            <div class="playing-card card-back"></div>
+            <div class="playing-card card-back"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Promotion Instructions -->
+      <div id="promotion-instruction" class="promotion-instruction hidden">
+        <span class="promo-icon">✨</span>
+        <span class="promo-text">Promotion Possible! Select a captured piece to revive.</span>
+      </div>
+
+    </main>
+
+    <!-- RIGHT COLUMN: Status, Turn & Captures (12, 8, 7, 11) -->
+    <aside class="sidebar-right">
+      
+      <!-- Who's Turn (12) -->
+      <div class="card turn-card" id="turn-card">
+        <h3>CURRENT MOVE</h3>
+        <div class="active-player-display">
+          <div class="player-avatar" id="active-player-avatar">N</div>
+          <div class="player-info">
+            <span class="player-name" id="active-player-name">North</span>
+            <span class="player-team" id="active-player-team">Team N-S (A)</span>
+          </div>
+        </div>
+        <div class="turn-phase-indicator" id="turn-phase">
+          Select a piece to move
+        </div>
+      </div>
+
+      <!-- Captured Pieces (8) -->
+      <div class="card captures-card">
+        <h3>CAPTURED PIECES</h3>
+        <div class="captured-team">
+          <span class="captured-team-label team-a-text">TEAM N-S (Yellow)</span>
+          <div class="captured-pool" id="captured-pool-a">
+            <!-- Captured Team A pieces -->
+            <span class="no-captures-placeholder">None</span>
+          </div>
+        </div>
+        <div class="captured-team">
+          <span class="captured-team-label team-b-text">TEAM E-W (Blue)</span>
+          <div class="captured-pool" id="captured-pool-b">
+            <!-- Captured Team B pieces -->
+            <span class="no-captures-placeholder">None</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Players Status Bar (7) -->
+      <div class="card status-card">
+        <h3>PLAYERS STATUS</h3>
+        <div class="player-status-list">
+          <div class="player-status-row" id="status-row-0">
+            <span class="status-indicator"></span>
+            <span class="status-name" id="status-name-0">North</span>
+            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-0"></span> | Hill <span class="status-dot dot-off" id="status-hill-0"></span> | Base: <span id="status-base-0">5</span></span>
+          </div>
+          <div class="player-status-row" id="status-row-1">
+            <span class="status-indicator"></span>
+            <span class="status-name" id="status-name-1">East</span>
+            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-1"></span> | Hill <span class="status-dot dot-off" id="status-hill-1"></span> | Base: <span id="status-base-1">5</span></span>
+          </div>
+          <div class="player-status-row" id="status-row-2">
+            <span class="status-indicator"></span>
+            <span class="status-name" id="status-name-2">South</span>
+            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-2"></span> | Hill <span class="status-dot dot-off" id="status-hill-2"></span> | Base: <span id="status-base-2">5</span></span>
+          </div>
+          <div class="player-status-row" id="status-row-3">
+            <span class="status-indicator"></span>
+            <span class="status-name" id="status-name-3">West</span>
+            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-3"></span> | Hill <span class="status-dot dot-off" id="status-hill-3"></span> | Base: <span id="status-base-3">5</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Instructions Bar (11) -->
+      <div class="card instruction-card">
+        <h3>HOW TO PLAY</h3>
+        <div class="instruction-content">
+          <ul>
+            <li><strong>Movement:</strong> Select a piece. Valid moves are highlighted in green, attacks in orange, King captures in red.</li>
+            <li><strong>Control:</strong> You can only move your team's pieces that lie on your half of the board.</li>
+            <li><strong>Cross line:</strong> Once a piece crosses the center line, your teammate controls it on their turn.</li>
+            <li><strong>Combats:</strong> Attacking triggers poker evaluation. <em>(Currently auto-resolved until Phase 2)</em>.</li>
+            <li id="rule-pawn-flanks"><strong>Pawn Flanks:</strong> Pawns on red flank squares cannot attack each other.</li>
+            <li><strong>Kings:</strong> Cannot cross the half-line or touch enemy Kings.</li>
+          </ul>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <!-- Javascript Scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="engine.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load engine.js</div>'"></script>
+  <script src="multiplayer.js?v=30"></script>
+  <script src="bots/v1_basic/bot.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load bot.js</div>'"></script>
+  <script src="bots/v2_no_minimax/bot.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load v2_no_minimax bot.js</div>'"></script>
+  <script src="bots/v3_fast/bot.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load v3_fast bot.js</div>'"></script>
+  <script src="bots/v4_networth/bot.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load v4_networth bot.js</div>'"></script>
+  <script src="bots/v5_networth/bot.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load v5_networth bot.js</div>'"></script>
+  <script src="bots/v6_networth/bot.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load v6_networth bot.js</div>'"></script>
+  <script src="bots/v7_networth/bot.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load v7_networth bot.js</div>'"></script>
+  <script src="bots/v8_networth/bot.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load v8_networth bot.js</div>'"></script>
+  <script src="app.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load app.js</div>'"></script>
+</body>
+</html>
