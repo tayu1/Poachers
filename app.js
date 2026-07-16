@@ -1094,22 +1094,19 @@ if (!engine) {
 
     function getPoolItems(pool, team) {
       const items = [];
-      // Pawns (non-promotable)
-      if (pool.pawns > 0) {
-        for (let i = 0; i < pool.pawns; i++) {
-          items.push({ type: 'p', subtype: null, char: team === engine.TEAMS.A ? 'P' : 'p', label: 'Pawn' });
-        }
+      // King (if captured)
+      if (pool.king !== null) {
+        let label = 'King';
+        if (pool.king === engine.PLAYERS.NORTH) label = 'North King';
+        if (pool.king === engine.PLAYERS.EAST) label = 'East King';
+        if (pool.king === engine.PLAYERS.SOUTH) label = 'South King';
+        if (pool.king === engine.PLAYERS.WEST) label = 'West King';
+        items.push({ type: 'k', subtype: pool.king, char: team === engine.TEAMS.A ? 'K' : 'k', label: label });
       }
       // Rooks
       if (pool.rooks > 0) {
         for (let i = 0; i < pool.rooks; i++) {
           items.push({ type: 'r', subtype: null, char: team === engine.TEAMS.A ? 'R' : 'r', label: 'Rook' });
-        }
-      }
-      // Knights
-      if (pool.knights > 0) {
-        for (let i = 0; i < pool.knights; i++) {
-          items.push({ type: 'n', subtype: null, char: team === engine.TEAMS.A ? 'N' : 'n', label: 'Knight' });
         }
       }
       // Dark Bishop
@@ -1124,14 +1121,17 @@ if (!engine) {
           items.push({ type: 'b', subtype: 'light', char: team === engine.TEAMS.A ? 'B' : 'b', label: 'Light Bishop' });
         }
       }
-      // King (if captured)
-      if (pool.king !== null) {
-        let label = 'King';
-        if (pool.king === engine.PLAYERS.NORTH) label = 'North King';
-        if (pool.king === engine.PLAYERS.EAST) label = 'East King';
-        if (pool.king === engine.PLAYERS.SOUTH) label = 'South King';
-        if (pool.king === engine.PLAYERS.WEST) label = 'West King';
-        items.push({ type: 'k', subtype: pool.king, char: team === engine.TEAMS.A ? 'K' : 'k', label: label });
+      // Knights
+      if (pool.knights > 0) {
+        for (let i = 0; i < pool.knights; i++) {
+          items.push({ type: 'n', subtype: null, char: team === engine.TEAMS.A ? 'N' : 'n', label: 'Knight' });
+        }
+      }
+      // Pawns (non-promotable)
+      if (pool.pawns > 0) {
+        for (let i = 0; i < pool.pawns; i++) {
+          items.push({ type: 'p', subtype: null, char: team === engine.TEAMS.A ? 'P' : 'p', label: 'Pawn' });
+        }
       }
       return items;
     }
@@ -1147,6 +1147,7 @@ if (!engine) {
         const pieceSpan = document.createElement('span');
         const teamClass = team === engine.TEAMS.A ? 'piece-team-a' : 'piece-team-b';
         pieceSpan.className = `captured-piece ${teamClass}`;
+        pieceSpan.dataset.type = item.type;
         const imgUrl = PIECE_IMAGES[item.char];
         if (imgUrl) {
           const img = document.createElement('img');

@@ -1040,6 +1040,20 @@ body {
   padding: 2px;
   border-radius: 4px;
   user-select: none;
+  transition: margin 0.2s ease;
+}
+
+/* Bunch up similar pieces */
+.captured-piece[data-type="k"] + .captured-piece[data-type="k"],
+.captured-piece[data-type="r"] + .captured-piece[data-type="r"],
+.captured-piece[data-type="b"] + .captured-piece[data-type="b"],
+.captured-piece[data-type="n"] + .captured-piece[data-type="n"] {
+  margin-left: -12px;
+}
+
+/* Pawns stand overlapping to save space */
+.captured-piece[data-type="p"] + .captured-piece[data-type="p"] {
+  margin-left: -18px;
 }
 
 .captured-piece img {
