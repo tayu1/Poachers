@@ -1927,3 +1927,78 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
 }
+
+/* ============================================================
+   RESPONSIVE DESIGN (MOBILE & TABLET)
+   ============================================================ */
+
+@media (max-width: 1024px) {
+  body {
+    overflow-y: auto !important;
+    height: auto !important;
+  }
+
+  .game-container {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+    height: auto !important;
+    overflow-y: visible !important;
+    padding: 10px;
+    gap: 20px;
+  }
+
+  .sidebar-left,
+  .sidebar-right {
+    width: 100% !important;
+    max-width: 560px;
+    margin: 0 auto;
+    height: auto !important;
+  }
+
+  .board-area {
+    height: auto !important;
+    order: -1; /* Place the board at the top of the stack on mobile */
+  }
+
+  .lobby-main {
+    grid-template-columns: 1fr !important;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .lobby-container {
+    padding: 15px;
+  }
+
+  .lobby-title {
+    font-size: 2.8rem;
+  }
+
+  .room-seats {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+
+  .room-container {
+    padding: 15px;
+  }
+
+  /* Scale the board wrapper to fit screen width */
+  .board-layout-wrapper {
+    transform: scale(calc(min(90vw, 480px) / 560)) !important;
+    transform-origin: center top !important;
+    /* Adjust spacing below the scaled board wrapper */
+    margin: 10px auto calc(-550px * (1 - (min(90vw, 480px) / 560))) auto !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .lobby-title {
+    font-size: 2.2rem;
+  }
+  
+  .room-code-value {
+    font-size: 1.5rem;
+  }
+}
