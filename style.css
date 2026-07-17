@@ -705,6 +705,22 @@ body {
   z-index: 3;
 }
 
+/* Center dot (yellow dot at the intersection of the 4 hill squares) */
+.board-center-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background-color: var(--color-center-dot);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 8;
+  pointer-events: none;
+  box-shadow: 0 0 8px var(--color-center-dot);
+}
+
+
 /* Highlight cell states */
 .board-cell.selected-sq {
   background-color: rgba(var(--color-select-rgb), 0.4) !important;

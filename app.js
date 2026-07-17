@@ -888,6 +888,11 @@ if (!engine) {
     else territoryDiv.classList.add('territory-team-b');
     elBoard.appendChild(territoryDiv);
 
+    // Render Board Center Dot
+    const centerDot = document.createElement('div');
+    centerDot.className = 'board-center-dot';
+    elBoard.appendChild(centerDot);
+
     // Render Last Move Arrow
     if (gameState.lastMove && gameState.lastMove.from && gameState.lastMove.to) {
       const from = gameState.lastMove.from;
