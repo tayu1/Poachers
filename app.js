@@ -118,6 +118,19 @@ if (!engine) {
     .then(data => defaultBotWeights = data)
     .catch(e => console.error("Could not load bot weights", e));
 
+  function getBotDelay() {
+    const elSpeedSlider = document.getElementById('speed-slider');
+    const val = elSpeedSlider ? elSpeedSlider.value : '3';
+    switch (val) {
+      case '1': return 4000; // Very Slow
+      case '2': return 2000; // Slow
+      case '3': return 1000; // Normal
+      case '4': return 500;  // Fast
+      case '5': return 250;  // Very Fast
+      default: return 1000;
+    }
+  }
+
   function checkBotTurn() {
     // In online mode, bots are handled server-side
     if (isOnline()) return;
@@ -221,7 +234,7 @@ if (!engine) {
           logSystemEvent(`[CRITICAL ERROR] Bot crashed: ${err.message}`);
           console.error(err);
         }
-      }, 500);
+      }, getBotDelay());
     }
   }
   let selectedPiece = null; // { r, c }
@@ -271,14 +284,24 @@ if (!engine) {
   // Save current game state to history
   function saveHistoryState() {
     if (!gameState) return;
-    if (historyIndex < history.length - 1) {
+    
+    const isViewingPast = historyIndex >= 0 && historyIndex < history.length - 1;
+
+    // Only slice future history if we are offline (e.g. human overwrites timeline)
+    if (isViewingPast && !isOnline()) {
       history = history.slice(0, historyIndex + 1);
     }
+    
     history.push({
       gameState: JSON.parse(JSON.stringify(gameState)),
       combatShowdown: combatShowdown ? JSON.parse(JSON.stringify(combatShowdown)) : null
     });
-    historyIndex = history.length - 1;
+    
+    // Only advance the index if we aren't currently viewing the past
+    if (!isViewingPast) {
+      historyIndex = history.length - 1;
+    }
+    
     updateReplayButtons();
   }
 
@@ -469,6 +492,10 @@ if (!engine) {
     resetCardSelection();
     const activePlayer = gameState.players[gameState.turn];
     const team = activePlayer.team;
+
+    if (move.to && (move.to.r === 3 || move.to.r === 4) && (move.to.c === 3 || move.to.c === 4)) {
+      gameState.hillWasVisited = 1;
+    }
 
     // Check if it's a bot's promotion move
     if (move.type === 'promote') {
@@ -770,6 +797,11 @@ if (!engine) {
         const isHill = Object.values(engine.HILL_SQUARES).flat().some(sq => sq.r === r && sq.c === c);
         if (isHill) {
           cell.classList.add('hill-sq');
+          if (r === 3 && c === 3) cell.classList.add('hill-tl');
+          else if (r === 3 && c === 4) cell.classList.add('hill-tr');
+          else if (r === 4 && c === 3) cell.classList.add('hill-bl');
+          else if (r === 4 && c === 4) cell.classList.add('hill-br');
+
           // Highlight active player's hill center coordinates if they belong to active player
           const isPlayerHill = engine.HILL_SQUARES[gameState.turn].some(sq => sq.r === r && sq.c === c);
           if (isPlayerHill) {
@@ -777,10 +809,6 @@ if (!engine) {
           }
         }
 
-        // Flank highlights
-        if (engine.hill_was_visited === 0 && engine.isFlankSquare(r, c)) {
-          cell.classList.add('flank-sq');
-        }
 
         // Highlight selected cell
         if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) {
@@ -811,7 +839,7 @@ if (!engine) {
         if (piece) {
           const pieceDiv = document.createElement('div');
           pieceDiv.className = `chess-piece ${engine.getPieceTeam(piece) === engine.TEAMS.A ? 'piece-team-a' : 'piece-team-b'}`;
-          if (canInteract && historyIndex === history.length - 1 && !gameEnded && engine.isPieceControllable(r, c, gameState.turn, gameState.board)) {
+          if (historyIndex === history.length - 1 && !gameEnded && engine.isPieceControllable(r, c, gameState.turn, gameState.board)) {
             pieceDiv.classList.add('controllable-piece');
           }
           const imgUrl = PIECE_IMAGES[piece];
@@ -834,6 +862,23 @@ if (!engine) {
 
         elBoard.appendChild(cell);
       }
+    }
+
+    // Render Flank Crosses if hill not visited yet
+    if (gameState && gameState.hillWasVisited === 0) {
+      const crossPositions = [
+        { c: 2, r: 2 }, // Top-Left
+        { c: 6, r: 2 }, // Top-Right
+        { c: 2, r: 6 }, // Bottom-Left
+        { c: 6, r: 6 }  // Bottom-Right
+      ];
+      crossPositions.forEach(pos => {
+        const cross = document.createElement('div');
+        cross.className = 'flank-cross';
+        cross.style.left = `${(pos.c / 8) * 100}%`;
+        cross.style.top = `${(pos.r / 8) * 100}%`;
+        elBoard.appendChild(cross);
+      });
     }
 
     // Render Territory Highlight Box for Active Player
@@ -1346,7 +1391,7 @@ if (!engine) {
     // Update Flank Rule instruction text dynamically
     const elFlankRule = document.getElementById('rule-pawn-flanks');
     if (elFlankRule) {
-      if (engine.hill_was_visited === 1) {
+      if (gameState && gameState.hillWasVisited === 1) {
         elFlankRule.innerHTML = `<strong>Pawn Flanks:</strong> <span style="text-decoration: line-through; opacity: 0.6;">Pawns on red flank squares cannot attack each other.</span> <span style="color: var(--color-green); font-weight: bold; text-shadow: 0 0 5px rgba(0,255,0,0.3);">[DROPPED]</span>`;
       } else {
         elFlankRule.innerHTML = `<strong>Pawn Flanks:</strong> Pawns on red flank squares cannot attack each other <span style="color: var(--text-muted); font-size: 0.8em;">(drops when center hill entered)</span>`;
@@ -1404,6 +1449,17 @@ if (!engine) {
       elGameOverOverlay.classList.add('hidden');
       if (isOnline()) {
         window.Multiplayer.returnToLobby();
+      } else if (window.Multiplayer) {
+        window.Multiplayer.returnToLobby();
+      }
+    });
+  }
+
+  const elBtnBackToLobbyMain = document.getElementById('btn-back-to-lobby-main');
+  if (elBtnBackToLobbyMain) {
+    elBtnBackToLobbyMain.addEventListener('click', () => {
+      if (window.Multiplayer) {
+        window.Multiplayer.returnToLobby();
       }
     });
   }
@@ -1436,6 +1492,23 @@ if (!engine) {
     });
   }
   
+  // Game Speed Slider listener to update UI labels (offline only)
+  const elSpeedSliderElement = document.getElementById('speed-slider');
+  const elSpeedValueElement = document.getElementById('speed-value');
+  if (elSpeedSliderElement && elSpeedValueElement) {
+    const speedLabels = {
+      '1': 'Very Slow',
+      '2': 'Slow',
+      '3': 'Normal',
+      '4': 'Fast',
+      '5': 'Very Fast'
+    };
+    elSpeedSliderElement.addEventListener('input', () => {
+      const val = elSpeedSliderElement.value;
+      elSpeedValueElement.textContent = speedLabels[val] || 'Normal';
+    });
+  }
+
   // Bot Selectors (offline only)
   const botNames = ['North', 'East', 'South', 'West'];
   for (let i = 0; i < 4; i++) {
@@ -1474,11 +1547,6 @@ if (!engine) {
       // Build a gameState compatible with the existing renderState() function
       onlineSeatIndex = stateView.seatIndex;
 
-      // Sync hill_was_visited from server
-      if (stateView.hillWasVisited !== undefined) {
-        engine.hill_was_visited = stateView.hillWasVisited;
-      }
-
       gameState = {
         board: stateView.board,
         players: stateView.players.map(p => ({
@@ -1495,7 +1563,8 @@ if (!engine) {
         capturedPieces: stateView.capturedPieces,
         matchScores: stateView.matchScores,
         lastMove: stateView.lastMove,
-        deck: [] // Deck is server-side only
+        deck: [], // Deck is server-side only
+        hillWasVisited: stateView.hillWasVisited !== undefined ? stateView.hillWasVisited : 0
       };
 
       // Set combat showdown from server
@@ -1508,12 +1577,19 @@ if (!engine) {
       activeLegalMoves = [];
       gameEnded = false;
 
+      const wasViewingPast = (historyIndex >= 0 && historyIndex < history.length - 1);
+
       // Save to history for replay
       saveHistoryState();
 
-      // Render
-      renderState();
-      triggerTurnStartAnimations();
+      if (wasViewingPast) {
+        // Keep viewing the past state visually
+        restoreHistoryState();
+      } else {
+        // Render the new live state
+        renderState();
+        triggerTurnStartAnimations();
+      }
     });
 
     window.Multiplayer.onGameOver((winner) => {

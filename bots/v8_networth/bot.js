@@ -407,8 +407,11 @@ function computeRegionProbabilities(gameState, playerId) {
 // ─── Make / Unmake move pattern ──────────────────────────────────────────────
 
 function makeMove(state, move, outcome) {
-  const undo = { type: move.type, turn: state.turn };
+  const undo = { type: move.type, turn: state.turn, hillWasVisited: state.hillWasVisited };
   const board = state.board;
+  const isHill = (move.to && (move.to.r === 3 || move.to.r === 4) && (move.to.c === 3 || move.to.c === 4));
+  if (isHill) state.hillWasVisited = 1;
+
 
   if (move.type === 'move') {
     undo.fromR = move.from.r; undo.fromC = move.from.c;
@@ -486,6 +489,7 @@ function makeMove(state, move, outcome) {
 
 function unmakeMove(state, undo) {
   state.turn = undo.turn;
+  if (undo.hillWasVisited !== undefined) state.hillWasVisited = undo.hillWasVisited;
   const board = state.board;
 
   if (undo.type === 'move') {

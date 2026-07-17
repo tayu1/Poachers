@@ -24,7 +24,7 @@ app.use(express.static(__dirname, {
   extensions: ['html'],
   setHeaders: (res, filePath) => {
     // Cache-bust for development
-    if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+    if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache');
     }
   }
@@ -43,18 +43,19 @@ function generateRoomCode() {
   return code;
 }
 
-function createRoom(hostSocket, hostName) {
+function createRoom(hostSocket, hostName, token) {
   const code = generateRoomCode();
   const room = {
     code,
     hostSocketId: hostSocket.id,
+    hostToken: token,
     state: 'waiting', // 'waiting' | 'playing' | 'finished'
     seats: [
       // 0=North, 1=East, 2=South, 3=West
-      { type: 'human', socketId: hostSocket.id, name: hostName, connected: true },
-      { type: 'bot', socketId: null, name: 'Bot', connected: false },
+      { type: 'human', socketId: hostSocket.id, name: hostName, connected: true, token },
       { type: 'open', socketId: null, name: '', connected: false },
-      { type: 'bot', socketId: null, name: 'Bot', connected: false }
+      { type: 'open', socketId: null, name: '', connected: false },
+      { type: 'open', socketId: null, name: '', connected: false }
     ],
     gameState: null,
     history: [],
@@ -91,7 +92,7 @@ function getSeatInfo(room) {
     type: s.type,
     name: s.type === 'human' ? s.name : (s.type === 'bot' ? 'Bot' : ''),
     connected: s.connected,
-    isHost: s.socketId === room.hostSocketId
+    isHost: room.hostToken ? (s.token === room.hostToken) : (s.socketId === room.hostSocketId)
   }));
 }
 
@@ -128,7 +129,7 @@ function getPlayerView(room, forSeatIdx) {
     matchScores: gs.matchScores,
     lastMove: gs.lastMove || null,
     deckSize: gs.deck.length,
-    hillWasVisited: engine.hill_was_visited
+    hillWasVisited: gs.hillWasVisited
   };
 }
 
@@ -200,6 +201,10 @@ function getBotMove(gameState, botWeights) {
 function executeMoveOnServer(room, move) {
   const gs = room.gameState;
   const activePlayer = gs.players[gs.turn];
+
+  if (move.to && (move.to.r === 3 || move.to.r === 4) && (move.to.c === 3 || move.to.c === 4)) {
+    gs.hillWasVisited = 1;
+  }
 
   // Promotion
   if (move.type === 'promote') {
@@ -335,7 +340,7 @@ function scheduleBotTurn(room) {
         broadcastState(room);
         scheduleBotTurn(room);
       }
-    }, 800);
+    }, 1600);
   }
 }
 
@@ -358,16 +363,60 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') callback(getRoomList());
   });
 
-  socket.on('create-room', ({ playerName }, callback) => {
+  socket.on('check-session', ({ token }, callback) => {
+    if (!token) {
+      if (typeof callback === 'function') callback({ inRoom: false });
+      return;
+    }
+    for (const [code, room] of rooms) {
+      const seatIdx = room.seats.findIndex(s => s.type === 'human' && s.token === token);
+      if (seatIdx !== -1) {
+        const seat = room.seats[seatIdx];
+        if (seat.disconnectTimeout) {
+          clearTimeout(seat.disconnectTimeout);
+          seat.disconnectTimeout = null;
+        }
+        seat.socketId = socket.id;
+        seat.connected = true;
+        if (room.hostToken === token) {
+          room.hostSocketId = socket.id;
+        }
+        socket.join(room.code);
+        
+        if (typeof callback === 'function') {
+          callback({
+            inRoom: true,
+            roomCode: room.code,
+            seatIndex: seatIdx,
+            isHost: room.hostToken === token,
+            seats: getSeatInfo(room),
+            state: room.state
+          });
+        }
+        
+        io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+        if (room.state === 'playing' || room.state === 'finished') {
+          const view = getPlayerView(room, seatIdx);
+          view.combatShowdown = room.combatShowdown;
+          view.seatIndex = seatIdx;
+          io.to(socket.id).emit('game-state', view);
+        }
+        return;
+      }
+    }
+    if (typeof callback === 'function') callback({ inRoom: false });
+  });
+
+  socket.on('create-room', ({ playerName, token }, callback) => {
     const name = (playerName || 'Player').trim().substring(0, 20);
-    const room = createRoom(socket, name);
+    const room = createRoom(socket, name, token);
     if (typeof callback === 'function') {
       callback({ success: true, roomCode: room.code, seatIndex: 0, seats: getSeatInfo(room) });
     }
     io.emit('rooms-updated', getRoomList());
   });
 
-  socket.on('join-room', ({ roomCode, playerName }, callback) => {
+  socket.on('join-room', ({ roomCode, playerName, token }, callback) => {
     const code = (roomCode || '').toUpperCase().trim();
     const room = rooms.get(code);
 
@@ -388,7 +437,7 @@ io.on('connection', (socket) => {
     }
 
     const name = (playerName || 'Player').trim().substring(0, 20);
-    room.seats[openIdx] = { type: 'human', socketId: socket.id, name, connected: true };
+    room.seats[openIdx] = { type: 'human', socketId: socket.id, name, connected: true, token };
     socket.join(code);
 
     if (typeof callback === 'function') {
@@ -398,31 +447,55 @@ io.on('connection', (socket) => {
     io.emit('rooms-updated', getRoomList());
   });
 
+  socket.on('switch-seat', ({ seatIndex }, callback) => {
+    const found = findRoomBySocket(socket.id);
+    if (!found) return;
+    const { room } = found;
+
+    if (room.state !== 'waiting') return;
+    if (seatIndex < 0 || seatIndex > 3) return;
+
+    const targetSeat = room.seats[seatIndex];
+    if (targetSeat.type !== 'open') {
+      if (typeof callback === 'function') callback({ success: false, error: 'Seat is not open' });
+      return;
+    }
+
+    // Find the current seat of the user
+    const currentSeatIdx = room.seats.findIndex(s => s.type === 'human' && s.socketId === socket.id);
+    if (currentSeatIdx === -1) {
+      if (typeof callback === 'function') callback({ success: false, error: 'Not in room' });
+      return;
+    }
+
+    // Swap the seats
+    const currentSeat = room.seats[currentSeatIdx];
+    room.seats[seatIndex] = currentSeat;
+    room.seats[currentSeatIdx] = { type: 'open', socketId: null, name: '', connected: false };
+
+    if (typeof callback === 'function') callback({ success: true, seatIndex });
+    io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+    io.emit('rooms-updated', getRoomList());
+  });
+
   socket.on('toggle-seat', ({ seatIndex }, callback) => {
     const found = findRoomBySocket(socket.id);
     if (!found) return;
     const { room } = found;
 
     if (socket.id !== room.hostSocketId) {
-      if (typeof callback === 'function') callback({ success: false, error: 'Only the host can change seats' });
+      if (typeof callback === 'function') callback({ success: false, error: 'Only the host can toggle bots' });
       return;
     }
     if (room.state !== 'waiting') return;
     if (seatIndex < 0 || seatIndex > 3) return;
 
     const seat = room.seats[seatIndex];
-    if (seat.type === 'human' && seat.socketId !== socket.id) {
-      // Can't toggle a human player's seat (kick not implemented)
-      if (typeof callback === 'function') callback({ success: false, error: 'Cannot change an occupied seat' });
-      return;
-    }
-    if (seat.type === 'human' && seat.socketId === socket.id) {
-      // Host can't toggle their own seat
-      if (typeof callback === 'function') callback({ success: false, error: 'Cannot change your own seat' });
+    if (seat.type === 'human') {
+      if (typeof callback === 'function') callback({ success: false, error: 'Cannot toggle a human seat' });
       return;
     }
 
-    // Toggle between 'open' and 'bot'
     if (seat.type === 'open') {
       room.seats[seatIndex] = { type: 'bot', socketId: null, name: 'Bot', connected: false };
     } else if (seat.type === 'bot') {
@@ -564,50 +637,100 @@ io.on('connection', (socket) => {
   });
 
   socket.on('leave-room', () => {
-    handleDisconnect(socket);
+    handleDisconnect(socket, true);
   });
 
   socket.on('disconnect', () => {
     console.log(`[Disconnect] ${socket.id}`);
-    handleDisconnect(socket);
+    handleDisconnect(socket, false);
   });
 
-  function handleDisconnect(sock) {
+  function handleDisconnect(sock, explicitLeave = false) {
     const found = findRoomBySocket(sock.id);
     if (!found) return;
     const { room, seatIdx } = found;
 
     if (room.state === 'waiting') {
-      if (sock.id === room.hostSocketId) {
-        // Host left — close the room
-        io.to(room.code).emit('room-closed', { reason: 'Host left the room' });
-        if (room.combatTimeout) clearTimeout(room.combatTimeout);
-        rooms.delete(room.code);
+      if (explicitLeave) {
+        if (sock.id === room.hostSocketId) {
+          // Host left — close the room
+          io.to(room.code).emit('room-closed', { reason: 'Host left the room' });
+          if (room.combatTimeout) clearTimeout(room.combatTimeout);
+          rooms.delete(room.code);
+        } else {
+          // Non-host left — free the seat
+          room.seats[seatIdx] = { type: 'open', socketId: null, name: '', connected: false };
+          io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+        }
       } else {
-        // Non-host left — free the seat
-        room.seats[seatIdx] = { type: 'open', socketId: null, name: '', connected: false };
+        room.seats[seatIdx].connected = false;
         io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+
+        if (sock.id === room.hostSocketId) {
+          room.seats[seatIdx].disconnectTimeout = setTimeout(() => {
+            if (rooms.has(room.code) && !room.seats[seatIdx].connected) {
+              io.to(room.code).emit('room-closed', { reason: 'Host left the room' });
+              if (room.combatTimeout) clearTimeout(room.combatTimeout);
+              rooms.delete(room.code);
+            }
+          }, 15000);
+        } else {
+          room.seats[seatIdx].disconnectTimeout = setTimeout(() => {
+             if (rooms.has(room.code) && !room.seats[seatIdx].connected) {
+                room.seats[seatIdx] = { type: 'open', socketId: null, name: '', connected: false };
+                io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+             }
+          }, 15000);
+        }
       }
     } else if (room.state === 'playing' || room.state === 'finished') {
-      // Replace with bot
-      room.seats[seatIdx].type = 'bot';
-      room.seats[seatIdx].name = 'Bot';
-      room.seats[seatIdx].socketId = null;
-      room.seats[seatIdx].connected = false;
+      if (explicitLeave) {
+        room.seats[seatIdx].type = 'bot';
+        room.seats[seatIdx].name = 'Bot';
+        room.seats[seatIdx].socketId = null;
+        room.seats[seatIdx].token = null;
+        room.seats[seatIdx].connected = false;
 
-      io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
-      broadcastState(room);
+        io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+        broadcastState(room);
 
-      // If it was this player's turn, schedule bot
-      if (room.gameState && room.gameState.turn === seatIdx && room.state === 'playing') {
-        scheduleBotTurn(room);
-      }
+        if (room.gameState && room.gameState.turn === seatIdx && room.state === 'playing') {
+          scheduleBotTurn(room);
+        }
 
-      // Check if all humans left
-      const hasHumans = room.seats.some(s => s.type === 'human' && s.connected);
-      if (!hasHumans) {
-        if (room.combatTimeout) clearTimeout(room.combatTimeout);
-        rooms.delete(room.code);
+        const hasHumans = room.seats.some(s => s.type === 'human' && s.connected);
+        if (!hasHumans) {
+          if (room.combatTimeout) clearTimeout(room.combatTimeout);
+          rooms.delete(room.code);
+        }
+      } else {
+        room.seats[seatIdx].connected = false;
+        io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+
+        room.seats[seatIdx].disconnectTimeout = setTimeout(() => {
+          if (!rooms.has(room.code)) return;
+          const seat = room.seats[seatIdx];
+          if (seat && !seat.connected) {
+            seat.type = 'bot';
+            seat.name = 'Bot';
+            seat.socketId = null;
+            seat.token = null;
+            seat.connected = false;
+            
+            io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+            broadcastState(room);
+
+            if (room.gameState && room.gameState.turn === seatIdx && room.state === 'playing') {
+              scheduleBotTurn(room);
+            }
+
+            const hasHumans = room.seats.some(s => s.type === 'human' && s.connected);
+            if (!hasHumans) {
+              if (room.combatTimeout) clearTimeout(room.combatTimeout);
+              rooms.delete(room.code);
+            }
+          }
+        }, 60000);
       }
     }
 

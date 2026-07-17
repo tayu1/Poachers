@@ -3,8 +3,6 @@
  * Decoupled engine logic containing state representation and coordinate mapping.
  */
 
-let hill_was_visited = 0;
-
 // Player/Team configuration
 const PLAYERS = {
   NORTH: 0, // Team A (N-S)
@@ -296,11 +294,11 @@ function getLegalMoves(row, col, gameState, ignoreControl = false) {
         const targetPiece = board[tr][tc];
         if (targetPiece && getPieceTeam(targetPiece) !== team) {
           // Check Flank pawn restriction: pawns on flank red squares cannot attack each other
-          // This rule drops once the first piece enters the center hill (hill_was_visited === 1)
+          // This rule drops once the first piece enters the center hill (hillWasVisited === 1)
           const isAttackerFlankPawn = isFlankSquare(row, col);
           const isTargetFlankPawn = isFlankSquare(tr, tc) && getPieceType(targetPiece) === 'p';
 
-          if (hill_was_visited === 0 && isAttackerFlankPawn && isTargetFlankPawn) {
+          if (gameState.hillWasVisited === 0 && isAttackerFlankPawn && isTargetFlankPawn) {
             continue; // Skip flank pawn-on-pawn attacks
           }
 
@@ -1023,7 +1021,6 @@ function engineComputeRegionProbabilities(gameState) {
  * Initializes a new Poachers GameState.
  */
 function initGame() {
-  hill_was_visited = 0;
   const deck = shuffle(createDeck());
 
   const players = [
@@ -1084,6 +1081,7 @@ function initGame() {
     publicCards: flop,         // Current open community cards (starts with 3)
     turn: PLAYERS.NORTH,       // North starts first
     hasSwappedThisTurn: false, // Track if active player has swapped cards this turn
+    hillWasVisited: 0,
     capturedPieces: {
       [TEAMS.A]: {
         pawns: 0,
@@ -1153,9 +1151,6 @@ function isPlayerOnHill(playerId, gameState) {
     const piece = gameState.board[sq.r][sq.c];
     return piece && getPieceTeam(piece) === team;
   });
-  if (hasPiece) {
-    hill_was_visited = 1;
-  }
   return hasPiece;
 }
 
@@ -1206,8 +1201,6 @@ function swapPositionalCards(playerId, posCardIdx1, posCardIdx2, gameState) {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    get hill_was_visited() { return hill_was_visited; },
-    set hill_was_visited(val) { hill_was_visited = val; },
     PLAYERS,
     TEAMS,
     PLAYER_TEAMS,
@@ -1249,8 +1242,6 @@ if (typeof module !== 'undefined' && module.exports) {
 
 if (typeof window !== 'undefined') {
   window.PoachersEngine = {
-    get hill_was_visited() { return hill_was_visited; },
-    set hill_was_visited(val) { hill_was_visited = val; },
     PLAYERS,
     TEAMS,
     PLAYER_TEAMS,

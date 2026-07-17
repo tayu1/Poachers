@@ -15,6 +15,12 @@
   let onGameOverCallback = null;
   let isInGame = false;
 
+  let sessionToken = localStorage.getItem('poachers_session');
+  if (!sessionToken) {
+    sessionToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('poachers_session', sessionToken);
+  }
+
   const SEAT_NAMES = ['North', 'East', 'South', 'West'];
   const SEAT_SHORT = ['N', 'E', 'S', 'W'];
 
@@ -52,7 +58,32 @@
     socket.on('connect', () => {
       console.log('[Multiplayer] Connected:', socket.id);
       clearError();
-      refreshRoomList();
+      socket.emit('check-session', { token: sessionToken }, (res) => {
+        const cover = document.getElementById('startup-cover');
+        if (cover) {
+          cover.style.opacity = '0';
+          setTimeout(() => cover.remove(), 200);
+        }
+
+        if (res.inRoom) {
+          myRoomCode = res.roomCode;
+          mySeatIndex = res.seatIndex;
+          isHost = res.isHost;
+          currentSeats = res.seats;
+          
+          if (elRoomCode) elRoomCode.textContent = res.roomCode;
+          
+          if (res.state === 'playing' || res.state === 'finished') {
+            isInGame = true;
+            showGameView();
+          } else {
+            showRoom();
+            renderRoomSeats(res.seats);
+          }
+        } else {
+          showLobby();
+        }
+      });
     });
 
     socket.on('disconnect', () => {
@@ -206,25 +237,45 @@
         icon = '⏳';
       }
 
-      const canToggle = isHost && s.type !== 'human';
-      const toggleAttr = canToggle ? `data-toggle="${i}"` : '';
-      const toggleClass = canToggle ? 'seat-toggleable' : '';
+      const canSwitch = s.type === 'open';
+      const switchAttr = canSwitch ? `data-switch="${i}"` : '';
+      const switchClass = canSwitch ? 'seat-toggleable' : '';
+
+      const canToggleBot = isHost && (s.type === 'open' || s.type === 'bot');
+      const botToggleHtml = canToggleBot 
+        ? `<div style="margin-top: 8px;"><button class="btn btn-secondary" style="font-size: 0.75em; padding: 4px 8px;" data-togglebot="${i}">${s.type === 'bot' ? 'Remove Bot' : 'Add Bot'}</button></div>` 
+        : '';
 
       return `
-        <div class="room-seat ${statusClass} ${toggleClass} ${mySeatIndex === i ? 'seat-me' : ''}" ${toggleAttr}>
+        <div class="room-seat ${statusClass} ${switchClass} ${mySeatIndex === i ? 'seat-me' : ''}" ${switchAttr}>
           <div class="seat-direction">${SEAT_SHORT[i]}</div>
           <div class="seat-icon">${icon}</div>
           <div class="seat-name">${statusText}</div>
           <div class="seat-label">${SEAT_NAMES[i]}</div>
-          ${canToggle ? '<div class="seat-toggle-hint">Click to toggle</div>' : ''}
+          ${canSwitch ? '<div class="seat-toggle-hint">Click to switch</div>' : ''}
+          ${botToggleHtml}
         </div>
       `;
     }).join('');
 
-    // Attach toggle handlers
-    elRoomSeats.querySelectorAll('[data-toggle]').forEach(el => {
+    // Attach switch handlers
+    elRoomSeats.querySelectorAll('[data-switch]').forEach(el => {
       el.addEventListener('click', () => {
-        const idx = parseInt(el.dataset.toggle);
+        const idx = parseInt(el.dataset.switch);
+        socket.emit('switch-seat', { seatIndex: idx }, (res) => {
+          if (res && !res.success) showRoomError(res.error);
+          else if (res && res.success) {
+            mySeatIndex = res.seatIndex;
+          }
+        });
+      });
+    });
+
+    // Attach toggle bot handlers
+    elRoomSeats.querySelectorAll('[data-togglebot]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation(); // prevent triggering switch-seat if inside a switchable seat
+        const idx = parseInt(btn.dataset.togglebot);
         socket.emit('toggle-seat', { seatIndex: idx }, (res) => {
           if (res && !res.success) showRoomError(res.error);
         });
@@ -252,7 +303,7 @@
   // --- Actions ---
   function createRoom() {
     const name = (elPlayerNameInput.value || '').trim() || 'Player';
-    socket.emit('create-room', { playerName: name }, (res) => {
+    socket.emit('create-room', { playerName: name, token: sessionToken }, (res) => {
       if (res.success) {
         myRoomCode = res.roomCode;
         mySeatIndex = res.seatIndex;
@@ -269,7 +320,7 @@
 
   function joinRoom(code) {
     const name = (elPlayerNameInput.value || '').trim() || 'Player';
-    socket.emit('join-room', { roomCode: code, playerName: name }, (res) => {
+    socket.emit('join-room', { roomCode: code, playerName: name, token: sessionToken }, (res) => {
       if (res.success) {
         myRoomCode = res.roomCode;
         mySeatIndex = res.seatIndex;

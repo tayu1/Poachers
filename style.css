@@ -651,7 +651,7 @@ body {
   z-index: 4;
 }
 
-/* Green center box border (Hills) */
+/* Red center box border (Hills) - Dashed 2x2 */
 .board-cell.hill-sq::after {
   content: '';
   position: absolute;
@@ -659,9 +659,28 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  border: 2px solid var(--color-green);
-  opacity: 0.35;
+  opacity: 0.8;
   pointer-events: none;
+}
+
+.board-cell.hill-tl::after {
+  border-top: 2px dashed var(--color-hill-border);
+  border-left: 2px dashed var(--color-hill-border);
+}
+
+.board-cell.hill-tr::after {
+  border-top: 2px dashed var(--color-hill-border);
+  border-right: 2px dashed var(--color-hill-border);
+}
+
+.board-cell.hill-bl::after {
+  border-bottom: 2px dashed var(--color-hill-border);
+  border-left: 2px dashed var(--color-hill-border);
+}
+
+.board-cell.hill-br::after {
+  border-bottom: 2px dashed var(--color-hill-border);
+  border-right: 2px dashed var(--color-hill-border);
 }
 
 /* Glow on active player's hill center */
@@ -670,17 +689,20 @@ body {
   box-shadow: inset 0 0 10px rgba(34, 197, 94, 0.4);
 }
 
-/* Red flank squares border */
-.board-cell.flank-sq::after {
-  content: '';
+/* Red flank crosses */
+.flank-cross {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border: 2px dotted var(--color-flank);
-  opacity: 0.5;
+  width: calc(100% / 8);
+  /* one full cell width */
+  height: calc(100% / 8);
+  /* one full cell height */
+  transform: translate(-50%, -50%);
+  --cross-line-width: 1px;
+  background:
+    linear-gradient(to right, transparent calc(50% - var(--cross-line-width) / 2), var(--color-red) calc(50% - var(--cross-line-width) / 2), var(--color-red) calc(50% + var(--cross-line-width) / 2), transparent calc(50% + var(--cross-line-width) / 2)),
+    linear-gradient(to bottom, transparent calc(50% - var(--cross-line-width) / 2), var(--color-red) calc(50% - var(--cross-line-width) / 2), var(--color-red) calc(50% + var(--cross-line-width) / 2), transparent calc(50% + var(--cross-line-width) / 2));
   pointer-events: none;
+  z-index: 3;
 }
 
 /* Highlight cell states */
@@ -826,6 +848,26 @@ body {
   animation: piece-turn-flash 1s ease-out;
   z-index: 10;
 }
+
+/* Pulsing effect for active player's pieces */
+@keyframes active-piece-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 2px var(--piece-glow)) brightness(1);
+  }
+  50% {
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 12px var(--piece-glow)) brightness(1.2);
+  }
+}
+
+.controllable-piece {
+  animation: active-piece-pulse 1s ease-in-out;
+  animation-iteration-count: 2;
+}
+
+.board-cell:hover .controllable-piece {
+  animation: none;
+}
+
 
 .piece-team-a {
   color: #ffffff;

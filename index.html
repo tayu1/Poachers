@@ -17,6 +17,10 @@
 </head>
 
 <body>
+  <!-- Startup Cover to prevent UI flashing while checking session -->
+  <div id="startup-cover" style="position:fixed;top:0;left:0;width:100%;height:100%;background-color:var(--bg-color);z-index:9999;display:flex;justify-content:center;align-items:center;color:white;font-family:sans-serif;transition:opacity 0.2s;">
+    <h2>Connecting...</h2>
+  </div>
 
   <!-- ==================== MULTIPLAYER LOBBY OVERLAY ==================== -->
   <div id="lobby-overlay" class="fullscreen-overlay">
@@ -116,6 +120,7 @@
       <!-- Title & Score (13) -->
       <div class="card header-card">
         <h1>POACHERS</h1>
+        <button id="btn-back-to-lobby-main" class="btn secondary-btn" style="margin-bottom: 15px; width: 100%;">Back to Lobby</button>
         <div class="match-score" id="score-display">
           <div class="score-team team-a-text">
             <span class="team-label">TEAM N-S</span>
@@ -396,13 +401,24 @@
 
   <!-- Javascript Scripts -->
   <script src="/socket.io/socket.io.js"></script>
-  <script src="engine.js?v=30"
+  <script src="engine.js?v=32"
     onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load engine.js</div>'"></script>
-  <script src="multiplayer.js?v=30"></script>
-  <script src="bots/v8_networth/bot.js?v=30"
+  <script src="multiplayer.js?v=32"></script>
+  <script src="bots/v8_networth/bot.js?v=32"
     onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load v8_networth bot.js</div>'"></script>
-  <script src="app.js?v=30"
+  <script src="app.js?v=32"
     onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load app.js</div>'"></script>
+  
+  <script>
+    // Fallback: If multiplayer is broken (offline mode) or fails to connect, remove the cover after a short delay
+    setTimeout(() => {
+      const cover = document.getElementById('startup-cover');
+      if (cover) {
+        cover.style.opacity = '0';
+        setTimeout(() => cover.remove(), 200);
+      }
+    }, 1500);
+  </script>
 </body>
 
 </html>
