@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,10 +9,13 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=31">
+  <link rel="stylesheet" href="style.css?v=54">
 </head>
+
 <body>
 
   <!-- ==================== MULTIPLAYER LOBBY OVERLAY ==================== -->
@@ -29,7 +33,8 @@
 
           <div class="lobby-field">
             <label for="lobby-player-name">Your Nickname</label>
-            <input type="text" id="lobby-player-name" placeholder="Enter nickname..." maxlength="20" autocomplete="off" spellcheck="false">
+            <input type="text" id="lobby-player-name" placeholder="Enter nickname..." maxlength="20" autocomplete="off"
+              spellcheck="false">
           </div>
 
           <button id="lobby-create-room" class="btn primary-btn lobby-btn">
@@ -41,7 +46,8 @@
           <div class="lobby-field lobby-join-field">
             <label for="lobby-join-code">Room Code</label>
             <div class="lobby-join-row">
-              <input type="text" id="lobby-join-code" placeholder="ABC123" maxlength="6" autocomplete="off" spellcheck="false">
+              <input type="text" id="lobby-join-code" placeholder="ABC123" maxlength="6" autocomplete="off"
+                spellcheck="false">
               <button id="lobby-join-code-btn" class="btn secondary-btn">Join</button>
             </div>
           </div>
@@ -104,7 +110,7 @@
 
   <!-- ==================== MAIN GAME UI ==================== -->
   <div class="game-container hidden">
-    
+
     <!-- LEFT COLUMN: Menu & Controls (1, 13, 10, 9) -->
     <aside class="sidebar-left">
       <!-- Title & Score (13) -->
@@ -134,11 +140,9 @@
 
       <!-- Controls Menu (1) -->
       <div class="card menu-card">
-        <h3>CONTROLS</h3>
         <button id="btn-new-game" class="btn primary-btn">New Match</button>
-        
+
         <div class="control-group">
-          <label>Rotate Board</label>
           <button id="btn-rotate-board" class="btn secondary-btn">Rotate 90°</button>
         </div>
 
@@ -166,11 +170,11 @@
         <h3>REPLAY NAVIGATION</h3>
         <div class="replay-buttons">
           <button id="btn-replay-prev" class="btn icon-btn" title="Previous Move" disabled>
-             <span class="arrow-icon">←</span>
+            <span class="arrow-icon">←</span>
           </button>
           <div class="replay-status" id="replay-step-info">LIVE GAME</div>
           <button id="btn-replay-next" class="btn icon-btn" title="Next Move" disabled>
-             <span class="arrow-icon">→</span>
+            <span class="arrow-icon">→</span>
           </button>
         </div>
       </div>
@@ -186,10 +190,10 @@
 
     <!-- CENTER COLUMN: Game Board & Cards (2, 3, 5, 6, 4) -->
     <main class="board-area">
-      
+
       <!-- Central Board Wrapper containing Board (2) + Positional Cards (3) on 4 sides + Flop (5) + Turn/River (6) + Base Deck (4) -->
       <div class="board-layout-wrapper">
-        
+
         <!-- Left Public Cards Container (Flop & Turn/River) -->
         <div class="left-public-container">
           <div class="cards-column" id="public-flop">
@@ -271,16 +275,24 @@
 
         <!-- Active Player's Base Deck (4) (Outside rotation) -->
         <div class="base-deck-wrapper hidden" id="base-deck">
-          <div class="base-deck-header" style="text-align: center; margin-bottom: 5px; font-family: var(--font-title); font-size: 0.85rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em;">
-            YOUR BASE DECK <span style="font-size: 0.75rem; color: var(--color-green); margin-left: 5px; font-weight: 400;">(Select a card and click another to swap)</span>
+          <div class="base-deck-row">
+            <div class="base-deck-cards" id="base-deck-cards">
+              <!-- 5 Base cards -->
+              <div class="playing-card card-back"></div>
+              <div class="playing-card card-back"></div>
+              <div class="playing-card card-back"></div>
+              <div class="playing-card card-back"></div>
+              <div class="playing-card card-back"></div>
+            </div>
+            <div id="base-deck-promotional" class="base-deck-promotional hidden">
+              <!-- Promotional pieces -->
+            </div>
           </div>
-          <div class="base-deck-cards" id="base-deck-cards">
-            <!-- 5 Base cards -->
-            <div class="playing-card card-back"></div>
-            <div class="playing-card card-back"></div>
-            <div class="playing-card card-back"></div>
-            <div class="playing-card card-back"></div>
-            <div class="playing-card card-back"></div>
+          <div class="base-deck-header"
+            style="text-align: center; margin-top: 6px; font-family: var(--font-title); font-size: 0.85rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em;">
+            YOUR BASE DECK <span
+              style="font-size: 0.75rem; color: var(--color-green); margin-left: 5px; font-weight: 400;">(Select a card
+              and click another to swap)</span>
           </div>
         </div>
       </div>
@@ -295,7 +307,7 @@
 
     <!-- RIGHT COLUMN: Status, Turn & Captures (12, 8, 7, 11) -->
     <aside class="sidebar-right">
-      
+
       <!-- Who's Turn (12) -->
       <div class="card turn-card" id="turn-card">
         <h3>CURRENT MOVE</h3>
@@ -315,14 +327,12 @@
       <div class="card captures-card">
         <h3>CAPTURED PIECES</h3>
         <div class="captured-team">
-          <span class="captured-team-label team-a-text">TEAM N-S (Yellow)</span>
           <div class="captured-pool" id="captured-pool-a">
             <!-- Captured Team A pieces -->
             <span class="no-captures-placeholder">None</span>
           </div>
         </div>
         <div class="captured-team">
-          <span class="captured-team-label team-b-text">TEAM E-W (Blue)</span>
           <div class="captured-pool" id="captured-pool-b">
             <!-- Captured Team B pieces -->
             <span class="no-captures-placeholder">None</span>
@@ -337,22 +347,26 @@
           <div class="player-status-row" id="status-row-0">
             <span class="status-indicator"></span>
             <span class="status-name" id="status-name-0">North</span>
-            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-0"></span> | Hill <span class="status-dot dot-off" id="status-hill-0"></span> | Base: <span id="status-base-0">5</span></span>
+            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-0"></span> | Hill <span
+                class="status-dot dot-off" id="status-hill-0"></span> | Base: <span id="status-base-0">5</span></span>
           </div>
           <div class="player-status-row" id="status-row-1">
             <span class="status-indicator"></span>
             <span class="status-name" id="status-name-1">East</span>
-            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-1"></span> | Hill <span class="status-dot dot-off" id="status-hill-1"></span> | Base: <span id="status-base-1">5</span></span>
+            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-1"></span> | Hill <span
+                class="status-dot dot-off" id="status-hill-1"></span> | Base: <span id="status-base-1">5</span></span>
           </div>
           <div class="player-status-row" id="status-row-2">
             <span class="status-indicator"></span>
             <span class="status-name" id="status-name-2">South</span>
-            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-2"></span> | Hill <span class="status-dot dot-off" id="status-hill-2"></span> | Base: <span id="status-base-2">5</span></span>
+            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-2"></span> | Hill <span
+                class="status-dot dot-off" id="status-hill-2"></span> | Base: <span id="status-base-2">5</span></span>
           </div>
           <div class="player-status-row" id="status-row-3">
             <span class="status-indicator"></span>
             <span class="status-name" id="status-name-3">West</span>
-            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-3"></span> | Hill <span class="status-dot dot-off" id="status-hill-3"></span> | Base: <span id="status-base-3">5</span></span>
+            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-3"></span> | Hill <span
+                class="status-dot dot-off" id="status-hill-3"></span> | Base: <span id="status-base-3">5</span></span>
           </div>
         </div>
       </div>
@@ -362,11 +376,15 @@
         <h3>HOW TO PLAY</h3>
         <div class="instruction-content">
           <ul>
-            <li><strong>Movement:</strong> Select a piece. Valid moves are highlighted in green, attacks in orange, King captures in red.</li>
+            <li><strong>Movement:</strong> Select a piece. Valid moves are highlighted in green, attacks in orange, King
+              captures in red.</li>
             <li><strong>Control:</strong> You can only move your team's pieces that lie on your half of the board.</li>
-            <li><strong>Cross line:</strong> Once a piece crosses the center line, your teammate controls it on their turn.</li>
-            <li><strong>Combats:</strong> Attacking triggers poker evaluation. <em>(Currently auto-resolved until Phase 2)</em>.</li>
-            <li id="rule-pawn-flanks"><strong>Pawn Flanks:</strong> Pawns on red flank squares cannot attack each other.</li>
+            <li><strong>Cross line:</strong> Once a piece crosses the center line, your teammate controls it on their
+              turn.</li>
+            <li><strong>Combats:</strong> Attacking triggers poker evaluation. <em>(Currently auto-resolved until Phase
+                2)</em>.</li>
+            <li id="rule-pawn-flanks"><strong>Pawn Flanks:</strong> Pawns on red flank squares cannot attack each other.
+            </li>
             <li><strong>Kings:</strong> Cannot cross the half-line or touch enemy Kings.</li>
           </ul>
         </div>
@@ -378,9 +396,13 @@
 
   <!-- Javascript Scripts -->
   <script src="/socket.io/socket.io.js"></script>
-  <script src="engine.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load engine.js</div>'"></script>
+  <script src="engine.js?v=30"
+    onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load engine.js</div>'"></script>
   <script src="multiplayer.js?v=30"></script>
-  <script src="bots/v8_networth/bot.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load v8_networth bot.js</div>'"></script>
-  <script src="app.js?v=30" onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load app.js</div>'"></script>
+  <script src="bots/v8_networth/bot.js?v=30"
+    onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load v8_networth bot.js</div>'"></script>
+  <script src="app.js?v=30"
+    onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load app.js</div>'"></script>
 </body>
+
 </html>

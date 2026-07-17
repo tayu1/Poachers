@@ -32,6 +32,7 @@ if (!engine) {
   const elBaseDeckCards = document.getElementById('base-deck-cards');
   const elBaseDeckOwner = document.getElementById('base-deck-owner');
   const elBaseDeckCount = document.getElementById('base-deck-count');
+  const elBaseDeckPromotional = document.getElementById('base-deck-promotional');
   
   // Community cards
   const elPublicFlop = document.getElementById('public-flop');
@@ -1024,13 +1025,13 @@ if (!engine) {
     if (elBaseDeck) {
       // In online mode, only show base deck on your turn
       if (isOnline()) {
-        if (isMyTurn() && !gameState.hasSwappedThisTurn && !gameEnded) {
+        if (isMyTurn() && !gameEnded) {
           elBaseDeck.classList.remove('hidden');
         } else {
           elBaseDeck.classList.add('hidden');
         }
       } else {
-        if (isHumanTurn && !gameState.hasSwappedThisTurn) {
+        if (isHumanTurn) {
           elBaseDeck.classList.remove('hidden');
         } else {
           elBaseDeck.classList.add('hidden');
@@ -1086,6 +1087,107 @@ if (!engine) {
       activePlayer.baseDeck.forEach(card => {
         elBaseDeckCards.innerHTML += getCardHTML(card);
       });
+    }
+
+    // Render promotional pieces next to base deck
+    if (elBaseDeckPromotional) {
+      elBaseDeckPromotional.innerHTML = '';
+      
+      const activeTeam = isTeamA ? engine.TEAMS.A : engine.TEAMS.B;
+      const pool = gameState.capturedPieces[activeTeam];
+      
+      // Collect unique types that have captured count > 0 or not null (for king)
+      const uniquePromotables = [];
+      if (pool) {
+        // King
+        if (pool.king !== null) {
+          let label = 'King';
+          if (pool.king === engine.PLAYERS.NORTH) label = 'North King';
+          if (pool.king === engine.PLAYERS.EAST) label = 'East King';
+          if (pool.king === engine.PLAYERS.SOUTH) label = 'South King';
+          if (pool.king === engine.PLAYERS.WEST) label = 'West King';
+          uniquePromotables.push({ type: 'k', subtype: pool.king, char: activeTeam === engine.TEAMS.A ? 'K' : 'k', label: label });
+        }
+        // Rooks
+        if (pool.rooks > 0) {
+          uniquePromotables.push({ type: 'r', subtype: null, char: activeTeam === engine.TEAMS.A ? 'R' : 'r', label: 'Rook' });
+        }
+        // Dark Bishop
+        if (pool.darkBishop > 0) {
+          uniquePromotables.push({ type: 'b', subtype: 'dark', char: activeTeam === engine.TEAMS.A ? 'B' : 'b', label: 'Dark Bishop' });
+        }
+        // Light Bishop
+        if (pool.lightBishop > 0) {
+          uniquePromotables.push({ type: 'b', subtype: 'light', char: activeTeam === engine.TEAMS.A ? 'B' : 'b', label: 'Light Bishop' });
+        }
+        // Knights
+        if (pool.knights > 0) {
+          uniquePromotables.push({ type: 'n', subtype: null, char: activeTeam === engine.TEAMS.A ? 'N' : 'n', label: 'Knight' });
+        }
+      }
+
+      const promotableItems = [];
+      if (isHumanTurn && !gameEnded) {
+        uniquePromotables.forEach(item => {
+          const validSquares = engine.find_pawns_to_promot(gameState.turn, item.type, item.subtype, gameState);
+          if (validSquares.length > 0) {
+            promotableItems.push({ ...item, validSquares });
+          }
+        });
+      }
+
+      if (promotableItems.length > 0) {
+        elBaseDeckPromotional.classList.remove('hidden');
+        
+        promotableItems.forEach(item => {
+          const pieceSpan = document.createElement('span');
+          const teamClass = activeTeam === engine.TEAMS.A ? 'piece-team-a' : 'piece-team-b';
+          pieceSpan.className = `promotable-piece ${teamClass}`;
+          pieceSpan.dataset.type = item.type;
+          
+          const imgUrl = PIECE_IMAGES[item.char];
+          if (imgUrl) {
+            const img = document.createElement('img');
+            img.src = imgUrl;
+            img.alt = item.label;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.pointerEvents = 'none';
+            pieceSpan.appendChild(img);
+          } else {
+            pieceSpan.textContent = PIECE_SYMBOLS[item.char] || item.char;
+          }
+          pieceSpan.title = `${item.label} (Promotable)`;
+
+          if (selectedCapturedPiece && 
+              selectedCapturedPiece.type === item.type && 
+              selectedCapturedPiece.subtype === item.subtype) {
+            pieceSpan.classList.add('selected-captured');
+          }
+
+          pieceSpan.addEventListener('click', () => {
+            if (selectedCapturedPiece && 
+                selectedCapturedPiece.type === item.type && 
+                selectedCapturedPiece.subtype === item.subtype) {
+              selectedCapturedPiece = null;
+            } else {
+              selectedCapturedPiece = { type: item.type, subtype: item.subtype, validSquares: item.validSquares };
+              selectedPiece = null;
+              activeLegalMoves = [];
+            }
+            renderState();
+            if (selectedCapturedPiece) {
+              logSystemEvent(`Selected rescued piece ${item.label} for promotion. Choose a valid pawn target.`);
+            } else {
+              logSystemEvent(`Deselected piece ${item.label}.`);
+            }
+          });
+
+          elBaseDeckPromotional.appendChild(pieceSpan);
+        });
+      } else {
+        elBaseDeckPromotional.classList.add('hidden');
+      }
     }
 
     // Render captured pieces

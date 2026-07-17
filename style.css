@@ -1044,15 +1044,15 @@ body {
 }
 
 /* Bunch up similar pieces */
-.captured-piece[data-type="k"] + .captured-piece[data-type="k"],
-.captured-piece[data-type="r"] + .captured-piece[data-type="r"],
-.captured-piece[data-type="b"] + .captured-piece[data-type="b"],
-.captured-piece[data-type="n"] + .captured-piece[data-type="n"] {
+.captured-piece[data-type="k"]+.captured-piece[data-type="k"],
+.captured-piece[data-type="r"]+.captured-piece[data-type="r"],
+.captured-piece[data-type="b"]+.captured-piece[data-type="b"],
+.captured-piece[data-type="n"]+.captured-piece[data-type="n"] {
   margin-left: -12px;
 }
 
 /* Pawns stand overlapping to save space */
-.captured-piece[data-type="p"] + .captured-piece[data-type="p"] {
+.captured-piece[data-type="p"]+.captured-piece[data-type="p"] {
   margin-left: -18px;
 }
 
@@ -1470,8 +1470,13 @@ body {
 }
 
 @keyframes lobby-title-glow {
-  from { filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.2)); }
-  to { filter: drop-shadow(0 0 40px rgba(251, 191, 36, 0.5)); }
+  from {
+    filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.2));
+  }
+
+  to {
+    filter: drop-shadow(0 0 40px rgba(251, 191, 36, 0.5));
+  }
 }
 
 .lobby-subtitle {
@@ -1608,7 +1613,8 @@ body {
   white-space: nowrap;
 }
 
-.lobby-error, .room-error {
+.lobby-error,
+.room-error {
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: var(--color-red);
@@ -1767,8 +1773,13 @@ body {
 }
 
 @keyframes room-code-pulse {
-  from { text-shadow: 0 0 15px rgba(251, 191, 36, 0.2); }
-  to { text-shadow: 0 0 30px rgba(251, 191, 36, 0.5); }
+  from {
+    text-shadow: 0 0 15px rgba(251, 191, 36, 0.2);
+  }
+
+  to {
+    text-shadow: 0 0 30px rgba(251, 191, 36, 0.5);
+  }
 }
 
 /* Seats Grid */
@@ -1869,8 +1880,17 @@ body {
 }
 
 @keyframes seat-waiting-pulse {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.15); }
+
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 
 .room-status {
@@ -1943,10 +1963,10 @@ body {
 }
 
 /* ============================================================
-   RESPONSIVE DESIGN (MOBILE & TABLET)
+   RESPONSIVE DESIGN (MOBILE & TABLET - PORTRAIT)
    ============================================================ */
 
-@media (max-width: 1024px) {
+@media (max-width: 1024px) and (orientation: portrait) {
   body {
     overflow-y: auto !important;
     height: auto !important;
@@ -1959,21 +1979,38 @@ body {
     height: auto !important;
     overflow-y: visible !important;
     overflow-x: hidden !important;
-    padding: 10px;
+    padding: 10px 0 !important;
+    /* Zero horizontal padding to touch the edges */
     gap: 20px;
   }
 
   .sidebar-left,
   .sidebar-right {
     width: 100% !important;
-    max-width: 560px;
+    max-width: 100% !important;
+    /* Allow sidebars to touch the edges */
+    padding: 0 10px !important;
+    /* Keep a comfortable inner padding for cards inside sidebars */
     margin: 0 auto;
     height: auto !important;
   }
 
   .board-area {
     height: auto !important;
-    order: -1; /* Place the board at the top of the stack on mobile */
+    order: -1;
+    /* Place the board at the top of the stack on mobile */
+    position: relative !important;
+    width: 100% !important;
+  }
+
+  .board-layout-wrapper {
+    width: 560px !important;
+    position: relative !important;
+    left: 50% !important;
+    transform: none !important;
+    transform-origin: left top !important;
+    margin-left: -255px !important;
+    margin-right: 0 !important;
   }
 
   .lobby-main {
@@ -1982,7 +2019,7 @@ body {
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 600px) and (orientation: portrait) {
   .lobby-container {
     padding: 15px;
   }
@@ -2002,10 +2039,328 @@ body {
 
   /* Scale the board wrapper to fit screen width */
   .board-layout-wrapper {
-    transform: scale(calc(min(90vw, 480px) / 560)) !important;
-    transform-origin: center top !important;
+    --board-scale: calc(min(100vw - 0px, 510px) / 510px);
+    width: 560px !important;
+    position: relative !important;
+    left: 50% !important;
+    transform: scale(var(--board-scale)) !important;
+    transform-origin: left top !important;
     /* Adjust spacing below the scaled board wrapper */
-    margin: 10px auto calc(-550px * (1 - (min(90vw, 480px) / 560))) auto !important;
+    margin-top: 10px !important;
+    margin-bottom: calc(-550px * (1 - var(--board-scale))) !important;
+    /* Shift left by visual center * scale */
+    margin-left: calc(-305px * var(--board-scale)) !important;
+    margin-right: 0 !important;
+  }
+
+  /* Compact sidebar adjustments for smaller portrait screens */
+  .card {
+    padding: 8px !important;
+    margin-bottom: 8px !important;
+    border-radius: 6px !important;
+  }
+
+  .card h3 {
+    font-size: 0.8rem !important;
+    margin-bottom: 8px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .header-card h1 {
+    font-size: 1.5rem !important;
+    margin-bottom: 6px !important;
+  }
+
+  .match-score {
+    padding: 6px !important;
+  }
+
+  .score-val {
+    font-size: 1.25rem !important;
+  }
+
+  .btn {
+    padding: 8px 14px !important;
+    font-size: 0.85rem !important;
+    border-radius: 6px !important;
+  }
+
+  .control-group {
+    margin-top: 10px !important;
+  }
+
+  .bot-btn {
+    font-size: 0.75rem !important;
+    padding: 4px !important;
+  }
+
+  .player-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 1.2rem !important;
+  }
+
+  .player-name {
+    font-size: 0.95rem !important;
+  }
+
+  .turn-phase-indicator {
+    font-size: 0.75rem !important;
+    padding: 6px !important;
+  }
+
+  .player-status-row {
+    font-size: 0.75rem !important;
+    padding: 5px !important;
+  }
+}
+
+/* ============================================================
+   RESPONSIVE DESIGN (MOBILE & TABLET - LANDSCAPE)
+   ============================================================ */
+
+@media (max-width: 1024px) and (orientation: landscape) {
+  body {
+    overflow: hidden !important;
+    height: 100vh !important;
+  }
+
+  .game-container {
+    display: grid !important;
+    grid-template-columns: 150px 1fr !important;
+    grid-template-rows: 1fr 1fr !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    padding: 6px !important;
+    gap: 6px !important;
+  }
+
+  .sidebar-left {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    padding-right: 4px !important;
+  }
+
+  .sidebar-right {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    padding-right: 4px !important;
+  }
+
+  .board-area {
+    grid-column: 2 !important;
+    grid-row: 1 / span 2 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Scale the board wrapper to fit both viewport height and remaining width */
+  .board-layout-wrapper {
+    --board-scale: min(calc((100vw - 170px) / 510px), calc(96vh / 550px), 1);
+    width: 560px !important;
+    position: relative !important;
+    left: 50% !important;
+    transform: scale(var(--board-scale)) !important;
+    transform-origin: left center !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: calc(-320px * var(--board-scale)) !important;
+    margin-right: 0 !important;
+  }
+
+  /* Compact sidebars adjustments for landscape mode */
+  .card {
+    padding: 6px !important;
+    margin-bottom: 6px !important;
+    border-radius: 6px !important;
+  }
+
+  .card h3 {
+    font-size: 0.75rem !important;
+    margin-bottom: 8px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .header-card {
+    padding: 8px !important;
+  }
+
+  .header-card h1 {
+    font-size: 1.3rem !important;
+    margin-bottom: 4px !important;
+  }
+
+  .match-score {
+    padding: 4px !important;
+  }
+
+  .score-val {
+    font-size: 1.1rem !important;
+  }
+
+  .score-divider {
+    font-size: 1.1rem !important;
+  }
+
+  .btn {
+    padding: 6px 12px !important;
+    font-size: 0.8rem !important;
+    border-radius: 6px !important;
+  }
+
+  .control-group {
+    margin-top: 8px !important;
+  }
+
+  .bot-toggles-grid {
+    gap: 4px !important;
+  }
+
+  .bot-btn {
+    font-size: 0.7rem !important;
+    padding: 4px !important;
+  }
+
+  .speed-slider-container {
+    gap: 6px !important;
+  }
+
+  #speed-value {
+    font-size: 0.7rem !important;
+    min-width: 45px !important;
+  }
+
+  .replay-card {
+    padding: 8px !important;
+  }
+
+  .icon-btn {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .replay-status {
+    font-size: 0.7rem !important;
+  }
+
+  .log-card {
+    height: 110px !important;
+  }
+
+  .log-entries {
+    font-size: 0.7rem !important;
+    padding: 4px !important;
+  }
+
+  .active-player-display {
+    gap: 8px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .player-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 1.1rem !important;
+  }
+
+  .player-name {
+    font-size: 0.85rem !important;
+  }
+
+  .player-team {
+    font-size: 0.65rem !important;
+  }
+
+  .turn-phase-indicator {
+    font-size: 0.7rem !important;
+    padding: 4px !important;
+  }
+
+  .captures-card {
+    min-height: auto !important;
+  }
+
+  .captured-pool {
+    min-height: 36px !important;
+    padding: 4px !important;
+    gap: 4px !important;
+  }
+
+  .captured-piece {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .player-status-list {
+    gap: 4px !important;
+  }
+
+  .player-status-row {
+    padding: 4px !important;
+    font-size: 0.7rem !important;
+  }
+
+  .status-name {
+    width: 50px !important;
+  }
+
+  .status-deck-info {
+    font-size: 0.65rem !important;
+  }
+
+  .instruction-content li {
+    font-size: 0.68rem !important;
+    margin-bottom: 4px !important;
+    padding-left: 10px !important;
+  }
+
+  .room-container {
+    padding: 10px !important;
+    max-width: 600px !important;
+  }
+
+  .room-header {
+    margin-bottom: 12px !important;
+  }
+
+  .room-seats {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .room-seat {
+    padding: 10px 6px !important;
+    border-radius: 8px !important;
+  }
+
+  .seat-direction {
+    font-size: 1.1rem !important;
+  }
+
+  .seat-icon {
+    font-size: 1.3rem !important;
+  }
+
+  .seat-name {
+    font-size: 0.75rem !important;
+  }
+
+  .room-actions {
+    gap: 8px !important;
+  }
+
+  .room-actions .btn {
+    min-width: 100px !important;
+    padding: 8px 16px !important;
   }
 }
 
@@ -2013,8 +2368,65 @@ body {
   .lobby-title {
     font-size: 2.2rem;
   }
-  
+
   .room-code-value {
     font-size: 1.5rem;
   }
+}
+
+
+/* Promotional Pieces Row next to Base Deck */
+.base-deck-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.base-deck-promotional {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-left: 16px;
+  border-left: 2px dashed rgba(255, 255, 255, 0.15);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.base-deck-promotional.hidden {
+  display: none !important;
+}
+
+.base-deck-promotional .promotable-piece {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 4px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.base-deck-promotional .promotable-piece:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.base-deck-promotional .promotable-piece.selected-captured {
+  background: rgba(255, 215, 0, 0.2);
+  border-color: #ffd700;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+  transform: translateY(-3px);
+}
+
+.base-deck-promotional .promotable-piece img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
