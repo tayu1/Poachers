@@ -223,6 +223,66 @@ function isAdjacentToEnemyKing(row, col, team, board) {
 }
 
 /**
+ * Finds the coordinate of the specified player's King on the board.
+ */
+function getPlayerKingPosition(playerId, board) {
+  const team = PLAYER_TEAMS[playerId];
+  if (!team) return null;
+  const kingChar = team === TEAMS.A ? PIECES.KING_A : PIECES.KING_B;
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      if (board[r][c] === kingChar) {
+        if (playerId === PLAYERS.NORTH && r < 4) return { r, c };
+        if (playerId === PLAYERS.SOUTH && r >= 4) return { r, c };
+        if (playerId === PLAYERS.WEST && c < 4) return { r, c };
+        if (playerId === PLAYERS.EAST && c >= 4) return { r, c };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Checks if the specified player's King is currently threatened (under attack)
+ * by any enemy piece that can be controlled by its owner on their turn.
+ */
+function isKingThreatened(playerId, gameState) {
+  const kingPos = getPlayerKingPosition(playerId, gameState.board);
+  if (!kingPos) return false;
+
+  const team = PLAYER_TEAMS[playerId];
+  const enemyTeam = team === TEAMS.A ? TEAMS.B : TEAMS.A;
+
+  // Identify the enemy player IDs
+  const enemyPlayerIds = Object.keys(PLAYER_TEAMS)
+    .map(Number)
+    .filter(pid => PLAYER_TEAMS[pid] === enemyTeam);
+
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const piece = gameState.board[r][c];
+      if (piece && getPieceTeam(piece) === enemyTeam) {
+        for (const enemyId of enemyPlayerIds) {
+          if (isPieceControllable(r, c, enemyId, gameState.board)) {
+            const tempState = {
+              ...gameState,
+              turn: enemyId
+            };
+            const moves = getLegalMoves(r, c, tempState, false);
+            const canAttackKing = moves.some(m => m.to.r === kingPos.r && m.to.c === kingPos.c);
+            if (canAttackKing) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
+
+/**
  * Calculates all legal moves for a piece at (row, col).
  * Enforces turn order, control, board limits, and all piece-specific rules.
  */
@@ -669,7 +729,8 @@ function getBestHand(sevenCards) {
     return {
       rank: 0,
       name: "High Card",
-      kickers: vals
+      kickers: vals,
+      cards: validCards
     };
   }
 
@@ -699,6 +760,7 @@ function getBestHand(sevenCards) {
 
   combinations.forEach(comb => {
     const score = evaluate5CardHand(comb);
+    score.cards = comb;
     if (!bestHand) {
       bestHand = score;
     } else {
@@ -1218,6 +1280,8 @@ if (typeof module !== 'undefined' && module.exports) {
     isPieceControllable,
     getEnemyKings,
     isAdjacentToEnemyKing,
+    getPlayerKingPosition,
+    isKingThreatened,
     getLegalMoves,
     getAllLegalMovesForActivePlayer,
     add_to_captured_pieces,
@@ -1259,6 +1323,8 @@ if (typeof window !== 'undefined') {
     isPieceControllable,
     getEnemyKings,
     isAdjacentToEnemyKing,
+    getPlayerKingPosition,
+    isKingThreatened,
     getLegalMoves,
     getAllLegalMovesForActivePlayer,
     add_to_captured_pieces,

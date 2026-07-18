@@ -11,17 +11,17 @@
   --text-muted: #9ca3af;
 
   /* Teams */
-  --color-team-a: #face49;
+  --color-team-a: #ffe6a0;
   /* Amber/Yellow for N-S */
   --color-team-a-rgb: 251, 191, 36;
-  --color-team-b: #1ab5d0;
+  --color-team-b: #b4e3ff;
   /* Cyan/Blue for E-W */
   --color-team-b-rgb: 6, 182, 212;
 
   /* Highlights & Statuses */
-  --color-green: #659610;
+  --color-green: #6d2b2b77;
   --color-green-rgb: 34, 197, 94;
-  --color-red: #ef4444;
+  --color-red: #c50606;
   --color-red-rgb: 239, 68, 68;
   --color-orange: #f97316;
   --color-orange-rgb: 249, 115, 22;
@@ -30,15 +30,16 @@
   --color-highlight-public: #10b981;
 
   /* Neon Shadows */
-  --shadow-neon-a: 0 0 15px rgba(251, 191, 36, 0.2);
-  --shadow-neon-b: 0 0 15px rgba(6, 182, 212, 0.2);
+  --shadow-neon-a: 0 0 15px rgba(255, 255, 255, 0.241);
+  --shadow-neon-b: 0 0 15px rgba(255, 255, 255, 0.2);
 
   /* Chess Board Squares */
-  --board-dark: #542011;
-  --board-light: #b57047;
-  --color-flank: #53f023;
-  --color-hill-border: #fb3333;
+  --board-dark: #97330e;
+  --board-light: #d23e03;
+  --board-label-color: rgba(105, 105, 105, 0.248);
+  --color-hill-border: #430202;
   --color-center-dot: #ffd700;
+  --flank_cross_color: #361010;
 
   /* Playing Cards */
   --color-card-black: #1e293b;

@@ -692,15 +692,15 @@ body {
 /* Red flank crosses */
 .flank-cross {
   position: absolute;
-  width: calc(100% / 8);
+  width: calc(70% / 8);
   /* one full cell width */
-  height: calc(100% / 8);
+  height: calc(70% / 8);
   /* one full cell height */
   transform: translate(-50%, -50%);
   --cross-line-width: 1px;
   background:
-    linear-gradient(to right, transparent calc(50% - var(--cross-line-width) / 2), var(--color-red) calc(50% - var(--cross-line-width) / 2), var(--color-red) calc(50% + var(--cross-line-width) / 2), transparent calc(50% + var(--cross-line-width) / 2)),
-    linear-gradient(to bottom, transparent calc(50% - var(--cross-line-width) / 2), var(--color-red) calc(50% - var(--cross-line-width) / 2), var(--color-red) calc(50% + var(--cross-line-width) / 2), transparent calc(50% + var(--cross-line-width) / 2));
+    linear-gradient(to right, transparent calc(50% - var(--cross-line-width) / 2), var(--flank_cross_color) calc(50% - var(--cross-line-width) / 2), var(--flank_cross_color) calc(50% + var(--cross-line-width) / 2), transparent calc(50% + var(--cross-line-width) / 2)),
+    linear-gradient(to bottom, transparent calc(50% - var(--cross-line-width) / 2), var(--flank_cross_color) calc(50% - var(--cross-line-width) / 2), var(--flank_cross_color) calc(50% + var(--cross-line-width) / 2), transparent calc(50% + var(--cross-line-width) / 2));
   pointer-events: none;
   z-index: 3;
 }
@@ -822,6 +822,54 @@ body {
   rotate: -270deg;
 }
 
+/* Chess board coordinate label styling */
+.board-cell-label {
+  position: absolute;
+  font-size: 0.65rem;
+  font-family: var(--font-title), sans-serif;
+  font-weight: 700;
+  color: var(--board-label-color);
+  pointer-events: none;
+  z-index: 1;
+  /* behind pieces but above cell background */
+  line-height: 1;
+  transition: rotate 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.board-cell-label-tl {
+  top: 3px;
+  left: 4px;
+}
+
+.board-cell-label-tr {
+  top: 3px;
+  right: 4px;
+}
+
+.board-cell-label-bl {
+  bottom: 3px;
+  left: 4px;
+}
+
+.board-cell-label-br {
+  bottom: 3px;
+  right: 4px;
+}
+
+
+.rotate-90 .board-cell-label {
+  rotate: -90deg;
+}
+
+.rotate-180 .board-cell-label {
+  rotate: -180deg;
+}
+
+.rotate-270 .board-cell-label {
+  rotate: -270deg;
+}
+
+
 /* Chess Pieces Styling */
 .chess-piece {
   width: 80%;
@@ -867,9 +915,12 @@ body {
 
 /* Pulsing effect for active player's pieces */
 @keyframes active-piece-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 2px var(--piece-glow)) brightness(1);
   }
+
   50% {
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 12px var(--piece-glow)) brightness(1.2);
   }
@@ -884,6 +935,28 @@ body {
   animation: none;
 }
 
+/* Pulsing effect for threatened king on their turn */
+@keyframes threatened-king-pulse {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 2px var(--color-red)) brightness(1);
+  }
+
+  50% {
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 14px var(--color-red)) brightness(1.35);
+  }
+}
+
+.threatened-king {
+  animation: threatened-king-pulse 1s ease-in-out infinite;
+}
+
+.board-cell:hover .threatened-king {
+  animation: none;
+}
+
+
 
 .piece-team-a {
   color: #ffffff;
@@ -891,6 +964,11 @@ body {
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
   --piece-glow: var(--color-team-a);
 }
+
+.piece-team-a img {
+  filter: sepia(0.35) saturate(1.2) brightness(0.95);
+}
+
 
 .piece-team-b {
   color: #312e2b;
@@ -902,7 +980,7 @@ body {
 .playing-card {
   width: 38px;
   height: 54px;
-  background: white;
+  background: rgb(244, 217, 148);
   border-radius: 4px;
   display: flex;
   flex-direction: column;
@@ -917,7 +995,7 @@ body {
 }
 
 .playing-card:hover {
-  transform: translateY(-4px) scale(1.05);
+  transform: translateY(-2px) scale(1.05);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
 }
 
@@ -2487,4 +2565,79 @@ body {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+/* Combat Announcement and Winning Card Highlights */
+.playing-card.winning-card-highlight {
+  outline: 4px solid #ffd700 !important;
+  outline-offset: -2px;
+  transform: scale(1.18) translateY(-8px) !important;
+  box-shadow: 0 0 20px #ffd700, 0 0 40px rgba(255, 215, 0, 0.4) !important;
+  z-index: 20 !important;
+  animation: winning-pulse 1.5s infinite alternate !important;
+}
+
+@keyframes winning-pulse {
+  0% {
+    box-shadow: 0 0 15px #ffd700, 0 0 30px rgba(255, 215, 0, 0.3) !important;
+  }
+  100% {
+    box-shadow: 0 0 25px #ffd700, 0 0 50px rgba(255, 215, 0, 0.6) !important;
+  }
+}
+
+.combat-announcement-wrapper {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: center;
+  align-self: start;
+  margin-top: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80px;
+}
+
+.combat-announcement-wrapper.hidden {
+  display: none !important;
+}
+
+.combat-announcement-text {
+  font-family: var(--font-title, 'Outfit', 'Inter', sans-serif);
+  font-size: 1.6rem;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 0.05em;
+  padding: 12px 24px;
+  border-radius: 8px;
+  background: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(8px);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  animation: announcement-pulse 2s infinite alternate;
+  color: var(--text-main);
+}
+
+@keyframes announcement-pulse {
+  0% {
+    transform: scale(1);
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+  }
+  100% {
+    transform: scale(1.03);
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* Attacker and Defender specific colors for text border or shadows */
+.combat-announcement-text.attacker-win-msg {
+  border-color: var(--color-team-a);
+  box-shadow: 0 8px 32px rgba(251, 191, 36, 0.3), 0 0 15px rgba(251, 191, 36, 0.2);
+  color: var(--color-team-a);
+}
+
+.combat-announcement-text.defender-win-msg {
+  border-color: var(--color-team-b);
+  box-shadow: 0 8px 32px rgba(6, 182, 212, 0.3), 0 0 15px rgba(6, 182, 212, 0.2);
+  color: var(--color-team-b);
 }

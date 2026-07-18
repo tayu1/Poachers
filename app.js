@@ -37,6 +37,10 @@ if (!engine) {
   // Community cards
   const elPublicFlop = document.getElementById('public-flop');
   const elPublicTurnRiver = document.getElementById('public-turn-river');
+  
+  // Combat announcement
+  const elCombatAnnouncement = document.getElementById('combat-announcement');
+  const elCombatAnnouncementText = document.getElementById('combat-announcement-text');
 
   // Buttons & Overlays
   const elBtnNewGame = document.getElementById('btn-new-game');
@@ -99,6 +103,7 @@ if (!engine) {
   let history = [];
   let historyIndex = -1;
   let gameEnded = false;
+  let turnIndex = 0;
 
   // Online mode state
   let onlineState = null;       // The server-provided state view
@@ -250,7 +255,7 @@ if (!engine) {
   }
 
   // Helper to render card
-  function getCardHTML(cardString, isLocked = false, isSelected = false) {
+  function getCardHTML(cardString, isLocked = false, isSelected = false, isWinning = false) {
     if (!cardString) {
       return `<div class="playing-card card-back"></div>`;
     }
@@ -263,22 +268,177 @@ if (!engine) {
     const suitSymbol = SUIT_SYMBOLS[suit] || suit;
     const colorClass = SUIT_CLASSES[suit] || '';
     const selectedClass = isSelected ? 'selected-base-card' : '';
+    const winningClass = isWinning ? 'winning-card-highlight' : '';
     
     return `
-      <div class="playing-card ${colorClass} ${selectedClass}">
+      <div class="playing-card ${colorClass} ${selectedClass} ${winningClass}">
         <div class="card-val-top">${displayVal}</div>
         <div class="card-suit-bottom">${suitSymbol}</div>
       </div>
     `;
   }
 
-  // Helper to log system events
-  function logSystemEvent(msg) {
+  // Helper to append a clean game log entry
+  function appendGameLog(message) {
     const entry = document.createElement('div');
     entry.className = 'log-entry system-msg';
-    entry.innerHTML = `[${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}] ${msg}`;
+    entry.textContent = message;
     elLogEntries.appendChild(entry);
     elLogEntries.scrollTop = elLogEntries.scrollHeight;
+  }
+
+  // Helper to format a hand object to a suit-free sorted ranks string with type
+  function formatPokerHandLog(hand) {
+    if (!hand || !hand.cards) return "";
+
+    const ranks = hand.cards.map(c => c[0]); // Drop suit, e.g. "AH" -> "A", "TD" -> "T"
+    const RANK_ORDER = "AKQJT98765432";
+    
+    function sortRanksDescending(arr) {
+      return arr.slice().sort((a, b) => RANK_ORDER.indexOf(a) - RANK_ORDER.indexOf(b));
+    }
+
+    let sortedRanksStr = "";
+
+    // Group cards by rank count to easily place matched/kickers
+    const counts = {};
+    ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
+
+    const handName = hand.name;
+
+    if (handName === "Full House") {
+      // trips first, then pair
+      let trips = "";
+      let pair = "";
+      for (const r in counts) {
+        if (counts[r] === 3) trips = r;
+        if (counts[r] === 2) pair = r;
+      }
+      sortedRanksStr = trips.repeat(3) + pair.repeat(2);
+    } 
+    else if (handName === "Four of a Kind") {
+      // quads first, then kicker
+      let quads = "";
+      let kicker = "";
+      for (const r in counts) {
+        if (counts[r] === 4) quads = r;
+        if (counts[r] === 1) kicker = r;
+      }
+      sortedRanksStr = quads.repeat(4) + kicker;
+    }
+    else if (handName === "Three of a Kind") {
+      // trips first, then remaining kickers sorted descending
+      let trips = "";
+      let kickers = [];
+      for (const r in counts) {
+        if (counts[r] === 3) trips = r;
+        else kickers.push(...Array(counts[r]).fill(r));
+      }
+      sortedRanksStr = trips.repeat(3) + sortRanksDescending(kickers).join('');
+    }
+    else if (handName === "Two Pair") {
+      // higher pair, lower pair, kicker
+      let pairs = [];
+      let kicker = "";
+      for (const r in counts) {
+        if (counts[r] === 2) pairs.push(r);
+        else kicker = r;
+      }
+      pairs = sortRanksDescending(pairs);
+      sortedRanksStr = pairs[0].repeat(2) + pairs[1].repeat(2) + kicker;
+    }
+    else if (handName === "One Pair") {
+      // pair first, then remaining 3 kickers descending
+      let pair = "";
+      let kickers = [];
+      for (const r in counts) {
+        if (counts[r] === 2) pair = r;
+        else kickers.push(...Array(counts[r]).fill(r));
+      }
+      sortedRanksStr = pair.repeat(2) + sortRanksDescending(kickers).join('');
+    }
+    else {
+      // Unpaired hands (Flush, Straight, Straight Flush, High Card)
+      // Sort all 5 cards strictly descending
+      sortedRanksStr = sortRanksDescending(ranks).join('');
+    }
+
+    // Map hand type name
+    let typeLabel = handName;
+    if (typeLabel === "One Pair") {
+      typeLabel = "Pair";
+    }
+
+    return `${sortedRanksStr} (${typeLabel})`;
+  }
+
+  const CARD_NAMES_SINGULAR = {
+    14: "Ace", 13: "King", 12: "Queen", 11: "Jack", 10: "10",
+    9: "9", 8: "8", 7: "7", 6: "6", 5: "5", 4: "4", 3: "3", 2: "2"
+  };
+
+  const CARD_NAMES_PLURAL = {
+    14: "Aces", 13: "Kings", 12: "Queens", 11: "Jacks", 10: "10s",
+    9: "9s", 8: "8s", 7: "7s", 6: "6s", 5: "5s", 4: "4s", 3: "3s", 2: "2s"
+  };
+
+  function getHandDescription(hand) {
+    if (!hand) return "";
+    const name = hand.name;
+    const kickers = hand.kickers || [];
+    
+    switch (name) {
+      case "Straight Flush":
+        return "a Straight Flush, " + (CARD_NAMES_SINGULAR[kickers[0]] || "") + " high";
+      case "Four of a Kind":
+        return "Four " + (CARD_NAMES_PLURAL[kickers[0]] || "");
+      case "Full House":
+        return "a Full House, " + (CARD_NAMES_PLURAL[kickers[0]] || "") + " full of " + (CARD_NAMES_PLURAL[kickers[1]] || "");
+      case "Flush":
+        return "a Flush, " + (CARD_NAMES_SINGULAR[kickers[0]] || "") + " high";
+      case "Straight":
+        return "a Straight, " + (CARD_NAMES_SINGULAR[kickers[0]] || "") + " high";
+      case "Three of a Kind":
+        return "Three " + (CARD_NAMES_PLURAL[kickers[0]] || "");
+      case "Two Pair":
+        return "Two Pair, " + (CARD_NAMES_PLURAL[kickers[0]] || "") + " and " + (CARD_NAMES_PLURAL[kickers[1]] || "");
+      case "One Pair":
+        return "a Pair of " + (CARD_NAMES_PLURAL[kickers[0]] || "");
+      case "High Card":
+        return "High Card, " + (CARD_NAMES_SINGULAR[kickers[0]] || "");
+      default:
+        return name;
+    }
+  }
+
+  // Format and log a turn action:
+  // (turn index). (player) ] (piece) : (move/attack/failed(defend square)) : (origin) -> (endposition ).
+  function logGameTurn(player, piece, type, origin, end, defendSquare) {
+    turnIndex++;
+    let typeStr = type;
+    if (type === 'failed') {
+      typeStr = `failed(${defendSquare})`;
+    }
+    const pieceChar = engine.getPieceType(piece).toUpperCase();
+    let line;
+    if (type === 'move') {
+      line = `${turnIndex}. ${player} ] ${pieceChar} : ${origin} -> ${end}.`;
+    } else {
+      line = `${turnIndex}. ${player} ] ${pieceChar} : ${typeStr} : ${origin} -> ${end}.`;
+    }
+    appendGameLog(line);
+  }
+
+  // Format and log a pawn promotion action:
+  // (turn index). (player) ] (promoted piece type) : Promotion -> (endPosition).
+  function logPawnPromotion(player, promotedPieceChar, endPosition) {
+    turnIndex++;
+    appendGameLog(`${turnIndex}. ${player} ] ${promotedPieceChar} : Promotion -> ${endPosition}`);
+  }
+
+  // Helper to log system events (no longer appended to the UI)
+  function logSystemEvent(msg) {
+    console.log(`[System] ${msg}`);
   }
 
   // Save current game state to history
@@ -292,6 +452,91 @@ if (!engine) {
       history = history.slice(0, historyIndex + 1);
     }
     
+    // Capture previous state for logging
+    if (history.length > 0) {
+      const prevEntry = history[history.length - 1];
+      const prevState = prevEntry.gameState;
+      const prevShowdown = prevEntry.combatShowdown;
+
+      // 1. Detect resolved combat
+      if (prevShowdown && !combatShowdown) {
+        const move = prevShowdown.move;
+        const combatResult = prevShowdown.result;
+        const fromPiece = prevState.board[move.from.r][move.from.c];
+        const fromSquare = getSquareName(move.from.r, move.from.c);
+        const toSquare = getSquareName(move.to.r, move.to.c);
+        const activePlayer = prevState.players[prevState.turn];
+        const shortName = SEAT_SHORT[activePlayer.id] || activePlayer.name;
+
+        if (combatResult.outcome === "capture") {
+          const toPiece = prevState.board[move.to.r][move.to.c];
+          const pieceType = toPiece ? engine.getPieceType(toPiece) : 'p';
+          logGameTurn(shortName, fromPiece, `Takes(${pieceType.toUpperCase()})`, fromSquare, toSquare);
+        } else if (combatResult.outcome === "slide") {
+          const slideDest = engine.getSlideDestination(move.from, move.to);
+          const slideSquareName = getSquareName(slideDest.r, slideDest.c);
+          logGameTurn(shortName, fromPiece, 'failed', fromSquare, slideSquareName, toSquare);
+        } else {
+          logGameTurn(shortName, fromPiece, 'failed', fromSquare, fromSquare, toSquare);
+        }
+
+        const isAWinning = (combatResult.winnerTeam === engine.TEAMS.A);
+        const winningHand = isAWinning ? combatResult.teamAHand : combatResult.teamBHand;
+        const losingHand = isAWinning ? combatResult.teamBHand : combatResult.teamAHand;
+        const winningHandStr = formatPokerHandLog(winningHand);
+        const losingHandStr = formatPokerHandLog(losingHand);
+        if (winningHandStr && losingHandStr) {
+          appendGameLog(`${winningHandStr} > ${losingHandStr}`);
+        }
+      }
+      // 2. Detect normal move or immediate capture
+      else if (!prevShowdown && !combatShowdown && gameState.lastMove) {
+        // Compare with prevState.lastMove to make sure we don't log a duplicate
+        const isNewMove = !prevState.lastMove || 
+                          prevState.lastMove.from.r !== gameState.lastMove.from.r ||
+                          prevState.lastMove.from.c !== gameState.lastMove.from.c ||
+                          prevState.lastMove.to.r !== gameState.lastMove.to.r ||
+                          prevState.lastMove.to.c !== gameState.lastMove.to.c;
+
+        if (isNewMove) {
+          const move = gameState.lastMove;
+          const fromPiece = prevState.board[move.from.r][move.from.c];
+          const fromSquare = getSquareName(move.from.r, move.from.c);
+          const toSquare = getSquareName(move.to.r, move.to.c);
+          const activePlayer = prevState.players[prevState.turn];
+          const shortName = SEAT_SHORT[activePlayer.id] || activePlayer.name;
+
+          const toPiece = prevState.board[move.to.r][move.to.c];
+          if (toPiece) {
+            logGameTurn(shortName, fromPiece, `Takes(${engine.getPieceType(toPiece).toUpperCase()})`, fromSquare, toSquare);
+          } else {
+            logGameTurn(shortName, fromPiece, 'move', fromSquare, toSquare);
+          }
+        }
+      }
+
+      // 3. Detect promotion (by comparing boards)
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const prevCell = prevState.board[r][c];
+          const newCell = gameState.board[r][c];
+          if (prevCell && prevCell !== newCell) {
+            const prevType = engine.getPieceType(prevCell);
+            if (prevType === 'p') {
+              const prevTeam = engine.getPieceTeam(prevCell);
+              const newTeam = engine.getPieceTeam(newCell);
+              if (prevTeam === newTeam && engine.getPieceType(newCell) !== 'p') {
+                const activePlayer = prevState.players[prevState.turn];
+                const shortName = SEAT_SHORT[activePlayer.id] || activePlayer.name;
+                const promotedPieceChar = engine.getPieceType(newCell).toUpperCase();
+                logPawnPromotion(shortName, promotedPieceChar, getSquareName(r, c));
+              }
+            }
+          }
+        }
+      }
+    }
+
     history.push({
       gameState: JSON.parse(JSON.stringify(gameState)),
       combatShowdown: combatShowdown ? JSON.parse(JSON.stringify(combatShowdown)) : null
@@ -379,7 +624,8 @@ if (!engine) {
     historyIndex = -1;
     saveHistoryState();
     elLogEntries.innerHTML = '';
-    logSystemEvent("New Match started. Select a piece to see legal moves.");
+    turnIndex = 0;
+    appendGameLog("turn Log:");
     renderState();
     triggerTurnStartAnimations();
     checkBotTurn();
@@ -412,8 +658,6 @@ if (!engine) {
     if (selectedCapturedPiece) {
       const isTarget = selectedCapturedPiece.validSquares.find(sq => sq.r === r && sq.c === c);
       if (isTarget) {
-        logSystemEvent(`Executing promotion at (${r}, ${c}) with piece type ${selectedCapturedPiece.type} (${selectedCapturedPiece.subtype || 'standard'})`);
-        
         if (isOnline()) {
           // Send promotion to server
           const move = {
@@ -500,12 +744,7 @@ if (!engine) {
     // Check if it's a bot's promotion move
     if (move.type === 'promote') {
       engine.executePromotion(move.to.r, move.to.c, move.promoType, move.promoSubtype, activePlayer.id, gameState);
-      logSystemEvent(`[Bot ${activePlayer.name}] Promoted captured piece at ${getSquareName(move.to.r, move.to.c)}`);
-      
-      const refilledCard = engine.checkHillRefill(gameState.turn, gameState);
-      if (refilledCard) {
-        logSystemEvent(`[Refill] ${activePlayer.name} drew a card for their base deck.`);
-      }
+      engine.checkHillRefill(gameState.turn, gameState);
       checkGameOver();
       if (gameState) {
         gameState.turn = (gameState.turn + 1) % 4;
@@ -539,30 +778,9 @@ if (!engine) {
         result: combatResult,
         combatCards,
         colRegion: engine.getColumnRegion(move.to.c),
-        rowRegion: engine.getRowRegion(move.to.r)
+        rowRegion: engine.getRowRegion(move.to.r),
+        step: 1
       };
-
-      // Log combat details
-      const defenderName = engine.getPieceType(toPiece).toUpperCase();
-      const outcomeText = combatResult.winnerTeam === team ? "Attacker wins" : "Defender wins";
-      
-      logSystemEvent(`[Combat] ${activePlayer.name}'s ${pieceName} at ${fromSquare} attacks ${defenderName} at ${toSquare}`);
-      logSystemEvent(`Turn/River drawn: ${combatCards.join(', ')}`);
-      
-      const teamAName = "Team N-S (Yellow)";
-      const teamBName = "Team E-W (Blue)";
-      logSystemEvent(`${teamAName} Hand: ${combatResult.teamAHand.name}`);
-      logSystemEvent(`${teamBName} Hand: ${combatResult.teamBHand.name}`);
-      
-      if (combatResult.outcome === 'capture') {
-        logSystemEvent(`Result: ${outcomeText}! ${pieceName} captures ${defenderName} at ${toSquare}.`);
-      } else if (combatResult.outcome === 'slide') {
-        const slideDest = engine.getSlideDestination(move.from, move.to);
-        const slideSquareName = getSquareName(slideDest.r, slideDest.c);
-        logSystemEvent(`Result: ${outcomeText}! ${pieceName} was defeated and slided to ${slideSquareName}.`);
-      } else {
-        logSystemEvent(`Result: ${outcomeText}! ${pieceName} was defeated and stays in place at ${fromSquare}.`);
-      }
 
       // Render the showdown immediately (attacker/defender highlights + face-up cards)
       saveHistoryState();
@@ -572,35 +790,24 @@ if (!engine) {
       selectedPiece = null;
       activeLegalMoves = [];
 
-      // 4. Resolve combat state after 2 seconds
+      // Step 2: Highlight winning cards and show announcement message after 2 seconds
       setTimeout(() => {
-        let stolenCard = null;
-        if (combatResult.outcome === "capture") {
-          const defenderTeam = engine.getPieceTeam(toPiece);
-          const defenderPlayerId = (defenderTeam === engine.TEAMS.A)
-            ? (move.to.r < 4 ? engine.PLAYERS.NORTH : engine.PLAYERS.SOUTH)
-            : (move.to.c < 4 ? engine.PLAYERS.WEST : engine.PLAYERS.EAST);
-          const colRegion = engine.getColumnRegion(move.to.c);
-          const rowRegion = engine.getRowRegion(move.to.r);
-          const defenderCardIdx = (defenderTeam === engine.TEAMS.A) ? colRegion : rowRegion;
-          stolenCard = gameState.players[defenderPlayerId].positionalCards[defenderCardIdx];
+        if (combatShowdown) {
+          combatShowdown.step = 2;
+          renderState();
         }
+      }, 2000);
 
+      // 4. Resolve combat state after 4.5 seconds
+      setTimeout(() => {
         // Mutate gameState using the evaluation result
         engine.applyCombatResult(move, combatResult, combatCards, gameState);
 
         // Clear showdown state
         combatShowdown = null;
 
-        if (stolenCard) {
-          logSystemEvent(`[Steal] ${activePlayer.name} stole the defender's losing positional card (${stolenCard}) to their base deck!`);
-        }
-
         // Hill Refill (End of active player's own turn)
-        const refilledCard = engine.checkHillRefill(gameState.turn, gameState);
-        if (refilledCard) {
-          logSystemEvent(`[Refill] ${activePlayer.name} drew a card for their base deck (Hill center occupied).`);
-        }
+        engine.checkHillRefill(gameState.turn, gameState);
 
         // Check win condition
         checkGameOver();
@@ -613,20 +820,15 @@ if (!engine) {
           triggerTurnStartAnimations();
           checkBotTurn();
         }
-      }, 2000);
+      }, 4500);
 
       return;
     }
 
     // Normal move or immediate capture (e.g. King capture or capturing a King)
-    let logMsg = `[${activePlayer.name}] ${pieceName} from ${fromSquare} to ${toSquare}`;
-
     if (toPiece) {
       engine.add_to_captured_pieces(toPiece, move.to.r, move.to.c, gameState);
-      const enemyPieceName = engine.getPieceType(toPiece).toUpperCase();
-      logMsg += ` (Immediate Capture: Captured enemy ${enemyPieceName}!)`;
     }
-    logSystemEvent(logMsg);
 
     // Apply board change
     gameState.board[move.to.r][move.to.c] = fromPiece;
@@ -638,10 +840,7 @@ if (!engine) {
     activeLegalMoves = [];
 
     // Hill Refill (End of active player's own turn)
-    const refilledCard = engine.checkHillRefill(gameState.turn, gameState);
-    if (refilledCard) {
-      logSystemEvent(`[Refill] ${activePlayer.name} drew a card for their base deck (Hill center occupied).`);
-    }
+    engine.checkHillRefill(gameState.turn, gameState);
 
     // Check win condition (count Kings for both teams)
     checkGameOver();
@@ -728,6 +927,22 @@ if (!engine) {
   function renderState() {
     if (!gameState) return;
 
+    let winningCards = [];
+    if (combatShowdown && combatShowdown.step === 2) {
+      const winnerHand = (combatShowdown.result.winnerTeam === engine.TEAMS.A) 
+        ? combatShowdown.result.teamAHand 
+        : combatShowdown.result.teamBHand;
+      if (winnerHand && winnerHand.cards) {
+        winningCards = winnerHand.cards;
+      }
+    }
+
+    // Check if active player's King is threatened on their turn
+    const activeKingThreatened = (historyIndex === history.length - 1 && !gameEnded) 
+      ? engine.isKingThreatened(gameState.turn, gameState) 
+      : false;
+
+
     // Update online info
     updateOnlineInfoCard();
 
@@ -782,6 +997,42 @@ if (!engine) {
         
         const isDark = (r + c) % 2 !== 0;
         cell.classList.add(isDark ? 'dark-sq' : 'light-sq');
+
+        // Add coordinate labels to border squares
+        if (r === 0 || r === 7 || c === 0 || c === 7) {
+          let labelText = '';
+          let labelClass = 'board-cell-label';
+          
+          if (r === 7 && c >= 0 && c <= 6) {
+            // 1/a to g (going right): left bottom corners
+            if (r === 7 && c === 0) labelText = '1/a';
+            else labelText = String.fromCharCode(97 + c);
+            labelClass += ' board-cell-label-bl';
+          } else if (c === 7 && r >= 1 && r <= 7) {
+            // 1/h to 7 (going up): right bottom of the cells
+            if (r === 7 && c === 7) labelText = '1/h';
+            else labelText = String(8 - r);
+            labelClass += ' board-cell-label-br';
+          } else if (r === 0 && c >= 1 && c <= 7) {
+            // 8/h to b (going left): top right corners
+            if (r === 0 && c === 7) labelText = '8/h';
+            else labelText = String.fromCharCode(97 + c);
+            labelClass += ' board-cell-label-tr';
+          } else if (c === 0 && r >= 0 && r <= 6) {
+            // 8/a to 2 (going down): top left corners
+            if (r === 0 && c === 0) labelText = '8/a';
+            else labelText = String(8 - r);
+            labelClass += ' board-cell-label-tl';
+          }
+
+          if (labelText) {
+            const labelSpan = document.createElement('span');
+            labelSpan.className = labelClass;
+            labelSpan.textContent = labelText;
+            cell.appendChild(labelSpan);
+          }
+        }
+
 
         // Combat showdown highlights
         if (combatShowdown) {
@@ -840,7 +1091,23 @@ if (!engine) {
           const pieceDiv = document.createElement('div');
           pieceDiv.className = `chess-piece ${engine.getPieceTeam(piece) === engine.TEAMS.A ? 'piece-team-a' : 'piece-team-b'}`;
           if (historyIndex === history.length - 1 && !gameEnded && engine.isPieceControllable(r, c, gameState.turn, gameState.board)) {
-            pieceDiv.classList.add('controllable-piece');
+            // Check if this piece is the active player's King and it is threatened
+            const isKing = engine.getPieceType(piece) === 'k';
+            let isPlayerKing = false;
+            if (isKing) {
+              const kingOwner = (engine.getPieceTeam(piece) === engine.TEAMS.A)
+                ? (r < 4 ? engine.PLAYERS.NORTH : engine.PLAYERS.SOUTH)
+                : (c < 4 ? engine.PLAYERS.WEST : engine.PLAYERS.EAST);
+              if (kingOwner === gameState.turn) {
+                isPlayerKing = true;
+              }
+            }
+
+            if (isPlayerKing && activeKingThreatened) {
+              pieceDiv.classList.add('threatened-king');
+            } else {
+              pieceDiv.classList.add('controllable-piece');
+            }
           }
           const imgUrl = PIECE_IMAGES[piece];
           if (imgUrl) {
@@ -961,8 +1228,9 @@ if (!engine) {
         const cardVal = p.positionalCards[cIdx];
         const cardEl = document.getElementById(`card-${char}-${cIdx}`);
         if (cardEl) {
-          cardEl.innerHTML = getCardHTML(cardVal);
-          cardEl.classList.remove('highlight-team-a', 'highlight-team-b', 'clickable-pos-card', 'selected-base-card');
+          const isWinning = winningCards.includes(cardVal);
+          cardEl.innerHTML = getCardHTML(cardVal, false, false, isWinning);
+          cardEl.classList.remove('highlight-team-a', 'highlight-team-b', 'clickable-pos-card', 'selected-base-card', 'winning-card-highlight');
           cardEl.onclick = null;
           cardEl.style.cursor = '';
           
@@ -974,6 +1242,10 @@ if (!engine) {
             // Team B (West 3, East 1) uses row region
             if (pTeam === engine.TEAMS.B && (pIdx === 1 || pIdx === 3) && cIdx === combatShowdown.rowRegion) {
               cardEl.classList.add('highlight-team-b');
+            }
+            
+            if (isWinning) {
+              cardEl.classList.add('winning-card-highlight');
             }
           }
 
@@ -1049,42 +1321,78 @@ if (!engine) {
     // Render Community Cards
     elPublicFlop.innerHTML = '';
     gameState.publicCards.forEach(c => {
-      elPublicFlop.innerHTML += getCardHTML(c);
+      const isWinning = winningCards.includes(c);
+      elPublicFlop.innerHTML += getCardHTML(c, false, false, isWinning);
     });
     if (combatShowdown) {
-      Array.from(elPublicFlop.children).forEach(child => {
+      Array.from(elPublicFlop.children).forEach((child, idx) => {
         child.classList.add('highlight-public');
+        const c = gameState.publicCards[idx];
+        if (winningCards.includes(c)) {
+          child.classList.add('winning-card-highlight');
+        }
       });
     }
 
     elPublicTurnRiver.innerHTML = '';
     if (combatShowdown) {
       combatShowdown.combatCards.forEach(c => {
-        elPublicTurnRiver.innerHTML += getCardHTML(c);
+        const isWinning = winningCards.includes(c);
+        elPublicTurnRiver.innerHTML += getCardHTML(c, false, false, isWinning);
       });
-      Array.from(elPublicTurnRiver.children).forEach(child => {
+      Array.from(elPublicTurnRiver.children).forEach((child, idx) => {
         child.classList.add('highlight-public');
+        const c = combatShowdown.combatCards[idx];
+        if (winningCards.includes(c)) {
+          child.classList.add('winning-card-highlight');
+        }
       });
     } else {
       elPublicTurnRiver.innerHTML += getCardHTML(null, true);
       elPublicTurnRiver.innerHTML += getCardHTML(null, true);
     }
 
-    // Render active player's base deck
+    // Render active player's base deck or combat announcement
     const elBaseDeck = document.getElementById('base-deck');
-    if (elBaseDeck) {
-      // In online mode, only show base deck on your turn
-      if (isOnline()) {
-        if (isMyTurn() && !gameEnded) {
-          elBaseDeck.classList.remove('hidden');
+    if (combatShowdown) {
+      if (elBaseDeck) elBaseDeck.classList.add('hidden');
+      if (combatShowdown.step === 2 && elCombatAnnouncement && elCombatAnnouncementText) {
+        elCombatAnnouncement.classList.remove('hidden');
+        
+        const isAttackerWinner = (combatShowdown.result.winnerTeam === combatShowdown.result.attackerTeam);
+        const winnerHand = (combatShowdown.result.winnerTeam === engine.TEAMS.A) 
+          ? combatShowdown.result.teamAHand 
+          : combatShowdown.result.teamBHand;
+        
+        const winnerRole = isAttackerWinner ? "Attacker" : "Defender";
+        const handDesc = getHandDescription(winnerHand);
+        
+        elCombatAnnouncementText.textContent = `${winnerRole} Win with ${handDesc}!`;
+        elCombatAnnouncementText.className = 'combat-announcement-text';
+        if (isAttackerWinner) {
+          elCombatAnnouncementText.classList.add('attacker-win-msg');
         } else {
-          elBaseDeck.classList.add('hidden');
+          elCombatAnnouncementText.classList.add('defender-win-msg');
         }
       } else {
-        if (isHumanTurn) {
-          elBaseDeck.classList.remove('hidden');
+        if (elCombatAnnouncement) elCombatAnnouncement.classList.add('hidden');
+      }
+    } else {
+      if (elCombatAnnouncement) elCombatAnnouncement.classList.add('hidden');
+      if (elBaseDeck) {
+        // In online mode, only show base deck on your turn
+        if (isOnline()) {
+          if (isMyTurn() && !gameEnded) {
+            elBaseDeck.classList.remove('hidden');
+          } else {
+            elBaseDeck.classList.add('hidden');
+          }
         } else {
-          elBaseDeck.classList.add('hidden');
+          if (isHumanTurn) {
+            elBaseDeck.classList.remove('hidden');
+          } else {
+            elBaseDeck.classList.add('hidden');
+          }
         }
       }
     }
@@ -1573,7 +1881,36 @@ if (!engine) {
       };
 
       // Set combat showdown from server
-      combatShowdown = stateView.combatShowdown || null;
+      const prevShowdown = combatShowdown;
+      const newShowdown = stateView.combatShowdown || null;
+      if (newShowdown) {
+        // If we don't have this combat showdown locally yet, initialize step 1 and the timer
+        const isNewShowdown = !prevShowdown || 
+          (prevShowdown.move.from.r !== newShowdown.move.from.r ||
+           prevShowdown.move.from.c !== newShowdown.move.from.c ||
+           prevShowdown.move.to.r !== newShowdown.move.to.r ||
+           prevShowdown.move.to.c !== newShowdown.move.to.c);
+           
+        if (isNewShowdown) {
+          combatShowdown = JSON.parse(JSON.stringify(newShowdown));
+          combatShowdown.step = 1;
+          setTimeout(() => {
+            if (combatShowdown && combatShowdown.step === 1 &&
+                combatShowdown.move.from.r === newShowdown.move.from.r &&
+                combatShowdown.move.from.c === newShowdown.move.from.c) {
+              combatShowdown.step = 2;
+              renderState();
+            }
+          }, 2000);
+        } else {
+          // Keep our current local step so it doesn't get reset if the server broadcasts again
+          const currentStep = prevShowdown.step || 1;
+          combatShowdown = JSON.parse(JSON.stringify(newShowdown));
+          combatShowdown.step = currentStep;
+        }
+      } else {
+        combatShowdown = null;
+      }
 
       // Clear selections on state update
       selectedPiece = null;

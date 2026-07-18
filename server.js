@@ -240,7 +240,7 @@ function executeMoveOnServer(room, move) {
     // Broadcast showdown state to all
     broadcastState(room);
 
-    // Resolve after 2.5 seconds
+    // Resolve after 4.5 seconds
     room.combatTimeout = setTimeout(() => {
       let stolenCard = null;
       if (combatResult.outcome === 'capture') {
@@ -266,7 +266,7 @@ function executeMoveOnServer(room, move) {
       }
       broadcastState(room);
       if (!gameOver) scheduleBotTurn(room);
-    }, 2500);
+    }, 4500);
     return;
   }
 
