@@ -599,7 +599,18 @@ if (!engine) {
     entries.forEach(entry => {
       if (entry.dataset.historyIndex !== undefined && parseInt(entry.dataset.historyIndex, 10) === index) {
         entry.classList.add('highlighted');
-        entry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        // Scroll the container only (prevent body viewport shifting/scrolling on mobile)
+        const containerTop = elLogEntries.scrollTop;
+        const containerBottom = containerTop + elLogEntries.clientHeight;
+        const elemTop = entry.offsetTop;
+        const elemBottom = elemTop + entry.offsetHeight;
+
+        if (elemTop < containerTop) {
+          elLogEntries.scrollTo({ top: elemTop, behavior: 'smooth' });
+        } else if (elemBottom > containerBottom) {
+          elLogEntries.scrollTo({ top: elemBottom - elLogEntries.clientHeight, behavior: 'smooth' });
+        }
       } else {
         entry.classList.remove('highlighted');
       }

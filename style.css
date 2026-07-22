@@ -321,6 +321,7 @@ body {
 }
 
 .log-entries {
+  position: relative;
   flex: 1;
   overflow-y: auto;
   font-size: 0.8rem;
