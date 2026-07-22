@@ -640,9 +640,9 @@ io.on('connection', (socket) => {
     if (seatIndex < 0 || seatIndex > 3) return;
 
     const targetSeat = room.seats[seatIndex];
-    const currentSeatIndexes = getSeatIndexesBySocket(room, socket.id);
     const playerName = socket.playerName || 'Player';
     const playerToken = socket.playerToken || '';
+    const currentSeatIndexes = getSeatIndexesBySocket(room, socket.id);
 
     // If the target seat is already occupied by this socket (unclaiming/unclicking a seat)
     if (targetSeat.type === 'human' && targetSeat.socketId === socket.id) {
@@ -654,7 +654,8 @@ io.on('connection', (socket) => {
         callback({ 
           success: true, 
           seatIndex: remainingSeatIdx, 
-          seatIndexes: getSeatIndexesForToken(room, playerToken) 
+          seatIndexes: getSeatIndexesForToken(room, playerToken),
+          seats: getSeatInfo(room)
         });
       }
       broadcastRoomUpdate(room);
@@ -667,7 +668,23 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (currentSeatIndexes.length >= 2) {
+    // Determine target team and opposite team seats
+    // Team A = North (0), South (2)
+    // Team B = East (1), West (3)
+    const isTargetTeamA = (seatIndex === 0 || seatIndex === 2);
+    const oppositeSeatIndices = isTargetTeamA ? [1, 3] : [0, 2];
+
+    // Vacate any seats on the opposite team occupied by this player (socketId or token match)
+    oppositeSeatIndices.forEach(idx => {
+      const s = room.seats[idx];
+      if (s.type === 'human' && (s.socketId === socket.id || s.token === playerToken)) {
+        room.seats[idx] = { type: 'open', socketId: null, name: '', connected: false };
+      }
+    });
+
+    // Recalculate how many seats this player occupies after vacating opposite team seats
+    const freshSeatIndexes = getSeatIndexesBySocket(room, socket.id);
+    if (freshSeatIndexes.length >= 2) {
       if (typeof callback === 'function') callback({ success: false, error: 'You can only control 2 seats' });
       return;
     }
@@ -680,7 +697,14 @@ io.on('connection', (socket) => {
       token: playerToken
     };
 
-    if (typeof callback === 'function') callback({ success: true, seatIndex, seatIndexes: getSeatIndexesForToken(room, playerToken) });
+    if (typeof callback === 'function') {
+      callback({ 
+        success: true, 
+        seatIndex, 
+        seatIndexes: getSeatIndexesForToken(room, playerToken),
+        seats: getSeatInfo(room)
+      });
+    }
     broadcastRoomUpdate(room);
     io.emit('rooms-updated', getRoomList());
   });

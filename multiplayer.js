@@ -246,6 +246,7 @@
       const canSwitch = s.type === 'open' || isMySeat;
       const switchAttr = canSwitch ? `data-switch="${i}"` : '';
       const switchClass = canSwitch ? 'seat-toggleable' : '';
+      const teamClass = (i === 0 || i === 2) ? 'seat-team-a' : 'seat-team-b';
 
       const canToggleBot = isHost && (s.type === 'open' || s.type === 'bot');
       const botToggleHtml = canToggleBot 
@@ -260,7 +261,7 @@
       }
 
       return `
-        <div class="room-seat ${statusClass} ${switchClass} ${isMySeat ? 'seat-me' : ''}" ${switchAttr}>
+        <div class="room-seat ${statusClass} ${switchClass} ${isMySeat ? 'seat-me' : ''} ${teamClass}" ${switchAttr}>
           <div class="seat-direction">${SEAT_SHORT[i]}</div>
           <div class="seat-icon">${icon}</div>
           <div class="seat-name">${statusText}</div>
@@ -278,8 +279,11 @@
         socket.emit('switch-seat', { seatIndex: idx }, (res) => {
           if (res && !res.success) showRoomError(res.error);
           else if (res && res.success) {
-            mySeatIndex = res.seatIndex ?? mySeatIndices[0] ?? null;
+            mySeatIndex = res.seatIndex ?? res.seatIndexes?.[0] ?? null;
             mySeatIndices = Array.isArray(res.seatIndexes) ? res.seatIndexes : (mySeatIndex !== null ? [mySeatIndex] : []);
+            if (res.seats) {
+              currentSeats = res.seats;
+            }
             renderRoomSeats(currentSeats);
           }
         });

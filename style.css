@@ -2192,23 +2192,35 @@ body {
   position: relative;
 }
 
+/* Team accent color helpers */
+.room-seat.seat-team-a {
+  --seat-accent: var(--color-team-a);
+  --seat-accent-rgb: var(--color-team-a-rgb);
+}
+
+.room-seat.seat-team-b {
+  --seat-accent: var(--color-team-b);
+  --seat-accent-rgb: var(--color-team-b-rgb);
+}
+
 .room-seat.seat-me {
-  border-color: var(--color-team-a);
-  box-shadow: 0 0 15px rgba(251, 191, 36, 0.15);
+  border-color: var(--seat-accent);
+  box-shadow: 0 0 15px rgba(var(--seat-accent-rgb), 0.3);
 }
 
 .room-seat.seat-human {
-  border-color: var(--seat-human-border-color);
+  border-color: var(--seat-accent);
+  box-shadow: 0 0 10px rgba(var(--seat-accent-rgb), 0.15);
 }
 
 .room-seat.seat-bot {
-  border-color: rgba(156, 163, 175, 0.3);
+  border-color: rgba(var(--seat-accent-rgb), 0.35);
   opacity: 0.75;
 }
 
 .room-seat.seat-open {
   border-style: dashed;
-  border-color: rgba(156, 163, 175, 0.25);
+  border-color: rgba(var(--seat-accent-rgb), 0.25);
   opacity: 0.6;
 }
 
@@ -2217,16 +2229,17 @@ body {
 }
 
 .room-seat.seat-toggleable:hover {
-  border-color: var(--color-team-b);
+  border-color: var(--seat-accent);
   transform: translateY(-3px);
-  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.15);
+  box-shadow: 0 4px 15px rgba(var(--seat-accent-rgb), 0.35);
 }
 
 .seat-direction {
   font-family: var(--font-title);
   font-size: 1.6rem;
   font-weight: 800;
-  color: var(--text-muted);
+  color: var(--seat-accent, var(--text-muted));
+  text-shadow: 0 0 10px rgba(var(--seat-accent-rgb, 0,0,0), 0.3);
   letter-spacing: 0.1em;
 }
 
@@ -2253,7 +2266,7 @@ body {
 
 .seat-toggle-hint {
   font-size: 0.65rem;
-  color: var(--color-team-b);
+  color: var(--seat-accent);
   opacity: 0;
   transition: opacity 0.2s;
   position: absolute;
