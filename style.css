@@ -4,6 +4,7 @@
 :root {
   --font-title: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
+  --board-scale: 1;
 }
 
 * {
@@ -163,6 +164,7 @@ body {
 /* Sidebar Left */
 .sidebar-left {
   grid-column: 1;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -368,6 +370,7 @@ body {
 /* Center Board Area */
 .board-area {
   grid-column: 2;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1244,6 +1247,7 @@ body {
 /* Sidebar Right */
 .sidebar-right {
   grid-column: 3;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -2451,7 +2455,6 @@ body {
   }
 
   .board-scale-container {
-    --board-scale: min(1, calc((100vw - 20px) / 510px));
     width: calc(510px * var(--board-scale)) !important;
     height: calc(550px * var(--board-scale)) !important;
     position: relative !important;
@@ -2688,7 +2691,6 @@ body {
 
   /* Scale the board wrapper to fit both viewport height and remaining width */
   .board-scale-container {
-    --board-scale: min(calc((100vw - 170px) / 510px), calc(96vh / 550px), 1);
     width: calc(510px * var(--board-scale)) !important;
     height: calc(550px * var(--board-scale)) !important;
     position: relative !important;

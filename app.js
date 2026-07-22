@@ -2303,3 +2303,23 @@ if (!engine) {
   // initNewGame() will be called when needed in offline mode.
   // For now, just ensure game container is hidden (lobby is shown by multiplayer.js).
 }
+
+// Dynamic board scaling logic for mobile viewports
+(function() {
+  function updateBoardScale() {
+    const isPortrait = window.matchMedia("(max-width: 1024px) and (orientation: portrait)").matches;
+    const isLandscape = window.matchMedia("(max-width: 1024px) and (orientation: landscape)").matches;
+    let scale = 1;
+    if (isPortrait) {
+      scale = Math.min(1, (window.innerWidth - 20) / 510);
+    } else if (isLandscape) {
+      scale = Math.min((window.innerWidth - 170) / 510, (window.innerHeight * 0.96) / 550, 1);
+    }
+    document.documentElement.style.setProperty('--board-scale', scale);
+  }
+  window.addEventListener('resize', updateBoardScale);
+  window.addEventListener('load', updateBoardScale);
+  // Run immediately and also defer slightly to ensure layout is computed
+  updateBoardScale();
+  setTimeout(updateBoardScale, 100);
+})();
