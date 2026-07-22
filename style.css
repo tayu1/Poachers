@@ -2462,10 +2462,8 @@ body {
   }
 
   .board-layout-wrapper {
-    position: absolute !important;
-    left: 50% !important;
-    top: 50% !important;
-    transform: translate(-50%, -50%) scale(var(--board-scale)) !important;
+    position: relative !important;
+    transform: scale(var(--board-scale)) !important;
     transform-origin: center center !important;
     margin: 0 !important;
     width: 510px !important;
@@ -2698,10 +2696,8 @@ body {
   }
 
   .board-layout-wrapper {
-    position: absolute !important;
-    left: 50% !important;
-    top: 50% !important;
-    transform: translate(-50%, -50%) scale(var(--board-scale)) !important;
+    position: relative !important;
+    transform: scale(var(--board-scale)) !important;
     transform-origin: center center !important;
     margin: 0 !important;
     width: 510px !important;
