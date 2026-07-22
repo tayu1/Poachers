@@ -2377,20 +2377,20 @@ body {
 
 @media (max-width: 1024px) and (orientation: portrait) {
   body {
-    overflow-y: auto !important;
-    height: auto !important;
-    overflow-x: hidden !important;
+    overflow: hidden !important;
+    height: 100vh !important;
   }
 
   .game-container {
     grid-template-columns: 1fr !important;
     grid-template-rows: auto !important;
-    height: auto !important;
-    overflow-y: visible !important;
+    height: 100vh !important;
+    overflow-y: auto !important;
     overflow-x: hidden !important;
-    padding: 10px 0 !important;
-    /* Zero horizontal padding to touch the edges */
+    padding: 0 0 20px 0 !important;
+    /* Zero horizontal/top padding, add bottom padding for scroll space */
     gap: 20px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .sidebar-left,
@@ -2404,12 +2404,22 @@ body {
     height: auto !important;
   }
 
+  .sidebar-right {
+    padding-bottom: 30px !important; /* Visual padding for scrolling on mobile */
+  }
+
   .board-area {
     height: auto !important;
     order: -1;
     /* Place the board at the top of the stack on mobile */
-    position: relative !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background-color: var(--bg-main) !important;
     width: 100% !important;
+    padding-top: 10px !important;
+    padding-bottom: 15px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
   }
 
   .board-scale-container {
