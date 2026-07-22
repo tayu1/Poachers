@@ -118,77 +118,6 @@
   <!-- ==================== MAIN GAME UI ==================== -->
   <div class="game-container hidden">
 
-    <!-- LEFT COLUMN: Menu & Controls (1, 13, 10, 9) -->
-    <aside class="sidebar-left">
-      <!-- Title & Score (13) -->
-      <div class="card header-card">
-        <h1>POACHERS</h1>
-        <button id="btn-back-to-lobby-main" class="btn secondary-btn" style="margin-bottom: 15px; width: 100%;">Back to Lobby</button>
-        <div class="match-score" id="score-display">
-          <div class="score-team team-a-text">
-            <span class="team-label">TEAM N-S</span>
-            <span class="score-val" id="score-a">0</span>
-          </div>
-          <div class="score-divider">:</div>
-          <div class="score-team team-b-text">
-            <span class="team-label">TEAM E-W</span>
-            <span class="score-val" id="score-b">0</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Controls Menu (1) -->
-      <div class="card menu-card">
-        <button id="btn-new-game" class="btn primary-btn">New Match</button>
-
-        <div class="control-group">
-          <button id="btn-rotate-board" class="btn secondary-btn">Rotate 90°</button>
-        </div>
-
-        <div class="control-group" id="speed-control-group">
-          <label>Game Speed</label>
-          <div class="speed-slider-container">
-            <input type="range" id="speed-slider" min="1" max="5" value="3">
-            <span id="speed-value">Normal</span>
-          </div>
-        </div>
-
-        <div class="control-group" id="bot-toggles-group">
-          <label>Bot Toggles</label>
-          <div class="bot-toggles-grid">
-            <button id="bot-toggle-0" class="btn bot-btn">North: Human</button>
-            <button id="bot-toggle-1" class="btn bot-btn">East: Human</button>
-            <button id="bot-toggle-2" class="btn bot-btn">South: Human</button>
-            <button id="bot-toggle-3" class="btn bot-btn">West: Human</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Replay Controls (10) -->
-      <div class="card replay-card">
-        <h3>REPLAY NAVIGATION</h3>
-        <div class="replay-buttons">
-          <button id="btn-replay-prev" class="btn icon-btn" title="Previous Move" disabled>
-            <span class="arrow-icon">←</span>
-          </button>
-          <button id="btn-replay-resume" class="btn resume-btn" title="Resume Live Game" disabled>
-            Resume Live
-          </button>
-          <button id="btn-replay-next" class="btn icon-btn" title="Next Move" disabled>
-            <span class="arrow-icon">→</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Game Log (9) -->
-      <div class="card log-card">
-        <h3>GAME LOG</h3>
-        <div class="log-entries" id="log-entries">
-          <div class="log-entry system-msg">turn Log:</div>
-        </div>
-      </div>
-    </aside>
-
     <!-- CENTER COLUMN: Game Board & Cards (2, 3, 5, 6, 4) -->
     <main class="board-area">
 
@@ -322,92 +251,165 @@
 
     </main>
 
-    <!-- RIGHT COLUMN: Status, Turn & Captures (12, 8, 7, 11) -->
-    <aside class="sidebar-right">
+    <div class="mobile-menu-scroll-container">
+      <!-- LEFT COLUMN: Menu & Controls (1, 13, 10, 9) -->
+      <aside class="sidebar-left">
+        <!-- Title & Score (13) -->
+        <div class="card header-card">
+          <h1>POACHERS</h1>
+          <button id="btn-back-to-lobby-main" class="btn secondary-btn" style="margin-bottom: 15px; width: 100%;">Back to Lobby</button>
+          <div class="match-score" id="score-display">
+            <div class="score-team team-a-text">
+              <span class="team-label">TEAM N-S</span>
+              <span class="score-val" id="score-a">0</span>
+            </div>
+            <div class="score-divider">:</div>
+            <div class="score-team team-b-text">
+              <span class="team-label">TEAM E-W</span>
+              <span class="score-val" id="score-b">0</span>
+            </div>
+          </div>
+        </div>
 
-      <!-- Who's Turn (12) -->
-      <div class="card turn-card" id="turn-card">
-        <h3>CURRENT MOVE</h3>
-        <div class="active-player-display">
-          <div class="player-avatar" id="active-player-avatar">N</div>
-          <div class="player-info">
-            <span class="player-name" id="active-player-name">North</span>
-            <span class="player-team" id="active-player-team">Team N-S (A)</span>
-          </div>
-        </div>
-        <div class="turn-phase-indicator" id="turn-phase">
-          Select a piece to move
-        </div>
-      </div>
+        <!-- Controls Menu (1) -->
+        <div class="card menu-card">
+          <button id="btn-new-game" class="btn primary-btn">New Match</button>
 
-      <!-- Captured Pieces (8) -->
-      <div class="card captures-card">
-        <h3>CAPTURED PIECES</h3>
-        <div class="captured-team">
-          <div class="captured-pool" id="captured-pool-a">
-            <!-- Captured Team A pieces -->
-            <span class="no-captures-placeholder">None</span>
+          <div class="control-group">
+            <button id="btn-rotate-board" class="btn secondary-btn">Rotate 90°</button>
           </div>
-        </div>
-        <div class="captured-team">
-          <div class="captured-pool" id="captured-pool-b">
-            <!-- Captured Team B pieces -->
-            <span class="no-captures-placeholder">None</span>
-          </div>
-        </div>
-      </div>
 
-      <!-- Players Status Bar (7) -->
-      <div class="card status-card">
-        <h3>PLAYERS STATUS</h3>
-        <div class="player-status-list">
-          <div class="player-status-row" id="status-row-0">
-            <span class="status-indicator"></span>
-            <span class="status-name" id="status-name-0">North</span>
-            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-0"></span> | Hill <span
-                class="status-dot dot-off" id="status-hill-0"></span> | Base: <span id="status-base-0">5</span></span>
+          <div class="control-group" id="speed-control-group">
+            <label>Game Speed</label>
+            <div class="speed-slider-container">
+              <input type="range" id="speed-slider" min="1" max="5" value="3">
+              <span id="speed-value">Normal</span>
+            </div>
           </div>
-          <div class="player-status-row" id="status-row-1">
-            <span class="status-indicator"></span>
-            <span class="status-name" id="status-name-1">East</span>
-            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-1"></span> | Hill <span
-                class="status-dot dot-off" id="status-hill-1"></span> | Base: <span id="status-base-1">5</span></span>
-          </div>
-          <div class="player-status-row" id="status-row-2">
-            <span class="status-indicator"></span>
-            <span class="status-name" id="status-name-2">South</span>
-            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-2"></span> | Hill <span
-                class="status-dot dot-off" id="status-hill-2"></span> | Base: <span id="status-base-2">5</span></span>
-          </div>
-          <div class="player-status-row" id="status-row-3">
-            <span class="status-indicator"></span>
-            <span class="status-name" id="status-name-3">West</span>
-            <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-3"></span> | Hill <span
-                class="status-dot dot-off" id="status-hill-3"></span> | Base: <span id="status-base-3">5</span></span>
+
+          <div class="control-group" id="bot-toggles-group">
+            <label>Bot Toggles</label>
+            <div class="bot-toggles-grid">
+              <button id="bot-toggle-0" class="btn bot-btn">North: Human</button>
+              <button id="bot-toggle-1" class="btn bot-btn">East: Human</button>
+              <button id="bot-toggle-2" class="btn bot-btn">South: Human</button>
+              <button id="bot-toggle-3" class="btn bot-btn">West: Human</button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Instructions Bar (11) -->
-      <div class="card instruction-card">
-        <h3>HOW TO PLAY</h3>
-        <div class="instruction-content">
-          <ul>
-            <li><strong>Movement:</strong> Select a piece. Valid moves are highlighted in green, attacks in orange, King
-              captures in red.</li>
-            <li><strong>Control:</strong> You can only move your team's pieces that lie on your half of the board.</li>
-            <li><strong>Cross line:</strong> Once a piece crosses the center line, your teammate controls it on their
-              turn.</li>
-            <li><strong>Combats:</strong> Attacking triggers poker evaluation. <em>(Currently auto-resolved until Phase
-                2)</em>.</li>
-            <li id="rule-pawn-flanks"><strong>Pawn Flanks:</strong> Pawns on red flank squares cannot attack each other.
-            </li>
-            <li><strong>Kings:</strong> Cannot cross the half-line or touch enemy Kings.</li>
-          </ul>
+        <!-- Replay Controls (10) -->
+        <div class="card replay-card">
+          <h3>REPLAY NAVIGATION</h3>
+          <div class="replay-buttons">
+            <button id="btn-replay-prev" class="btn icon-btn" title="Previous Move" disabled>
+              <span class="arrow-icon">←</span>
+            </button>
+            <button id="btn-replay-resume" class="btn resume-btn" title="Resume Live Game" disabled>
+              Resume Live
+            </button>
+            <button id="btn-replay-next" class="btn icon-btn" title="Next Move" disabled>
+              <span class="arrow-icon">→</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-    </aside>
+        <!-- Game Log (9) -->
+        <div class="card log-card">
+          <h3>GAME LOG</h3>
+          <div class="log-entries" id="log-entries">
+            <div class="log-entry system-msg">turn Log:</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- RIGHT COLUMN: Status, Turn & Captures (12, 8, 7, 11) -->
+      <aside class="sidebar-right">
+
+        <!-- Who's Turn (12) -->
+        <div class="card turn-card" id="turn-card">
+          <h3>CURRENT MOVE</h3>
+          <div class="active-player-display">
+            <div class="player-avatar" id="active-player-avatar">N</div>
+            <div class="player-info">
+              <span class="player-name" id="active-player-name">North</span>
+              <span class="player-team" id="active-player-team">Team N-S (A)</span>
+            </div>
+          </div>
+          <div class="turn-phase-indicator" id="turn-phase">
+            Select a piece to move
+          </div>
+        </div>
+
+        <!-- Captured Pieces (8) -->
+        <div class="card captures-card">
+          <h3>CAPTURED PIECES</h3>
+          <div class="captured-team">
+            <div class="captured-pool" id="captured-pool-a">
+              <!-- Captured Team A pieces -->
+              <span class="no-captures-placeholder">None</span>
+            </div>
+          </div>
+          <div class="captured-team">
+            <div class="captured-pool" id="captured-pool-b">
+              <!-- Captured Team B pieces -->
+              <span class="no-captures-placeholder">None</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Players Status Bar (7) -->
+        <div class="card status-card">
+          <h3>PLAYERS STATUS</h3>
+          <div class="player-status-list">
+            <div class="player-status-row" id="status-row-0">
+              <span class="status-indicator"></span>
+              <span class="status-name" id="status-name-0">North</span>
+              <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-0"></span> | Hill <span
+                  class="status-dot dot-off" id="status-hill-0"></span> | Base: <span id="status-base-0">5</span></span>
+            </div>
+            <div class="player-status-row" id="status-row-1">
+              <span class="status-indicator"></span>
+              <span class="status-name" id="status-name-1">East</span>
+              <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-1"></span> | Hill <span
+                  class="status-dot dot-off" id="status-hill-1"></span> | Base: <span id="status-base-1">5</span></span>
+            </div>
+            <div class="player-status-row" id="status-row-2">
+              <span class="status-indicator"></span>
+              <span class="status-name" id="status-name-2">South</span>
+              <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-2"></span> | Hill <span
+                  class="status-dot dot-off" id="status-hill-2"></span> | Base: <span id="status-base-2">5</span></span>
+            </div>
+            <div class="player-status-row" id="status-row-3">
+              <span class="status-indicator"></span>
+              <span class="status-name" id="status-name-3">West</span>
+              <span class="status-deck-info">King <span class="status-dot dot-on" id="status-king-3"></span> | Hill <span
+                  class="status-dot dot-off" id="status-hill-3"></span> | Base: <span id="status-base-3">5</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Instructions Bar (11) -->
+        <div class="card instruction-card">
+          <h3>HOW TO PLAY</h3>
+          <div class="instruction-content">
+            <ul>
+              <li><strong>Movement:</strong> Select a piece. Valid moves are highlighted in green, attacks in orange, King
+                captures in red.</li>
+              <li><strong>Control:</strong> You can only move your team's pieces that lie on your half of the board.</li>
+              <li><strong>Cross line:</strong> Once a piece crosses the center line, your teammate controls it on their
+                turn.</li>
+              <li><strong>Combats:</strong> Attacking triggers poker evaluation. <em>(Currently auto-resolved until Phase
+                  2)</em>.</li>
+              <li id="rule-pawn-flanks"><strong>Pawn Flanks:</strong> Pawns on red flank squares cannot attack each other.
+              </li>
+              <li><strong>Kings:</strong> Cannot cross the half-line or touch enemy Kings.</li>
+            </ul>
+          </div>
+        </div>
+
+      </aside>
+    </div>
 
   </div>
 
