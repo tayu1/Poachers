@@ -2402,6 +2402,7 @@ body {
     /* Keep a comfortable inner padding for cards inside sidebars */
     margin: 0 auto;
     height: auto !important;
+    overflow: visible !important;
   }
 
   .sidebar-right {
