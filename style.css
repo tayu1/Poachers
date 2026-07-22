@@ -418,6 +418,17 @@ body {
   padding: 0;
 }
 
+/* Container to scale board layout wrapper on mobile screens cleanly without breaking layout flow */
+.board-scale-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 560px;
+  height: 550px;
+  position: relative;
+  overflow: visible;
+}
+
 .board-layout-wrapper {
   display: grid;
   grid-template-columns: 50px 460px 50px;
@@ -2401,14 +2412,25 @@ body {
     width: 100% !important;
   }
 
-  .board-layout-wrapper {
-    width: 560px !important;
+  .board-scale-container {
+    --board-scale: min(1, calc((100vw - 20px) / 510px));
+    width: calc(510px * var(--board-scale)) !important;
+    height: calc(550px * var(--board-scale)) !important;
     position: relative !important;
+    overflow: visible !important;
+  }
+
+  .board-layout-wrapper {
+    position: absolute !important;
     left: 50% !important;
-    transform: none !important;
-    transform-origin: left top !important;
-    margin-left: -255px !important;
-    margin-right: 0 !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) scale(var(--board-scale)) !important;
+    transform-origin: center center !important;
+    margin: 0 !important;
+    width: 510px !important;
+    max-width: none !important;
+    height: 550px !important;
+    grid-template-columns: 50px 460px 0px !important;
   }
 
   .lobby-main {
@@ -2426,30 +2448,93 @@ body {
     font-size: 2.8rem;
   }
 
+  /* Room Seats and Seat Buttons adjustments */
   .room-seats {
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .room-seat {
+    padding: 8px 6px !important;
+    border-radius: 10px !important;
+    gap: 4px !important;
+  }
+
+  .room-seat .btn {
+    font-size: 0.65rem !important;
+    padding: 3px 6px !important;
+    min-width: auto !important;
+    margin-top: 4px !important;
+  }
+
+  .seat-direction {
+    font-size: 1.1rem !important;
+  }
+
+  .seat-icon {
+    font-size: 1.3rem !important;
+  }
+
+  .seat-name {
+    font-size: 0.75rem !important;
+  }
+
+  .seat-label {
+    font-size: 0.6rem !important;
   }
 
   .room-container {
-    padding: 15px;
+    padding: 12px !important;
   }
 
-  /* Scale the board wrapper to fit screen width */
-  .board-layout-wrapper {
-    --board-scale: calc(min(100vw - 0px, 510px) / 510px);
-    width: 560px !important;
-    position: relative !important;
-    left: 50% !important;
-    transform: scale(var(--board-scale)) !important;
-    transform-origin: left top !important;
-    /* Adjust spacing below the scaled board wrapper */
-    margin-top: 10px !important;
-    margin-bottom: calc(-550px * (1 - var(--board-scale))) !important;
-    /* Shift left by visual center * scale */
-    margin-left: calc(-305px * var(--board-scale)) !important;
-    margin-right: 0 !important;
+  .room-header {
+    margin-bottom: 12px !important;
   }
+
+  .room-header h2 {
+    font-size: 1.4rem !important;
+    margin-bottom: 6px !important;
+  }
+
+  .room-code-block {
+    padding: 6px 12px !important;
+    gap: 8px !important;
+    border-radius: 10px !important;
+  }
+
+  .room-code-value {
+    font-size: 1.4rem !important;
+  }
+
+  .room-settings {
+    margin: 10px auto !important;
+    padding: 8px 12px !important;
+    border-radius: 12px !important;
+  }
+
+  .timer-toggle-container {
+    gap: 6px !important;
+    flex-direction: column !important;
+  }
+
+  .timer-opt-btn {
+    padding: 4px 8px !important;
+    font-size: 0.75rem !important;
+  }
+
+  .room-status {
+    margin-bottom: 10px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .room-actions .btn {
+    min-width: 110px !important;
+    padding: 8px 16px !important;
+    font-size: 0.85rem !important;
+  }
+
+
 
   /* Compact sidebar adjustments for smaller portrait screens */
   .card {
@@ -2560,17 +2645,25 @@ body {
   }
 
   /* Scale the board wrapper to fit both viewport height and remaining width */
-  .board-layout-wrapper {
+  .board-scale-container {
     --board-scale: min(calc((100vw - 170px) / 510px), calc(96vh / 550px), 1);
-    width: 560px !important;
+    width: calc(510px * var(--board-scale)) !important;
+    height: calc(550px * var(--board-scale)) !important;
     position: relative !important;
+    overflow: visible !important;
+  }
+
+  .board-layout-wrapper {
+    position: absolute !important;
     left: 50% !important;
-    transform: scale(var(--board-scale)) !important;
-    transform-origin: left center !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    margin-left: calc(-320px * var(--board-scale)) !important;
-    margin-right: 0 !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) scale(var(--board-scale)) !important;
+    transform-origin: center center !important;
+    margin: 0 !important;
+    width: 510px !important;
+    max-width: none !important;
+    height: 550px !important;
+    grid-template-columns: 50px 460px 0px !important;
   }
 
   /* Compact sidebars adjustments for landscape mode */

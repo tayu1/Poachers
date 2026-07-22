@@ -192,8 +192,10 @@
     <!-- CENTER COLUMN: Game Board & Cards (2, 3, 5, 6, 4) -->
     <main class="board-area">
 
-      <!-- Central Board Wrapper containing Board (2) + Positional Cards (3) on 4 sides + Flop (5) + Turn/River (6) + Base Deck (4) -->
-      <div class="board-layout-wrapper">
+      <!-- Scale Container to handle mobile screen fitting and centering without flow disruption -->
+      <div class="board-scale-container">
+        <!-- Central Board Wrapper containing Board (2) + Positional Cards (3) on 4 sides + Flop (5) + Turn/River (6) + Base Deck (4) -->
+        <div class="board-layout-wrapper">
 
         <!-- Left Public Cards Container (Flop & Turn/River) -->
         <div class="left-public-container">
@@ -310,6 +312,7 @@
         <div class="combat-announcement-text" id="combat-announcement-text"></div>
       </div>
     </div>
+      </div>
 
     <!-- Promotion Instructions -->
     <div id="promotion-instruction" class="promotion-instruction hidden">
