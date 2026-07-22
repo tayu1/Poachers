@@ -61,7 +61,7 @@ function runSimulation(numGames, P_A, P_B, botA = null, botB = null, maxTurns = 
         if (consecutivePasses >= 4) {
           break; // True stalemate
         }
-        gameState.turn = (gameState.turn + 1) % 4;
+        gameState.turn = engine.getNextActiveTurn(gameState.turn, gameState);
         turnCount++;
         continue;
       }
@@ -95,7 +95,7 @@ function runSimulation(numGames, P_A, P_B, botA = null, botB = null, maxTurns = 
       winner = checkGameOver(gameState);
       if (winner) break;
       
-      gameState.turn = (gameState.turn + 1) % 4;
+      gameState.turn = engine.getNextActiveTurn(gameState.turn, gameState);
       turnCount++;
     }
     

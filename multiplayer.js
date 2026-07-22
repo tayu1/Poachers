@@ -9,6 +9,7 @@
   let socket = null;
   let myRoomCode = null;
   let mySeatIndex = null;
+  let mySeatIndices = [];
   let isHost = false;
   let currentSeats = [];
   let onGameStateCallback = null;
@@ -68,6 +69,7 @@
         if (res.inRoom) {
           myRoomCode = res.roomCode;
           mySeatIndex = res.seatIndex;
+          mySeatIndices = Array.isArray(res.seatIndexes) ? res.seatIndexes : (res.seatIndex !== null ? [res.seatIndex] : []);
           isHost = res.isHost;
           currentSeats = res.seats;
           
@@ -79,6 +81,7 @@
           } else {
             showRoom();
             renderRoomSeats(res.seats);
+            renderRoomSettings(res.turnTimerLimit !== undefined ? res.turnTimerLimit : 30);
           }
         } else {
           showLobby();
@@ -94,9 +97,10 @@
       renderRoomList(roomList);
     });
 
-    socket.on('room-update', ({ seats, state }) => {
+    socket.on('room-update', ({ seats, state, turnTimerLimit }) => {
       currentSeats = seats;
       renderRoomSeats(seats);
+      renderRoomSettings(turnTimerLimit !== undefined ? turnTimerLimit : 30);
 
       if (state === 'playing' && !isInGame) {
         isInGame = true;
@@ -130,6 +134,7 @@
   function showLobby() {
     myRoomCode = null;
     mySeatIndex = null;
+    mySeatIndices = [];
     isHost = false;
     currentSeats = [];
     isInGame = false;
@@ -237,7 +242,8 @@
         icon = '⏳';
       }
 
-      const canSwitch = s.type === 'open';
+      const isMySeat = mySeatIndices.includes(i);
+      const canSwitch = s.type === 'open' || isMySeat;
       const switchAttr = canSwitch ? `data-switch="${i}"` : '';
       const switchClass = canSwitch ? 'seat-toggleable' : '';
 
@@ -246,13 +252,20 @@
         ? `<div style="margin-top: 8px;"><button class="btn btn-secondary" style="font-size: 0.75em; padding: 4px 8px;" data-togglebot="${i}">${s.type === 'bot' ? 'Remove Bot' : 'Add Bot'}</button></div>` 
         : '';
 
+      let hintText = '';
+      if (s.type === 'open') {
+        hintText = 'Click to claim';
+      } else if (isMySeat) {
+        hintText = 'Click to unclick';
+      }
+
       return `
-        <div class="room-seat ${statusClass} ${switchClass} ${mySeatIndex === i ? 'seat-me' : ''}" ${switchAttr}>
+        <div class="room-seat ${statusClass} ${switchClass} ${isMySeat ? 'seat-me' : ''}" ${switchAttr}>
           <div class="seat-direction">${SEAT_SHORT[i]}</div>
           <div class="seat-icon">${icon}</div>
           <div class="seat-name">${statusText}</div>
           <div class="seat-label">${SEAT_NAMES[i]}</div>
-          ${canSwitch ? '<div class="seat-toggle-hint">Click to switch</div>' : ''}
+          ${hintText ? `<div class="seat-toggle-hint">${hintText}</div>` : ''}
           ${botToggleHtml}
         </div>
       `;
@@ -265,7 +278,9 @@
         socket.emit('switch-seat', { seatIndex: idx }, (res) => {
           if (res && !res.success) showRoomError(res.error);
           else if (res && res.success) {
-            mySeatIndex = res.seatIndex;
+            mySeatIndex = res.seatIndex ?? mySeatIndices[0] ?? null;
+            mySeatIndices = Array.isArray(res.seatIndexes) ? res.seatIndexes : (mySeatIndex !== null ? [mySeatIndex] : []);
+            renderRoomSeats(currentSeats);
           }
         });
       });
@@ -294,9 +309,51 @@
     }
 
     if (elRoomStatus) {
+      const seatStatusText = mySeatIndices.length >= 2
+        ? 'You control two seats. Click a seat to keep your setup, or wait for the host to start.'
+        : 'Click open seats to claim them. You can take up to 2 seats.';
+
       elRoomStatus.textContent = isHost
-        ? 'You are the host. Toggle seats and start when ready.'
-        : 'Waiting for the host to start the game...';
+        ? `You are the host. ${seatStatusText}`
+        : seatStatusText;
+    }
+  }
+
+  function renderRoomSettings(turnTimerLimit) {
+    const elRoomSettings = document.getElementById('room-settings');
+    if (!elRoomSettings) return;
+
+    const limits = [30, 60, 90, 0];
+    const optionButtons = limits.map(limit => {
+      const activeClass = turnTimerLimit === limit ? 'active' : '';
+      const disabledAttr = isHost ? '' : 'disabled';
+      const label = limit === 0 ? 'None' : `${limit}s`;
+      return `<button class="timer-opt-btn ${activeClass}" data-limit="${limit}" ${disabledAttr}>${label}</button>`;
+    }).join('');
+
+    elRoomSettings.innerHTML = `
+      <div class="timer-toggle-container">
+        <span class="timer-toggle-label">Turn Timer Limit:</span>
+        <div class="timer-toggle-group">
+          ${optionButtons}
+        </div>
+      </div>
+    `;
+
+    // Attach click listeners for options if host
+    if (isHost) {
+      elRoomSettings.querySelectorAll('.timer-opt-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const newLimit = parseInt(btn.dataset.limit);
+          if (newLimit !== turnTimerLimit) {
+            socket.emit('update-room-settings', { turnTimerLimit: newLimit }, (res) => {
+              if (res && !res.success) {
+                showRoomError(res.error || 'Failed to update settings');
+              }
+            });
+          }
+        });
+      });
     }
   }
 
@@ -307,11 +364,13 @@
       if (res.success) {
         myRoomCode = res.roomCode;
         mySeatIndex = res.seatIndex;
+        mySeatIndices = Array.isArray(res.seatIndexes) ? res.seatIndexes : (res.seatIndex !== null ? [res.seatIndex] : []);
         isHost = true;
         currentSeats = res.seats;
         elRoomCode.textContent = res.roomCode;
         showRoom();
         renderRoomSeats(res.seats);
+        renderRoomSettings(res.turnTimerLimit !== undefined ? res.turnTimerLimit : 30);
       } else {
         showError(res.error || 'Failed to create room');
       }
@@ -324,11 +383,13 @@
       if (res.success) {
         myRoomCode = res.roomCode;
         mySeatIndex = res.seatIndex;
+        mySeatIndices = Array.isArray(res.seatIndexes) ? res.seatIndexes : (res.seatIndex !== null ? [res.seatIndex] : []);
         isHost = false;
         currentSeats = res.seats;
         elRoomCode.textContent = res.roomCode;
         showRoom();
         renderRoomSeats(res.seats);
+        renderRoomSettings(res.turnTimerLimit !== undefined ? res.turnTimerLimit : 30);
       } else {
         showError(res.error || 'Failed to join room');
       }
@@ -403,6 +464,8 @@
   window.Multiplayer = {
     get isOnline() { return isInGame; },
     get myPlayerId() { return mySeatIndex; },
+    get myPlayerIds() { return mySeatIndices; },
+    isMySeat(seatIndex) { return mySeatIndices.includes(seatIndex); },
     get currentSeats() { return currentSeats; },
     get socket() { return socket; },
     get isHost() { return isHost; },

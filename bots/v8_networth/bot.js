@@ -13,7 +13,8 @@ const {
   getLegalMoves, getAllLegalMovesForActivePlayer,
   getPositionalCardsForCell, HILL_SQUARES,
   getSlideDestination, find_pawns_to_promot,
-  executePromotion, add_to_captured_pieces
+  executePromotion, add_to_captured_pieces,
+  getNextActiveTurn, swapCards, swapPositionalCards
 } = engine;
 
 // ─── Precomputed lookup tables ───────────────────────────────────────────────
@@ -237,7 +238,8 @@ function evaluate(gameState, playerIndex, P, regionProbs) {
   const myThreats = buildThreatMap(board, team);
   const oppThreats = buildThreatMap(board, oppTeam);
 
-  let score = 0;
+  // Initialize score with king count difference penalty/reward (5000 points per king)
+  let score = (2 - kingsOpp) * 5000 - (2 - kingsMine) * 5000;
 
   // Piece-square evaluation
   for (let r = 0; r < 8; r++) {
@@ -265,10 +267,13 @@ function evaluate(gameState, playerIndex, P, regionProbs) {
         // Flank bonus
         if (IS_FLANK[idx]) score += P[6];
 
-        // Pawn centrality
-        if (type === 'p') {
-          score += P[7] * (10 - CENTER_DIST[idx]);
+        // Centrality for non-king pieces
+        if (type !== 'k') {
+          const pieceCentralityFactor = (type === 'p') ? 1.0 : 0.5;
+          const startMultiplier = (!gameState.hillWasVisited) ? 2.5 : 1.0;
+          score += P[7] * pieceCentralityFactor * startMultiplier * (10 - CENTER_DIST[idx]);
         }
+
 
         // King under threat penalty
         if (type === 'k' && oppThreats[idx]) {
@@ -296,8 +301,10 @@ function evaluate(gameState, playerIndex, P, regionProbs) {
 
         if (IS_FLANK[idx]) score -= P[6];
 
-        if (type === 'p') {
-          score -= P[7] * (10 - CENTER_DIST[idx]);
+        if (type !== 'k') {
+          const pieceCentralityFactor = (type === 'p') ? 1.0 : 0.5;
+          const startMultiplier = (!gameState.hillWasVisited) ? 2.5 : 1.0;
+          score -= P[7] * pieceCentralityFactor * startMultiplier * (10 - CENTER_DIST[idx]);
         }
 
         // Opponent king under my threat bonus
@@ -320,9 +327,9 @@ function evaluate(gameState, playerIndex, P, regionProbs) {
     }
   }
 
-  // Mobility (threatened squares count)
-  score += P[9] * countThreats(myThreats);
-  score -= P[9] * countThreats(oppThreats);
+  // Mobility (threatened squares count) — keep it modest to avoid overvaluing noise
+  score += (P[9] * 0.5) * countThreats(myThreats);
+  score -= (P[9] * 0.5) * countThreats(oppThreats);
 
   // Pinned pieces
   const myPins = getPinnedCount(board, playerIndex);
@@ -331,12 +338,12 @@ function evaluate(gameState, playerIndex, P, regionProbs) {
   const oppPins2 = getPinnedCount(board, (playerIndex + 3) % 4);
   score += P[11] * (oppPins1 + oppPins2);
 
-  // Base deck advantage
+  // Base deck advantage — use a smaller, more stable weight
   const myBaseSize = gameState.players[playerIndex].baseDeck.length;
   const opp1BaseSize = gameState.players[(playerIndex + 1) % 4].baseDeck.length;
   const opp2BaseSize = gameState.players[(playerIndex + 3) % 4].baseDeck.length;
-  score += 0.2 * myBaseSize;
-  score -= 0.1 * (opp1BaseSize + opp2BaseSize);
+  score += 0.1 * myBaseSize;
+  score -= 0.05 * (opp1BaseSize + opp2BaseSize);
 
   return score;
 }
@@ -420,7 +427,7 @@ function makeMove(state, move, outcome) {
     undo.toPiece = board[move.to.r][move.to.c];
     board[move.to.r][move.to.c] = board[move.from.r][move.from.c];
     board[move.from.r][move.from.c] = null;
-    state.turn = (state.turn + 1) % 4;
+    state.turn = getNextActiveTurn(state.turn, state);
 
   } else if (move.type === 'capture') {
     undo.fromR = move.from.r; undo.fromC = move.from.c;
@@ -435,7 +442,7 @@ function makeMove(state, move, outcome) {
     }
     board[move.to.r][move.to.c] = board[move.from.r][move.from.c];
     board[move.from.r][move.from.c] = null;
-    state.turn = (state.turn + 1) % 4;
+    state.turn = getNextActiveTurn(state.turn, state);
 
   } else if (move.type === 'attack') {
     if (outcome === 'win') {
@@ -451,7 +458,7 @@ function makeMove(state, move, outcome) {
       }
       board[move.to.r][move.to.c] = board[move.from.r][move.from.c];
       board[move.from.r][move.from.c] = null;
-      state.turn = (state.turn + 1) % 4;
+      state.turn = getNextActiveTurn(state.turn, state);
     } else {
       undo.fromR = move.from.r; undo.fromC = move.from.c;
       undo.fromPiece = board[move.from.r][move.from.c];
@@ -467,7 +474,7 @@ function makeMove(state, move, outcome) {
           board[move.from.r][move.from.c] = null;
         }
       }
-      state.turn = (state.turn + 1) % 4;
+      state.turn = getNextActiveTurn(state.turn, state);
     }
     undo.outcome = outcome;
 
@@ -481,7 +488,7 @@ function makeMove(state, move, outcome) {
     undo.poolSnapshot = { ...state.capturedPieces[activeTeam] };
     undo.playerId = state.turn;
     executePromotion(move.to.r, move.to.c, move.promoType, move.promoSubtype, state.turn, state);
-    state.turn = (state.turn + 1) % 4;
+    state.turn = getNextActiveTurn(state.turn, state);
   }
 
   return undo;
@@ -743,12 +750,57 @@ function getCounterBestCase(gameState, myTeam, activePlayer, regionProbs, P, bas
 
 // ─── Top-level move selection ────────────────────────────────────────────────
 
-function getBestMove(gameState, P) {
+function cloneGameState(state) {
+  return JSON.parse(JSON.stringify(state));
+}
+
+function getHandStrengthValue(hand) {
+  if (!hand) return 0;
+  const rankWeights = { 0: 0, 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000, 6: 6000, 7: 7000, 8: 8000 };
+  const base = rankWeights[hand.rank] || 0;
+  const kickers = hand.kickers || [];
+  let score = base;
+  for (let i = 0; i < kickers.length; i++) {
+    score += (kickers[i] || 0) * 10;
+  }
+  return score;
+}
+
+function getSwapHandBonus(gameState, playerIndex, swapSpec) {
+  const player = gameState.players[playerIndex];
+  if (!player || !player.positionalCards || !player.baseDeck) return 0;
+
+  const publicCards = gameState.publicCards || [];
+  const positional = player.positionalCards.slice();
+  const baseDeck = player.baseDeck.slice();
+  const currentHand = engine.getBestHand([...positional, ...publicCards]);
+  const currentValue = getHandStrengthValue(currentHand);
+
+  let swappedPositional = positional.slice();
+  let swappedBaseDeck = baseDeck.slice();
+
+  if (swapSpec.swapType === 'base-to-pos') {
+    swappedPositional[swapSpec.posCardIdx] = swappedBaseDeck[swapSpec.baseCardIdx];
+    swappedBaseDeck[swapSpec.baseCardIdx] = positional[swapSpec.posCardIdx];
+  } else if (swapSpec.swapType === 'pos-to-pos') {
+    const temp = swappedPositional[swapSpec.posCardIdx1];
+    swappedPositional[swapSpec.posCardIdx1] = swappedPositional[swapSpec.posCardIdx2];
+    swappedPositional[swapSpec.posCardIdx2] = temp;
+  } else {
+    return 0;
+  }
+
+  const swappedHand = engine.getBestHand([...swappedPositional, ...publicCards]);
+  const swappedValue = getHandStrengthValue(swappedHand);
+  return (swappedValue - currentValue) / 100;
+}
+
+function selectBestMove(gameState, P) {
   const activePlayer = gameState.turn;
   const myTeam = PLAYER_TEAMS[activePlayer];
   const moves = orderMoves(getExpandedMoves(gameState, activePlayer));
 
-  if (moves.length === 0) return null;
+  if (moves.length === 0) return { move: null, score: -Infinity };
 
   const regionProbs = gameState.regionProbs || computeRegionProbabilities(gameState, activePlayer);
 
@@ -778,18 +830,104 @@ function getBestMove(gameState, P) {
     }
   }
 
-  // Update board history
-  if (bestMove && bestMove.type === 'move') {
-    const undo = makeMove(gameState, bestMove);
-    const chosenHash = hashBoard(gameState.board);
-    unmakeMove(gameState, undo);
-    boardHistory.push(chosenHash);
-    if (boardHistory.length > 12) {
-      boardHistory.shift();
+  return { move: bestMove, score: bestScore };
+}
+
+function getBestMove(gameState, P) {
+  const decision = getBestAction(gameState, P);
+  return decision && decision.move;
+}
+
+function getBestAction(gameState, P) {
+  const activePlayer = gameState.turn;
+  const player = gameState.players[activePlayer];
+  const noSwapChoice = selectBestMove(gameState, P);
+  let bestDecision = {
+    swap: null,
+    move: noSwapChoice.move,
+    score: noSwapChoice.score
+  };
+
+  if (!player || !player.baseDeck || player.baseDeck.length === 0) {
+    return bestDecision;
+  }
+
+  let bestSwapCandidate = null;
+  let bestSwapBonus = -Infinity;
+
+  // 1. Base to positional swaps
+  for (let baseIdx = 0; baseIdx < player.baseDeck.length; baseIdx++) {
+    const baseCard = player.baseDeck[baseIdx];
+    if (!baseCard) continue;
+
+    for (let posIdx = 0; posIdx < player.positionalCards.length; posIdx++) {
+      const posCard = player.positionalCards[posIdx];
+      if (!posCard) continue;
+
+      const swapSpec = { type: 'swap', swapType: 'base-to-pos', baseCardIdx: baseIdx, posCardIdx: posIdx };
+      const swapBonus = getSwapHandBonus(gameState, activePlayer, swapSpec);
+      if (swapBonus > bestSwapBonus) {
+        bestSwapBonus = swapBonus;
+        bestSwapCandidate = swapSpec;
+      }
     }
   }
 
-  return bestMove;
+  // 2. Positional to positional swaps
+  for (let posIdx1 = 0; posIdx1 < player.positionalCards.length - 1; posIdx1++) {
+    for (let posIdx2 = posIdx1 + 1; posIdx2 < player.positionalCards.length; posIdx2++) {
+      const card1 = player.positionalCards[posIdx1];
+      const card2 = player.positionalCards[posIdx2];
+      if (!card1 || !card2) continue;
+
+      const swapSpec = { type: 'swap', swapType: 'pos-to-pos', posCardIdx1: posIdx1, posCardIdx2: posIdx2 };
+      const swapBonus = getSwapHandBonus(gameState, activePlayer, swapSpec);
+      if (swapBonus > bestSwapBonus) {
+        bestSwapBonus = swapBonus;
+        bestSwapCandidate = swapSpec;
+      }
+    }
+  }
+
+  const threshold = 0.25;
+  if (bestSwapCandidate && bestSwapBonus > threshold) {
+    const candidateState = cloneGameState(gameState);
+    let swapped = false;
+    
+    // Manually swap cards in the player representation to bypass expensive engine calculations
+    if (bestSwapCandidate.swapType === 'base-to-pos') {
+      const p = candidateState.players[activePlayer];
+      const baseCard = p.baseDeck[bestSwapCandidate.baseCardIdx];
+      const posCard = p.positionalCards[bestSwapCandidate.posCardIdx];
+      p.baseDeck[bestSwapCandidate.baseCardIdx] = posCard;
+      p.positionalCards[bestSwapCandidate.posCardIdx] = baseCard;
+      candidateState.hasSwappedThisTurn = true;
+      swapped = true;
+    } else if (bestSwapCandidate.swapType === 'pos-to-pos') {
+      const p = candidateState.players[activePlayer];
+      const card1 = p.positionalCards[bestSwapCandidate.posCardIdx1];
+      const card2 = p.positionalCards[bestSwapCandidate.posCardIdx2];
+      p.positionalCards[bestSwapCandidate.posCardIdx1] = card2;
+      p.positionalCards[bestSwapCandidate.posCardIdx2] = card1;
+      candidateState.hasSwappedThisTurn = true;
+      swapped = true;
+    }
+
+    if (swapped) {
+      // Re-run fast Monte Carlo region probabilities for the swapped state
+      candidateState.regionProbs = computeRegionProbabilities(candidateState, activePlayer);
+      const afterSwapChoice = selectBestMove(candidateState, P);
+      if (afterSwapChoice.score + bestSwapBonus > noSwapChoice.score) {
+        bestDecision = {
+          swap: bestSwapCandidate,
+          move: afterSwapChoice.move,
+          score: afterSwapChoice.score + bestSwapBonus
+        };
+      }
+    }
+  }
+
+  return bestDecision;
 }
 
 // ─── Public eval function for external tools ─────────────────────────────────
@@ -804,13 +942,17 @@ function evaluateBoard(gameState, playerIndex, P) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     getBestMove,
-    evaluateBoard
+    getBestAction,
+    evaluateBoard,
+    makeMove,
+    unmakeMove
   };
 }
 
 if (typeof window !== 'undefined') {
   window.PoachersBot_v8 = {
     getBestMove,
+    getBestAction,
     evaluateBoard
   };
 }

@@ -6,7 +6,9 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+
 const engine = require('./engine.js');
+require('./speeds.js');
 
 const PORT = process.env.PORT || 8080;
 
@@ -61,7 +63,12 @@ function createRoom(hostSocket, hostName, token) {
     history: [],
     combatShowdown: null,
     combatTimeout: null,
-    botWeights: [1, 3, 3.5, 5, 20, 0.5, 0.2, 0.1, 8, 0.2, 10, 2, 0.5]
+    botWeights: [2.18, 3.59, 6.16, 2.5, 13.02, 7.21, 0.61, 1.21, 4.36, 0.35, 4.35, 0.47, 0.12],
+    matchScores: { A: 0, B: 0 },
+    lastStartingPlayer: 0,
+    turnTimerLimit: 30, // default limit in seconds
+    turnEndTime: null,
+    turnTimeout: null
   };
   rooms.set(code, room);
   hostSocket.join(code);
@@ -96,10 +103,37 @@ function getSeatInfo(room) {
   }));
 }
 
-function findRoomBySocket(socketId) {
-  for (const [code, room] of rooms) {
-    const seatIdx = room.seats.findIndex(s => s.socketId === socketId);
-    if (seatIdx !== -1) return { room, seatIdx };
+function getSeatIndexesForToken(room, token) {
+  return room.seats.reduce((acc, seat, index) => {
+    if (seat.type === 'human' && seat.token === token) acc.push(index);
+    return acc;
+  }, []);
+}
+
+function getSeatIndexesBySocket(room, socketId) {
+  return room.seats.reduce((acc, seat, index) => {
+    if (seat.type === 'human' && seat.socketId === socketId) acc.push(index);
+    return acc;
+  }, []);
+}
+
+function findRoomBySocket(socket) {
+  const isObj = typeof socket === 'object' && socket !== null;
+  const socketId = isObj ? socket.id : socket;
+
+  if (isObj && socket.rooms) {
+    for (const code of socket.rooms) {
+      if (rooms.has(code)) {
+        const room = rooms.get(code);
+        const seatIndexes = getSeatIndexesBySocket(room, socketId);
+        return { room, seatIdx: seatIndexes[0] ?? null, seatIndexes };
+      }
+    }
+  }
+
+  for (const [, room] of rooms) {
+    const seatIndexes = getSeatIndexesBySocket(room, socketId);
+    if (seatIndexes.length > 0) return { room, seatIdx: seatIndexes[0], seatIndexes };
   }
   return null;
 }
@@ -109,13 +143,25 @@ function getPlayerView(room, forSeatIdx) {
   if (!room.gameState) return null;
   const gs = room.gameState;
 
+  const targetSeat = room.seats[forSeatIdx];
+  const allowedIndices = [];
+  if (targetSeat && targetSeat.type === 'human') {
+    room.seats.forEach((seat, idx) => {
+      if (seat.type === 'human' && (seat.token === targetSeat.token || seat.socketId === targetSeat.socketId)) {
+        allowedIndices.push(idx);
+      }
+    });
+  } else {
+    allowedIndices.push(forSeatIdx);
+  }
+
   const players = gs.players.map((p, i) => ({
     id: p.id,
     name: room.seats[i].type === 'human' ? room.seats[i].name : 'Bot',
     team: p.team,
     positionalCards: p.positionalCards,
     // Only send base deck to the owning player
-    baseDeck: (i === forSeatIdx) ? p.baseDeck : p.baseDeck.map(() => null),
+    baseDeck: allowedIndices.includes(i) ? p.baseDeck : p.baseDeck.map(() => null),
     baseDeckCount: p.baseDeck.length
   }));
 
@@ -129,7 +175,9 @@ function getPlayerView(room, forSeatIdx) {
     matchScores: gs.matchScores,
     lastMove: gs.lastMove || null,
     deckSize: gs.deck.length,
-    hillWasVisited: gs.hillWasVisited
+    hillWasVisited: gs.hillWasVisited,
+    turnEndTime: room.turnEndTime || null,
+    turnTimerLimit: room.turnTimerLimit !== undefined ? room.turnTimerLimit : 30
   };
 }
 
@@ -142,10 +190,17 @@ try {
   console.warn('Bot module not loadable server-side, bots will pass turns.');
 }
 
-function getBotMove(gameState, botWeights) {
+function getBotDecision(gameState, botWeights) {
+  if (botModule && botModule.getBestAction) {
+    try {
+      return botModule.getBestAction(gameState, botWeights);
+    } catch (err) {
+      console.error('Bot module crashed, falling back to random move:', err);
+    }
+  }
   if (botModule && botModule.getBestMove) {
     try {
-      return botModule.getBestMove(gameState, botWeights);
+      return { move: botModule.getBestMove(gameState, botWeights) };
     } catch (err) {
       console.error('Bot module crashed, falling back to random move:', err);
     }
@@ -155,7 +210,7 @@ function getBotMove(gameState, botWeights) {
   // use the engine's getAllLegalMovesForActivePlayer and pick a random legal move
   // as a fallback. For proper bot AI, we'd need to refactor bots for Node.
   const allMoves = engine.getAllLegalMovesForActivePlayer(gameState);
-  if (allMoves.length === 0) return null;
+  if (allMoves.length === 0) return { move: null };
 
   // Check for promotions first
   const activeId = gameState.turn;
@@ -172,10 +227,12 @@ function getBotMove(gameState, botWeights) {
     const validSquares = engine.find_pawns_to_promot(activeId, pt.type, pt.subtype, gameState);
     if (validSquares.length > 0) {
       return {
-        type: 'promote',
-        to: validSquares[0],
-        promoType: pt.type,
-        promoSubtype: pt.subtype
+        move: {
+          type: 'promote',
+          to: validSquares[0],
+          promoType: pt.type,
+          promoSubtype: pt.subtype
+        }
       };
     }
   }
@@ -191,9 +248,9 @@ function getBotMove(gameState, botWeights) {
   let r = Math.random() * totalWeight;
   for (const entry of scored) {
     r -= entry.weight;
-    if (r <= 0) return entry.move;
+    if (r <= 0) return { move: entry.move };
   }
-  return scored[scored.length - 1].move;
+  return { move: scored[scored.length - 1].move };
 }
 
 // --- Game Execution Helpers ---
@@ -212,9 +269,11 @@ function executeMoveOnServer(room, move) {
     engine.checkHillRefill(gs.turn, gs);
     const gameOver = checkGameOverServer(room);
     if (!gameOver) {
-      gs.turn = (gs.turn + 1) % 4;
+      gs.turn = engine.getNextActiveTurn(gs.turn, gs);
       gs.lastMove = null;
       gs.hasSwappedThisTurn = false;
+      room.turnEndTime = room.turnTimerLimit > 0 ? Date.now() + room.turnTimerLimit * 1000 : null;
+      startTurnTimeout(room);
     }
     broadcastState(room);
     if (!gameOver) scheduleBotTurn(room);
@@ -225,6 +284,7 @@ function executeMoveOnServer(room, move) {
   const toPiece = gs.board[move.to.r][move.to.c];
 
   if (move.type === 'attack') {
+    clearTurnTimeout(room); // Pause timer during combat showdown
     // Draw combat cards
     const combatCards = [gs.deck.pop(), gs.deck.pop()];
     const combatResult = engine.evaluateCombat(move, combatCards, gs);
@@ -240,7 +300,10 @@ function executeMoveOnServer(room, move) {
     // Broadcast showdown state to all
     broadcastState(room);
 
-    // Resolve after 4.5 seconds
+    // Resolve after the configured delays
+    const winHighlightDelay = (typeof COMBAT_SHOWDOWN_HIGHLIGHT_DELAY !== 'undefined') ? COMBAT_SHOWDOWN_HIGHLIGHT_DELAY : 2000;
+    const combatResolveDelay = winHighlightDelay + ((typeof COMBAT_SHOWDOWN_WINNING_CARD_DURATION !== 'undefined') ? COMBAT_SHOWDOWN_WINNING_CARD_DURATION : 2500);
+
     room.combatTimeout = setTimeout(() => {
       let stolenCard = null;
       if (combatResult.outcome === 'capture') {
@@ -261,12 +324,14 @@ function executeMoveOnServer(room, move) {
       engine.checkHillRefill(gs.turn, gs);
       const gameOver = checkGameOverServer(room);
       if (!gameOver) {
-        gs.turn = (gs.turn + 1) % 4;
+        gs.turn = engine.getNextActiveTurn(gs.turn, gs);
         gs.hasSwappedThisTurn = false;
+        room.turnEndTime = room.turnTimerLimit > 0 ? Date.now() + room.turnTimerLimit * 1000 : null;
+        startTurnTimeout(room);
       }
       broadcastState(room);
       if (!gameOver) scheduleBotTurn(room);
-    }, 4500);
+    }, combatResolveDelay);
     return;
   }
 
@@ -281,8 +346,10 @@ function executeMoveOnServer(room, move) {
   engine.checkHillRefill(gs.turn, gs);
   const gameOver = checkGameOverServer(room);
   if (!gameOver) {
-    gs.turn = (gs.turn + 1) % 4;
+    gs.turn = engine.getNextActiveTurn(gs.turn, gs);
     gs.hasSwappedThisTurn = false;
+    room.turnEndTime = room.turnTimerLimit > 0 ? Date.now() + room.turnTimerLimit * 1000 : null;
+    startTurnTimeout(room);
   }
   broadcastState(room);
   if (!gameOver) scheduleBotTurn(room);
@@ -299,7 +366,20 @@ function checkGameOverServer(room) {
   }
   if (kingsA === 0 || kingsB === 0) {
     room.state = 'finished';
+    clearTurnTimeout(room);
     const winner = kingsA === 0 ? 'B' : 'A';
+    
+    // Update persistent scores
+    if (!room.matchScores) {
+      room.matchScores = { A: 0, B: 0 };
+    }
+    room.matchScores[winner]++;
+    
+    // Set matchScores inside the broadcasted game state
+    if (room.gameState) {
+      room.gameState.matchScores = { ...room.matchScores };
+    }
+
     io.to(room.code).emit('game-over', { winner });
     return true;
   }
@@ -318,6 +398,55 @@ function broadcastState(room) {
   }
 }
 
+function broadcastRoomUpdate(room) {
+  io.to(room.code).emit('room-update', {
+    seats: getSeatInfo(room),
+    state: room.state,
+    turnTimerLimit: room.turnTimerLimit
+  });
+}
+
+function clearTurnTimeout(room) {
+  if (room.turnTimeout) {
+    clearTimeout(room.turnTimeout);
+    room.turnTimeout = null;
+  }
+}
+
+function startTurnTimeout(room) {
+  clearTurnTimeout(room);
+  
+  if (room.state !== 'playing' || !room.gameState) return;
+  if (room.combatShowdown) return;
+  if (room.turnTimerLimit === 0) return;
+
+  const gs = room.gameState;
+  const currentSeat = room.seats[gs.turn];
+
+  if (currentSeat && currentSeat.type === 'human') {
+    const delay = room.turnEndTime - Date.now();
+    room.turnTimeout = setTimeout(() => {
+      handleTurnTimeout(room);
+    }, Math.max(0, delay));
+  }
+}
+
+function handleTurnTimeout(room) {
+  if (room.state !== 'playing' || !room.gameState) return;
+  const gs = room.gameState;
+
+  // Skip turn on timeout
+  gs.turn = engine.getNextActiveTurn(gs.turn, gs);
+  gs.hasSwappedThisTurn = false;
+  gs.lastMove = null;
+
+  room.turnEndTime = room.turnTimerLimit > 0 ? Date.now() + room.turnTimerLimit * 1000 : null;
+
+  broadcastState(room);
+  startTurnTimeout(room);
+  scheduleBotTurn(room);
+}
+
 function scheduleBotTurn(room) {
   if (room.state !== 'playing' || !room.gameState) return;
   if (room.combatShowdown) return;
@@ -326,21 +455,32 @@ function scheduleBotTurn(room) {
   const currentSeat = room.seats[gs.turn];
 
   if (currentSeat.type === 'bot') {
+    const serverBotDelay = (typeof SERVER_BOT_DELAY !== 'undefined') ? SERVER_BOT_DELAY : 1600;
     setTimeout(() => {
       if (room.state !== 'playing' || !room.gameState || room.combatShowdown) return;
       if (room.gameState.turn !== room.seats.indexOf(currentSeat)) return;
 
-      const move = getBotMove(room.gameState, room.botWeights);
+      const decision = getBotDecision(room.gameState, room.botWeights);
+      const move = decision && decision.move ? decision.move : null;
+      if (decision && decision.swap) {
+        if (decision.swap.swapType === 'base-to-pos') {
+          engine.swapCards(gs.turn, decision.swap.baseCardIdx, decision.swap.posCardIdx, room.gameState);
+        } else if (decision.swap.swapType === 'pos-to-pos') {
+          engine.swapPositionalCards(gs.turn, decision.swap.posCardIdx1, decision.swap.posCardIdx2, room.gameState);
+        }
+      }
       if (move) {
         executeMoveOnServer(room, move);
       } else {
         // Bot has no moves, pass
-        room.gameState.turn = (room.gameState.turn + 1) % 4;
+        room.gameState.turn = engine.getNextActiveTurn(room.gameState.turn, room.gameState);
         room.gameState.hasSwappedThisTurn = false;
+        room.turnEndTime = room.turnTimerLimit > 0 ? Date.now() + room.turnTimerLimit * 1000 : null;
         broadcastState(room);
+        startTurnTimeout(room);
         scheduleBotTurn(room);
       }
-    }, 1600);
+    }, serverBotDelay);
   }
 }
 
@@ -369,16 +509,32 @@ io.on('connection', (socket) => {
       return;
     }
     for (const [code, room] of rooms) {
-      const seatIdx = room.seats.findIndex(s => s.type === 'human' && s.token === token);
-      if (seatIdx !== -1) {
-        const seat = room.seats[seatIdx];
-        if (seat.disconnectTimeout) {
-          clearTimeout(seat.disconnectTimeout);
-          seat.disconnectTimeout = null;
+      const seatIndexes = getSeatIndexesForToken(room, token);
+      const isHostSession = room.hostToken === token;
+      
+      if (seatIndexes.length > 0 || isHostSession) {
+        const firstSeatIdx = seatIndexes.length > 0 ? seatIndexes[0] : null;
+        if (firstSeatIdx !== null) {
+          const seat = room.seats[firstSeatIdx];
+          if (seat && seat.disconnectTimeout) {
+            clearTimeout(seat.disconnectTimeout);
+            seat.disconnectTimeout = null;
+          }
         }
-        seat.socketId = socket.id;
-        seat.connected = true;
-        if (room.hostToken === token) {
+        seatIndexes.forEach((idx) => {
+          const seatEntry = room.seats[idx];
+          if (seatEntry) {
+            seatEntry.socketId = socket.id;
+            seatEntry.connected = true;
+          }
+        });
+
+        // Find playerName from seats or default to 'Host'
+        const matchedSeat = room.seats.find(s => s.token === token);
+        socket.playerName = matchedSeat ? matchedSeat.name : 'Host';
+        socket.playerToken = token;
+
+        if (isHostSession) {
           room.hostSocketId = socket.id;
         }
         socket.join(room.code);
@@ -387,19 +543,23 @@ io.on('connection', (socket) => {
           callback({
             inRoom: true,
             roomCode: room.code,
-            seatIndex: seatIdx,
-            isHost: room.hostToken === token,
+            seatIndex: firstSeatIdx,
+            seatIndexes,
+            isHost: isHostSession,
             seats: getSeatInfo(room),
-            state: room.state
+            state: room.state,
+            turnTimerLimit: room.turnTimerLimit
           });
         }
         
-        io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+        broadcastRoomUpdate(room);
         if (room.state === 'playing' || room.state === 'finished') {
-          const view = getPlayerView(room, seatIdx);
-          view.combatShowdown = room.combatShowdown;
-          view.seatIndex = seatIdx;
-          io.to(socket.id).emit('game-state', view);
+          const view = firstSeatIdx !== null ? getPlayerView(room, firstSeatIdx) : null;
+          if (view) {
+            view.combatShowdown = room.combatShowdown;
+            view.seatIndex = firstSeatIdx;
+            io.to(socket.id).emit('game-state', view);
+          }
         }
         return;
       }
@@ -407,11 +567,33 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') callback({ inRoom: false });
   });
 
+  socket.on('update-room-settings', ({ turnTimerLimit }, callback) => {
+    const found = findRoomBySocket(socket);
+    if (!found) return;
+    const { room } = found;
+
+    if (socket.id !== room.hostSocketId) {
+      if (typeof callback === 'function') callback({ success: false, error: 'Only the host can change settings' });
+      return;
+    }
+    if (room.state !== 'waiting') return;
+    if (turnTimerLimit !== 30 && turnTimerLimit !== 60 && turnTimerLimit !== 90 && turnTimerLimit !== 0) {
+      if (typeof callback === 'function') callback({ success: false, error: 'Invalid timer value' });
+      return;
+    }
+
+    room.turnTimerLimit = turnTimerLimit;
+    if (typeof callback === 'function') callback({ success: true });
+    broadcastRoomUpdate(room);
+  });
+
   socket.on('create-room', ({ playerName, token }, callback) => {
     const name = (playerName || 'Player').trim().substring(0, 20);
+    socket.playerName = name;
+    socket.playerToken = token;
     const room = createRoom(socket, name, token);
     if (typeof callback === 'function') {
-      callback({ success: true, roomCode: room.code, seatIndex: 0, seats: getSeatInfo(room) });
+      callback({ success: true, roomCode: room.code, seatIndex: 0, seatIndexes: [0], seats: getSeatInfo(room), turnTimerLimit: room.turnTimerLimit });
     }
     io.emit('rooms-updated', getRoomList());
   });
@@ -437,18 +619,20 @@ io.on('connection', (socket) => {
     }
 
     const name = (playerName || 'Player').trim().substring(0, 20);
+    socket.playerName = name;
+    socket.playerToken = token;
     room.seats[openIdx] = { type: 'human', socketId: socket.id, name, connected: true, token };
     socket.join(code);
 
     if (typeof callback === 'function') {
-      callback({ success: true, roomCode: code, seatIndex: openIdx, seats: getSeatInfo(room) });
+      callback({ success: true, roomCode: code, seatIndex: openIdx, seatIndexes: [openIdx], seats: getSeatInfo(room), turnTimerLimit: room.turnTimerLimit });
     }
-    io.to(code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+    broadcastRoomUpdate(room);
     io.emit('rooms-updated', getRoomList());
   });
 
   socket.on('switch-seat', ({ seatIndex }, callback) => {
-    const found = findRoomBySocket(socket.id);
+    const found = findRoomBySocket(socket);
     if (!found) return;
     const { room } = found;
 
@@ -456,30 +640,53 @@ io.on('connection', (socket) => {
     if (seatIndex < 0 || seatIndex > 3) return;
 
     const targetSeat = room.seats[seatIndex];
+    const currentSeatIndexes = getSeatIndexesBySocket(room, socket.id);
+    const playerName = socket.playerName || 'Player';
+    const playerToken = socket.playerToken || '';
+
+    // If the target seat is already occupied by this socket (unclaiming/unclicking a seat)
+    if (targetSeat.type === 'human' && targetSeat.socketId === socket.id) {
+      // Unclaim this seat
+      room.seats[seatIndex] = { type: 'open', socketId: null, name: '', connected: false };
+      
+      const remainingSeatIdx = currentSeatIndexes.find(idx => idx !== seatIndex) ?? null;
+      if (typeof callback === 'function') {
+        callback({ 
+          success: true, 
+          seatIndex: remainingSeatIdx, 
+          seatIndexes: getSeatIndexesForToken(room, playerToken) 
+        });
+      }
+      broadcastRoomUpdate(room);
+      io.emit('rooms-updated', getRoomList());
+      return;
+    }
+
     if (targetSeat.type !== 'open') {
       if (typeof callback === 'function') callback({ success: false, error: 'Seat is not open' });
       return;
     }
 
-    // Find the current seat of the user
-    const currentSeatIdx = room.seats.findIndex(s => s.type === 'human' && s.socketId === socket.id);
-    if (currentSeatIdx === -1) {
-      if (typeof callback === 'function') callback({ success: false, error: 'Not in room' });
+    if (currentSeatIndexes.length >= 2) {
+      if (typeof callback === 'function') callback({ success: false, error: 'You can only control 2 seats' });
       return;
     }
 
-    // Swap the seats
-    const currentSeat = room.seats[currentSeatIdx];
-    room.seats[seatIndex] = currentSeat;
-    room.seats[currentSeatIdx] = { type: 'open', socketId: null, name: '', connected: false };
+    room.seats[seatIndex] = {
+      type: 'human',
+      socketId: socket.id,
+      name: playerName,
+      connected: true,
+      token: playerToken
+    };
 
-    if (typeof callback === 'function') callback({ success: true, seatIndex });
-    io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+    if (typeof callback === 'function') callback({ success: true, seatIndex, seatIndexes: getSeatIndexesForToken(room, playerToken) });
+    broadcastRoomUpdate(room);
     io.emit('rooms-updated', getRoomList());
   });
 
   socket.on('toggle-seat', ({ seatIndex }, callback) => {
-    const found = findRoomBySocket(socket.id);
+    const found = findRoomBySocket(socket);
     if (!found) return;
     const { room } = found;
 
@@ -503,12 +710,12 @@ io.on('connection', (socket) => {
     }
 
     if (typeof callback === 'function') callback({ success: true });
-    io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+    broadcastRoomUpdate(room);
     io.emit('rooms-updated', getRoomList());
   });
 
   socket.on('start-game', (callback) => {
-    const found = findRoomBySocket(socket.id);
+    const found = findRoomBySocket(socket);
     if (!found) return;
     const { room } = found;
 
@@ -533,16 +740,22 @@ io.on('connection', (socket) => {
 
     // Initialize game via engine
     room.state = 'playing';
-    room.gameState = engine.initGame();
+    room.matchScores = { A: 0, B: 0 };
+    room.lastStartingPlayer = 0; // Default to North (0)
+    room.gameState = engine.initGame(room.lastStartingPlayer, room.matchScores);
     room.gameState.lastMove = null;
+    room.turnEndTime = room.turnTimerLimit > 0 ? Date.now() + room.turnTimerLimit * 1000 : null;
 
     if (typeof callback === 'function') callback({ success: true });
 
     // Send room update first so clients transition to game view
-    io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+    broadcastRoomUpdate(room);
 
     // Then send initial game state to each player
     broadcastState(room);
+
+    // Start turn timer
+    startTurnTimeout(room);
 
     // If first turn is a bot, schedule it
     scheduleBotTurn(room);
@@ -551,23 +764,25 @@ io.on('connection', (socket) => {
   });
 
   socket.on('player-move', ({ move }, callback) => {
-    const found = findRoomBySocket(socket.id);
+    const found = findRoomBySocket(socket);
     if (!found) return;
-    const { room, seatIdx } = found;
+    const { room, seatIndexes } = found;
 
     if (room.state !== 'playing' || !room.gameState) return;
     if (room.combatShowdown) return;
-    if (room.gameState.turn !== seatIdx) {
+
+    const activeSeatIdx = room.gameState.turn;
+    if (!seatIndexes.includes(activeSeatIdx)) {
       if (typeof callback === 'function') callback({ success: false, error: 'Not your turn' });
       return;
     }
-    if (room.seats[seatIdx].type !== 'human') return;
+    if (room.seats[activeSeatIdx].type !== 'human') return;
 
     // Validate the move
     const gs = room.gameState;
 
     if (move.type === 'promote') {
-      const validSquares = engine.find_pawns_to_promot(seatIdx, move.promoType, move.promoSubtype, gs);
+      const validSquares = engine.find_pawns_to_promot(activeSeatIdx, move.promoType, move.promoSubtype, gs);
       const isValid = validSquares.some(sq => sq.r === move.to.r && sq.c === move.to.c);
       if (!isValid) {
         if (typeof callback === 'function') callback({ success: false, error: 'Invalid promotion' });
@@ -590,21 +805,22 @@ io.on('connection', (socket) => {
   });
 
   socket.on('card-swap', ({ baseCardIdx, posCardIdx, type }, callback) => {
-    const found = findRoomBySocket(socket.id);
+    const found = findRoomBySocket(socket);
     if (!found) return;
-    const { room, seatIdx } = found;
+    const { room, seatIndexes } = found;
 
     if (room.state !== 'playing' || !room.gameState) return;
-    if (room.gameState.turn !== seatIdx) return;
-    if (room.seats[seatIdx].type !== 'human') return;
+    const activeSeatIdx = room.gameState.turn;
+    if (!seatIndexes.includes(activeSeatIdx)) return;
+    if (room.seats[activeSeatIdx].type !== 'human') return;
 
     const gs = room.gameState;
     let success = false;
 
     if (type === 'base-to-pos') {
-      success = engine.swapCards(seatIdx, baseCardIdx, posCardIdx, gs);
+      success = engine.swapCards(activeSeatIdx, baseCardIdx, posCardIdx, gs);
     } else if (type === 'pos-to-pos') {
-      success = engine.swapPositionalCards(seatIdx, baseCardIdx, posCardIdx, gs);
+      success = engine.swapPositionalCards(activeSeatIdx, baseCardIdx, posCardIdx, gs);
     }
 
     if (typeof callback === 'function') callback({ success });
@@ -612,7 +828,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('request-rematch', (callback) => {
-    const found = findRoomBySocket(socket.id);
+    const found = findRoomBySocket(socket);
     if (!found) return;
     const { room } = found;
 
@@ -624,15 +840,21 @@ io.on('connection', (socket) => {
 
     // Reset game
     room.state = 'playing';
-    room.gameState = engine.initGame();
+    if (!room.matchScores) {
+      room.matchScores = { A: 0, B: 0 };
+    }
+    room.lastStartingPlayer = (room.lastStartingPlayer !== undefined ? room.lastStartingPlayer + 1 : 1) % 4;
+    room.gameState = engine.initGame(room.lastStartingPlayer, room.matchScores);
     room.gameState.lastMove = null;
     room.combatShowdown = null;
     if (room.combatTimeout) clearTimeout(room.combatTimeout);
     room.combatTimeout = null;
+    room.turnEndTime = room.turnTimerLimit > 0 ? Date.now() + room.turnTimerLimit * 1000 : null;
 
     if (typeof callback === 'function') callback({ success: true });
-    io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+    broadcastRoomUpdate(room);
     broadcastState(room);
+    startTurnTimeout(room);
     scheduleBotTurn(room);
   });
 
@@ -646,9 +868,9 @@ io.on('connection', (socket) => {
   });
 
   function handleDisconnect(sock, explicitLeave = false) {
-    const found = findRoomBySocket(sock.id);
+    const found = findRoomBySocket(sock);
     if (!found) return;
-    const { room, seatIdx } = found;
+    const { room, seatIndexes } = found;
 
     if (room.state === 'waiting') {
       if (explicitLeave) {
@@ -658,43 +880,60 @@ io.on('connection', (socket) => {
           if (room.combatTimeout) clearTimeout(room.combatTimeout);
           rooms.delete(room.code);
         } else {
-          // Non-host left — free the seat
-          room.seats[seatIdx] = { type: 'open', socketId: null, name: '', connected: false };
-          io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+          // Non-host left — free all seats this socket controlled
+          seatIndexes.forEach((idx) => {
+            room.seats[idx] = { type: 'open', socketId: null, name: '', connected: false };
+          });
+          broadcastRoomUpdate(room);
         }
       } else {
-        room.seats[seatIdx].connected = false;
-        io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+        seatIndexes.forEach((idx) => {
+          if (room.seats[idx]) room.seats[idx].connected = false;
+        });
+        broadcastRoomUpdate(room);
 
         if (sock.id === room.hostSocketId) {
-          room.seats[seatIdx].disconnectTimeout = setTimeout(() => {
-            if (rooms.has(room.code) && !room.seats[seatIdx].connected) {
-              io.to(room.code).emit('room-closed', { reason: 'Host left the room' });
-              if (room.combatTimeout) clearTimeout(room.combatTimeout);
-              rooms.delete(room.code);
+          seatIndexes.forEach((idx) => {
+            if (room.seats[idx]) {
+              room.seats[idx].disconnectTimeout = setTimeout(() => {
+                if (rooms.has(room.code) && room.seats[idx] && !room.seats[idx].connected) {
+                  io.to(room.code).emit('room-closed', { reason: 'Host left the room' });
+                  if (room.combatTimeout) clearTimeout(room.combatTimeout);
+                  rooms.delete(room.code);
+                }
+              }, 15000);
             }
-          }, 15000);
+          });
         } else {
-          room.seats[seatIdx].disconnectTimeout = setTimeout(() => {
-             if (rooms.has(room.code) && !room.seats[seatIdx].connected) {
-                room.seats[seatIdx] = { type: 'open', socketId: null, name: '', connected: false };
-                io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
-             }
-          }, 15000);
+          seatIndexes.forEach((idx) => {
+            if (room.seats[idx]) {
+              room.seats[idx].disconnectTimeout = setTimeout(() => {
+                if (rooms.has(room.code) && room.seats[idx] && !room.seats[idx].connected) {
+                  room.seats[idx] = { type: 'open', socketId: null, name: '', connected: false };
+                  broadcastRoomUpdate(room);
+                }
+              }, 15000);
+            }
+          });
         }
       }
     } else if (room.state === 'playing' || room.state === 'finished') {
       if (explicitLeave) {
-        room.seats[seatIdx].type = 'bot';
-        room.seats[seatIdx].name = 'Bot';
-        room.seats[seatIdx].socketId = null;
-        room.seats[seatIdx].token = null;
-        room.seats[seatIdx].connected = false;
+        seatIndexes.forEach((idx) => {
+          if (room.seats[idx]) {
+            room.seats[idx].type = 'bot';
+            room.seats[idx].name = 'Bot';
+            room.seats[idx].socketId = null;
+            room.seats[idx].token = null;
+            room.seats[idx].connected = false;
+          }
+        });
 
-        io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+        broadcastRoomUpdate(room);
         broadcastState(room);
 
-        if (room.gameState && room.gameState.turn === seatIdx && room.state === 'playing') {
+        if (room.gameState && seatIndexes.includes(room.gameState.turn) && room.state === 'playing') {
+          clearTurnTimeout(room);
           scheduleBotTurn(room);
         }
 
@@ -704,33 +943,40 @@ io.on('connection', (socket) => {
           rooms.delete(room.code);
         }
       } else {
-        room.seats[seatIdx].connected = false;
-        io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
+        seatIndexes.forEach((idx) => {
+          if (room.seats[idx]) room.seats[idx].connected = false;
+        });
+        broadcastRoomUpdate(room);
 
-        room.seats[seatIdx].disconnectTimeout = setTimeout(() => {
-          if (!rooms.has(room.code)) return;
-          const seat = room.seats[seatIdx];
-          if (seat && !seat.connected) {
-            seat.type = 'bot';
-            seat.name = 'Bot';
-            seat.socketId = null;
-            seat.token = null;
-            seat.connected = false;
-            
-            io.to(room.code).emit('room-update', { seats: getSeatInfo(room), state: room.state });
-            broadcastState(room);
+        seatIndexes.forEach((idx) => {
+          if (room.seats[idx]) {
+            room.seats[idx].disconnectTimeout = setTimeout(() => {
+              if (!rooms.has(room.code)) return;
+              const seat = room.seats[idx];
+              if (seat && !seat.connected) {
+                seat.type = 'bot';
+                seat.name = 'Bot';
+                seat.socketId = null;
+                seat.token = null;
+                seat.connected = false;
 
-            if (room.gameState && room.gameState.turn === seatIdx && room.state === 'playing') {
-              scheduleBotTurn(room);
-            }
+                broadcastRoomUpdate(room);
+                broadcastState(room);
 
-            const hasHumans = room.seats.some(s => s.type === 'human' && s.connected);
-            if (!hasHumans) {
-              if (room.combatTimeout) clearTimeout(room.combatTimeout);
-              rooms.delete(room.code);
-            }
+                if (room.gameState && room.gameState.turn === idx && room.state === 'playing') {
+                  clearTurnTimeout(room);
+                  scheduleBotTurn(room);
+                }
+
+                const hasHumans = room.seats.some(s => s.type === 'human' && s.connected);
+                if (!hasHumans) {
+                  if (room.combatTimeout) clearTimeout(room.combatTimeout);
+                  rooms.delete(room.code);
+                }
+              }
+            }, 60000);
           }
-        }, 60000);
+        });
       }
     }
 

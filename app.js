@@ -5,7 +5,7 @@ window.addEventListener('error', (event) => {
   if (logBox) {
     const entry = document.createElement('div');
     entry.className = 'log-entry system-msg';
-    entry.style.color = 'var(--color-red)';
+    entry.style.color = 'var(--log-error-color)';
     const file = event.filename ? event.filename.split('/').pop() : 'unknown';
     entry.innerHTML = `[Runtime Error] ${event.message} in ${file}:${event.lineno || '?'}`;
     logBox.appendChild(entry);
@@ -33,11 +33,12 @@ if (!engine) {
   const elBaseDeckOwner = document.getElementById('base-deck-owner');
   const elBaseDeckCount = document.getElementById('base-deck-count');
   const elBaseDeckPromotional = document.getElementById('base-deck-promotional');
-  
+  const elBaseDeckHeader = document.getElementById('base-deck-header');
+
   // Community cards
   const elPublicFlop = document.getElementById('public-flop');
   const elPublicTurnRiver = document.getElementById('public-turn-river');
-  
+
   // Combat announcement
   const elCombatAnnouncement = document.getElementById('combat-announcement');
   const elCombatAnnouncementText = document.getElementById('combat-announcement-text');
@@ -49,10 +50,13 @@ if (!engine) {
   const elWinnerAnnouncement = document.getElementById('winner-announcement');
   const elBtnRestart = document.getElementById('btn-restart-overlay');
 
-  // Online info elements
-  const elOnlineInfoCard = document.getElementById('online-info-card');
-  const elOnlineRoomCode = document.getElementById('online-room-code');
-  const elOnlinePlayersList = document.getElementById('online-players-list');
+  const elGameOverBanner = document.getElementById('game-over-banner');
+  const elGameOverBannerTitle = document.getElementById('game-over-banner-title');
+  const elBtnRestartBanner = document.getElementById('btn-restart-banner');
+  const elBtnReviewGameBanner = document.getElementById('btn-review-game-banner');
+  const elBtnBackToLobbyBanner = document.getElementById('btn-back-to-lobby-banner');
+  const elBoardFrame = document.querySelector('.board-frame');
+
 
   // Unicode chess symbols
   const PIECE_SYMBOLS = {
@@ -95,27 +99,31 @@ if (!engine) {
   // Game UI State
   let gameState = null;
   let boardRotation = 0; // 0, 90, 180, 270 degrees
-  
+  let currentMatchScores = { 'A': 0, 'B': 0 };
+  let lastStartingPlayer = 0; // North starts first (0 = N, 1 = E, 2 = S, 3 = W)
+
   let botPlayers = ['manual', 'manual', 'manual', 'manual'];
-  let defaultBotWeights = [1, 3, 3.5, 5, 20, 0.5, 0.2, 0.1, 8, 0.2, 10, 2, 0.5];
-  
+  let defaultBotWeights = [2.18, 3.59, 6.16, 2.5, 13.02, 7.21, 0.61, 1.21, 4.36, 0.35, 4.35, 0.47, 0.12];
+
   // Replay state
   let history = [];
   let historyIndex = -1;
   let gameEnded = false;
   let turnIndex = 0;
+  let lastAnimatedMove = null;
 
   // Online mode state
   let onlineState = null;       // The server-provided state view
   let onlineSeatIndex = null;   // Which seat this client is (0-3)
-  
+  let turnTimerInterval = null;
+
   function isOnline() {
     return window.Multiplayer && window.Multiplayer.isOnline;
   }
 
   function isMyTurn() {
     if (!isOnline()) return true; // Offline: always your turn (hotseat)
-    return gameState && gameState.turn === window.Multiplayer.myPlayerId;
+    return gameState && window.Multiplayer && window.Multiplayer.isMySeat && window.Multiplayer.isMySeat(gameState.turn);
   }
 
   fetch('bots/v8_networth/weights.json')
@@ -126,14 +134,79 @@ if (!engine) {
   function getBotDelay() {
     const elSpeedSlider = document.getElementById('speed-slider');
     const val = elSpeedSlider ? elSpeedSlider.value : '3';
+    const baseDelay = (typeof BOT_DELAY !== 'undefined') ? BOT_DELAY : 1000;
     switch (val) {
-      case '1': return 4000; // Very Slow
-      case '2': return 2000; // Slow
-      case '3': return 1000; // Normal
-      case '4': return 500;  // Fast
-      case '5': return 250;  // Very Fast
-      default: return 1000;
+      case '1': return baseDelay * 4; // Very Slow
+      case '2': return baseDelay * 2; // Slow
+      case '3': return baseDelay;     // Normal
+      case '4': return Math.round(baseDelay / 2);  // Fast
+      case '5': return Math.round(baseDelay / 4);  // Very Fast
+      default: return baseDelay;
     }
+  }
+
+  function applyBotSwap(decision) {
+    if (!decision || !decision.swap || !gameState) return false;
+    const activePlayerId = gameState.turn;
+    const activePlayer = gameState.players[activePlayerId];
+    if (!activePlayer) return false;
+
+    let success = false;
+    if (decision.swap.swapType === 'base-to-pos') {
+      success = engine.swapCards(activePlayerId, decision.swap.baseCardIdx, decision.swap.posCardIdx, gameState);
+    } else if (decision.swap.swapType === 'pos-to-pos') {
+      success = engine.swapPositionalCards(activePlayerId, decision.swap.posCardIdx1, decision.swap.posCardIdx2, gameState);
+    }
+
+    if (success) {
+      const swapDescription = decision.swap.swapType === 'base-to-pos'
+        ? `base card ${decision.swap.baseCardIdx + 1} with positional card ${decision.swap.posCardIdx + 1}`
+        : `positional card ${decision.swap.posCardIdx1 + 1} with positional card ${decision.swap.posCardIdx2 + 1}`;
+      logSystemEvent(`[Bot] ${activePlayer.name} used a turn-start swap: ${swapDescription}`);
+    }
+    return success;
+  }
+
+  function getBotDecision(botMode) {
+    if (!gameState) return null;
+    const weights = defaultBotWeights;
+    if (botMode === 'random') {
+      if (!window.PoachersRandomBot) return { move: null };
+      return { move: window.PoachersRandomBot.getBestMove(gameState, weights) };
+    }
+    if (botMode === 'v1_basic') {
+      if (!window.PoachersBot) return { move: null };
+      return window.PoachersBot.getBestAction ? window.PoachersBot.getBestAction(gameState, weights) : { move: window.PoachersBot.getBestMove(gameState, weights) };
+    }
+    if (botMode === 'v2_no_minimax') {
+      if (!window.PoachersBot_no_minimax) return { move: null };
+      return window.PoachersBot_no_minimax.getBestAction ? window.PoachersBot_no_minimax.getBestAction(gameState, weights) : { move: window.PoachersBot_no_minimax.getBestMove(gameState, weights) };
+    }
+    if (botMode === 'v3_fast') {
+      if (!window.PoachersBot_v3) return { move: null };
+      return window.PoachersBot_v3.getBestAction ? window.PoachersBot_v3.getBestAction(gameState, weights) : { move: window.PoachersBot_v3.getBestMove(gameState, weights) };
+    }
+    if (botMode === 'v4_networth') {
+      if (!window.PoachersBot_v4) return { move: null };
+      return window.PoachersBot_v4.getBestAction ? window.PoachersBot_v4.getBestAction(gameState, weights) : { move: window.PoachersBot_v4.getBestMove(gameState, weights) };
+    }
+    if (botMode === 'v5_networth') {
+      if (!window.PoachersBot_v5) return { move: null };
+      return window.PoachersBot_v5.getBestAction ? window.PoachersBot_v5.getBestAction(gameState, weights) : { move: window.PoachersBot_v5.getBestMove(gameState, weights) };
+    }
+    if (botMode === 'v6_networth') {
+      if (!window.PoachersBot_v6) return { move: null };
+      return window.PoachersBot_v6.getBestAction ? window.PoachersBot_v6.getBestAction(gameState, weights) : { move: window.PoachersBot_v6.getBestMove(gameState, weights) };
+    }
+    if (botMode === 'v7_networth') {
+      if (!window.PoachersBot_v7) return { move: null };
+      return window.PoachersBot_v7.getBestAction ? window.PoachersBot_v7.getBestAction(gameState, weights) : { move: window.PoachersBot_v7.getBestMove(gameState, weights) };
+    }
+    if (botMode === 'v8_networth') {
+      if (!window.PoachersBot_v8) return { move: null };
+      return window.PoachersBot_v8.getBestAction ? window.PoachersBot_v8.getBestAction(gameState, weights) : { move: window.PoachersBot_v8.getBestMove(gameState, weights) };
+    }
+    return { move: null };
   }
 
   function checkBotTurn() {
@@ -157,79 +230,19 @@ if (!engine) {
           return;
         }
         try {
-          let move;
-          if (botMode === 'random') {
-            if (!window.PoachersRandomBot) {
-              logSystemEvent(`[ERROR] window.PoachersRandomBot is completely undefined! Did bot.js load?`);
-              return;
-            }
-            logSystemEvent(`[System] Requesting best move from PoachersRandomBot...`);
-            move = window.PoachersRandomBot.getBestMove(gameState, defaultBotWeights);
-          } else if (botMode === 'v1_basic') {
-            if (!window.PoachersBot) {
-              logSystemEvent(`[ERROR] window.PoachersBot is completely undefined! Did bot.js load?`);
-              return;
-            }
-            logSystemEvent(`[System] Requesting best move from PoachersBot (v1_basic)...`);
-            move = window.PoachersBot.getBestMove(gameState, defaultBotWeights);
-          } else if (botMode === 'v2_no_minimax') {
-            if (!window.PoachersBot_no_minimax) {
-              logSystemEvent(`[ERROR] window.PoachersBot_no_minimax is completely undefined! Did bot.js load?`);
-              return;
-            }
-            logSystemEvent(`[System] Requesting best move from PoachersBot_no_minimax...`);
-            move = window.PoachersBot_no_minimax.getBestMove(gameState, defaultBotWeights);
-          } else if (botMode === 'v3_fast') {
-            if (!window.PoachersBot_v3) {
-              logSystemEvent(`[ERROR] window.PoachersBot_v3 is completely undefined! Did bot.js load?`);
-              return;
-            }
-            logSystemEvent(`[System] Requesting best move from PoachersBot_v3...`);
-            move = window.PoachersBot_v3.getBestMove(gameState, defaultBotWeights);
-          } else if (botMode === 'v4_networth') {
-            if (!window.PoachersBot_v4) {
-              logSystemEvent(`[ERROR] window.PoachersBot_v4 is completely undefined! Did bot.js load?`);
-              return;
-            }
-            logSystemEvent(`[System] Requesting best move from PoachersBot_v4...`);
-            move = window.PoachersBot_v4.getBestMove(gameState, defaultBotWeights);
-          } else if (botMode === 'v5_networth') {
-            if (!window.PoachersBot_v5) {
-              logSystemEvent(`[ERROR] window.PoachersBot_v5 is completely undefined! Did bot.js load?`);
-              return;
-            }
-            logSystemEvent(`[System] Requesting best move from PoachersBot_v5...`);
-            move = window.PoachersBot_v5.getBestMove(gameState, defaultBotWeights);
-          } else if (botMode === 'v6_networth') {
-            if (!window.PoachersBot_v6) {
-              logSystemEvent(`[ERROR] window.PoachersBot_v6 is completely undefined! Did bot.js load?`);
-              return;
-            }
-            logSystemEvent(`[System] Requesting best move from PoachersBot_v6...`);
-            move = window.PoachersBot_v6.getBestMove(gameState, defaultBotWeights);
-          } else if (botMode === 'v7_networth') {
-            if (!window.PoachersBot_v7) {
-              logSystemEvent(`[ERROR] window.PoachersBot_v7 is completely undefined! Did bot.js load?`);
-              return;
-            }
-            logSystemEvent(`[System] Requesting best move from PoachersBot_v7...`);
-            move = window.PoachersBot_v7.getBestMove(gameState, defaultBotWeights);
-          } else if (botMode === 'v8_networth') {
-            if (!window.PoachersBot_v8) {
-              logSystemEvent(`[ERROR] window.PoachersBot_v8 is completely undefined! Did bot.js load?`);
-              return;
-            }
-            logSystemEvent(`[System] Requesting best move from PoachersBot_v8...`);
-            move = window.PoachersBot_v8.getBestMove(gameState, defaultBotWeights);
+          const decision = getBotDecision(botMode);
+          const move = decision && decision.move ? decision.move : null;
+          if (decision && decision.swap) {
+            applyBotSwap(decision);
           }
-          
+
           logSystemEvent(`[System] Bot returned move: ${move ? move.type : 'none'}`);
-          
+
           if (move) {
             executeMove(move);
           } else {
             logSystemEvent(`[Bot] ${gameState.players[activeId].name} has no legal moves. Passing turn.`);
-            gameState.turn = (gameState.turn + 1) % 4;
+            gameState.turn = engine.getNextActiveTurn(gameState.turn, gameState);
             gameState.hasSwappedThisTurn = false;
             renderState();
             triggerTurnStartAnimations();
@@ -269,7 +282,7 @@ if (!engine) {
     const colorClass = SUIT_CLASSES[suit] || '';
     const selectedClass = isSelected ? 'selected-base-card' : '';
     const winningClass = isWinning ? 'winning-card-highlight' : '';
-    
+
     return `
       <div class="playing-card ${colorClass} ${selectedClass} ${winningClass}">
         <div class="card-val-top">${displayVal}</div>
@@ -279,10 +292,21 @@ if (!engine) {
   }
 
   // Helper to append a clean game log entry
-  function appendGameLog(message) {
+  function appendGameLog(message, historyIndexVal = null) {
     const entry = document.createElement('div');
     entry.className = 'log-entry system-msg';
     entry.textContent = message;
+    if (historyIndexVal !== null && historyIndexVal !== undefined) {
+      entry.dataset.historyIndex = historyIndexVal;
+      entry.style.cursor = 'pointer';
+      entry.addEventListener('click', () => {
+        const idx = parseInt(entry.dataset.historyIndex, 10);
+        if (!isNaN(idx) && idx >= 0 && idx < history.length) {
+          historyIndex = idx;
+          restoreHistoryState();
+        }
+      });
+    }
     elLogEntries.appendChild(entry);
     elLogEntries.scrollTop = elLogEntries.scrollHeight;
   }
@@ -293,7 +317,7 @@ if (!engine) {
 
     const ranks = hand.cards.map(c => c[0]); // Drop suit, e.g. "AH" -> "A", "TD" -> "T"
     const RANK_ORDER = "AKQJT98765432";
-    
+
     function sortRanksDescending(arr) {
       return arr.slice().sort((a, b) => RANK_ORDER.indexOf(a) - RANK_ORDER.indexOf(b));
     }
@@ -315,7 +339,7 @@ if (!engine) {
         if (counts[r] === 2) pair = r;
       }
       sortedRanksStr = trips.repeat(3) + pair.repeat(2);
-    } 
+    }
     else if (handName === "Four of a Kind") {
       // quads first, then kicker
       let quads = "";
@@ -386,26 +410,26 @@ if (!engine) {
     if (!hand) return "";
     const name = hand.name;
     const kickers = hand.kickers || [];
-    
+
     switch (name) {
       case "Straight Flush":
-        return "a Straight Flush, " + (CARD_NAMES_SINGULAR[kickers[0]] || "") + " high";
+        return "a Straight Flush";
       case "Four of a Kind":
-        return "Four " + (CARD_NAMES_PLURAL[kickers[0]] || "");
+        return "Four of a Kind";
       case "Full House":
-        return "a Full House, " + (CARD_NAMES_PLURAL[kickers[0]] || "") + " full of " + (CARD_NAMES_PLURAL[kickers[1]] || "");
+        return "a Full House";
       case "Flush":
-        return "a Flush, " + (CARD_NAMES_SINGULAR[kickers[0]] || "") + " high";
+        return "a Flush";
       case "Straight":
-        return "a Straight, " + (CARD_NAMES_SINGULAR[kickers[0]] || "") + " high";
+        return "a Straight";
       case "Three of a Kind":
         return "Three " + (CARD_NAMES_PLURAL[kickers[0]] || "");
       case "Two Pair":
-        return "Two Pair, " + (CARD_NAMES_PLURAL[kickers[0]] || "") + " and " + (CARD_NAMES_PLURAL[kickers[1]] || "");
+        return "Two Pair";
       case "One Pair":
         return "a Pair of " + (CARD_NAMES_PLURAL[kickers[0]] || "");
       case "High Card":
-        return "High Card, " + (CARD_NAMES_SINGULAR[kickers[0]] || "");
+        return "High Card";
       default:
         return name;
     }
@@ -413,7 +437,7 @@ if (!engine) {
 
   // Format and log a turn action:
   // (turn index). (player) ] (piece) : (move/attack/failed(defend square)) : (origin) -> (endposition ).
-  function logGameTurn(player, piece, type, origin, end, defendSquare) {
+  function logGameTurn(player, piece, type, origin, end, defendSquare, historyIndexVal = null) {
     turnIndex++;
     let typeStr = type;
     if (type === 'failed') {
@@ -426,14 +450,14 @@ if (!engine) {
     } else {
       line = `${turnIndex}. ${player} ] ${pieceChar} : ${typeStr} : ${origin} -> ${end}.`;
     }
-    appendGameLog(line);
+    appendGameLog(line, historyIndexVal);
   }
 
   // Format and log a pawn promotion action:
   // (turn index). (player) ] (promoted piece type) : Promotion -> (endPosition).
-  function logPawnPromotion(player, promotedPieceChar, endPosition) {
+  function logPawnPromotion(player, promotedPieceChar, endPosition, historyIndexVal = null) {
     turnIndex++;
-    appendGameLog(`${turnIndex}. ${player} ] ${promotedPieceChar} : Promotion -> ${endPosition}`);
+    appendGameLog(`${turnIndex}. ${player} ] ${promotedPieceChar} : Promotion -> ${endPosition}`, historyIndexVal);
   }
 
   // Helper to log system events (no longer appended to the UI)
@@ -444,16 +468,17 @@ if (!engine) {
   // Save current game state to history
   function saveHistoryState() {
     if (!gameState) return;
-    
+
     const isViewingPast = historyIndex >= 0 && historyIndex < history.length - 1;
 
     // Only slice future history if we are offline (e.g. human overwrites timeline)
     if (isViewingPast && !isOnline()) {
       history = history.slice(0, historyIndex + 1);
     }
-    
+
     // Capture previous state for logging
     if (history.length > 0) {
+      const targetHistoryIndex = history.length;
       const prevEntry = history[history.length - 1];
       const prevState = prevEntry.gameState;
       const prevShowdown = prevEntry.combatShowdown;
@@ -471,13 +496,13 @@ if (!engine) {
         if (combatResult.outcome === "capture") {
           const toPiece = prevState.board[move.to.r][move.to.c];
           const pieceType = toPiece ? engine.getPieceType(toPiece) : 'p';
-          logGameTurn(shortName, fromPiece, `Takes(${pieceType.toUpperCase()})`, fromSquare, toSquare);
+          logGameTurn(shortName, fromPiece, `Takes(${pieceType.toUpperCase()})`, fromSquare, toSquare, null, targetHistoryIndex);
         } else if (combatResult.outcome === "slide") {
           const slideDest = engine.getSlideDestination(move.from, move.to);
           const slideSquareName = getSquareName(slideDest.r, slideDest.c);
-          logGameTurn(shortName, fromPiece, 'failed', fromSquare, slideSquareName, toSquare);
+          logGameTurn(shortName, fromPiece, 'failed', fromSquare, slideSquareName, toSquare, targetHistoryIndex);
         } else {
-          logGameTurn(shortName, fromPiece, 'failed', fromSquare, fromSquare, toSquare);
+          logGameTurn(shortName, fromPiece, 'failed', fromSquare, fromSquare, toSquare, targetHistoryIndex);
         }
 
         const isAWinning = (combatResult.winnerTeam === engine.TEAMS.A);
@@ -486,17 +511,17 @@ if (!engine) {
         const winningHandStr = formatPokerHandLog(winningHand);
         const losingHandStr = formatPokerHandLog(losingHand);
         if (winningHandStr && losingHandStr) {
-          appendGameLog(`${winningHandStr} > ${losingHandStr}`);
+          appendGameLog(`${winningHandStr} > ${losingHandStr}`, targetHistoryIndex);
         }
       }
       // 2. Detect normal move or immediate capture
       else if (!prevShowdown && !combatShowdown && gameState.lastMove) {
         // Compare with prevState.lastMove to make sure we don't log a duplicate
-        const isNewMove = !prevState.lastMove || 
-                          prevState.lastMove.from.r !== gameState.lastMove.from.r ||
-                          prevState.lastMove.from.c !== gameState.lastMove.from.c ||
-                          prevState.lastMove.to.r !== gameState.lastMove.to.r ||
-                          prevState.lastMove.to.c !== gameState.lastMove.to.c;
+        const isNewMove = !prevState.lastMove ||
+          prevState.lastMove.from.r !== gameState.lastMove.from.r ||
+          prevState.lastMove.from.c !== gameState.lastMove.from.c ||
+          prevState.lastMove.to.r !== gameState.lastMove.to.r ||
+          prevState.lastMove.to.c !== gameState.lastMove.to.c;
 
         if (isNewMove) {
           const move = gameState.lastMove;
@@ -508,9 +533,9 @@ if (!engine) {
 
           const toPiece = prevState.board[move.to.r][move.to.c];
           if (toPiece) {
-            logGameTurn(shortName, fromPiece, `Takes(${engine.getPieceType(toPiece).toUpperCase()})`, fromSquare, toSquare);
+            logGameTurn(shortName, fromPiece, `Takes(${engine.getPieceType(toPiece).toUpperCase()})`, fromSquare, toSquare, null, targetHistoryIndex);
           } else {
-            logGameTurn(shortName, fromPiece, 'move', fromSquare, toSquare);
+            logGameTurn(shortName, fromPiece, 'move', fromSquare, toSquare, null, targetHistoryIndex);
           }
         }
       }
@@ -529,7 +554,7 @@ if (!engine) {
                 const activePlayer = prevState.players[prevState.turn];
                 const shortName = SEAT_SHORT[activePlayer.id] || activePlayer.name;
                 const promotedPieceChar = engine.getPieceType(newCell).toUpperCase();
-                logPawnPromotion(shortName, promotedPieceChar, getSquareName(r, c));
+                logPawnPromotion(shortName, promotedPieceChar, getSquareName(r, c), targetHistoryIndex);
               }
             }
           }
@@ -541,12 +566,12 @@ if (!engine) {
       gameState: JSON.parse(JSON.stringify(gameState)),
       combatShowdown: combatShowdown ? JSON.parse(JSON.stringify(combatShowdown)) : null
     });
-    
+
     // Only advance the index if we aren't currently viewing the past
     if (!isViewingPast) {
       historyIndex = history.length - 1;
     }
-    
+
     updateReplayButtons();
   }
 
@@ -567,19 +592,31 @@ if (!engine) {
     updateReplayButtons();
   }
 
+  // Helper to highlight a step in the log book and scroll to it smoothly
+  function highlightLogEntry(index) {
+    if (!elLogEntries) return;
+    const entries = elLogEntries.querySelectorAll('.log-entry');
+    entries.forEach(entry => {
+      if (entry.dataset.historyIndex !== undefined && parseInt(entry.dataset.historyIndex, 10) === index) {
+        entry.classList.add('highlighted');
+        entry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        entry.classList.remove('highlighted');
+      }
+    });
+  }
+
   // Update Replay buttons state and display counter
   function updateReplayButtons() {
     const elPrev = document.getElementById('btn-replay-prev');
     const elNext = document.getElementById('btn-replay-next');
-    const elInfo = document.getElementById('replay-step-info');
+    const elResume = document.getElementById('btn-replay-resume');
 
     if (history.length <= 1) {
       if (elPrev) elPrev.disabled = true;
       if (elNext) elNext.disabled = true;
-      if (elInfo) {
-        elInfo.textContent = "LIVE GAME";
-        elInfo.style.color = "var(--color-green)";
-      }
+      if (elResume) elResume.disabled = true;
+      highlightLogEntry(historyIndex);
       return;
     }
 
@@ -589,16 +626,11 @@ if (!engine) {
     if (elNext) {
       elNext.disabled = (historyIndex === history.length - 1);
     }
-
-    if (elInfo) {
-      if (historyIndex === history.length - 1) {
-        elInfo.textContent = "LIVE GAME";
-        elInfo.style.color = "var(--color-green)";
-      } else {
-        elInfo.textContent = `STEP ${historyIndex} / ${history.length - 1}`;
-        elInfo.style.color = "var(--color-orange)";
-      }
+    if (elResume) {
+      elResume.disabled = (historyIndex === history.length - 1);
     }
+
+    highlightLogEntry(historyIndex);
   }
 
   // Helper to map coordinate to chess notation
@@ -612,7 +644,10 @@ if (!engine) {
   function initNewGame() {
     if (isOnline()) return; // Server handles this in online mode
 
-    gameState = engine.initGame();
+    if (elGameOverBanner) elGameOverBanner.classList.add('hidden');
+    if (elBoardFrame) elBoardFrame.classList.remove('win-team-a', 'win-team-b');
+
+    gameState = engine.initGame(lastStartingPlayer, currentMatchScores);
     gameState.lastMove = null;
     selectedPiece = null;
     selectedCapturedPiece = null;
@@ -622,10 +657,10 @@ if (!engine) {
     gameEnded = false;
     history = [];
     historyIndex = -1;
-    saveHistoryState();
     elLogEntries.innerHTML = '';
     turnIndex = 0;
-    appendGameLog("turn Log:");
+    appendGameLog("turn Log:", 0);
+    saveHistoryState();
     renderState();
     triggerTurnStartAnimations();
     checkBotTurn();
@@ -680,14 +715,17 @@ if (!engine) {
           resetCardSelection();
           activeLegalMoves = [];
           checkGameOver();
-          if (gameState) {
-            gameState.turn = (gameState.turn + 1) % 4;
+          if (gameState && !gameEnded) {
+            gameState.turn = engine.getNextActiveTurn(gameState.turn, gameState);
             gameState.lastMove = null;
             gameState.hasSwappedThisTurn = false;
             saveHistoryState();
             renderState();
             triggerTurnStartAnimations();
             checkBotTurn();
+          } else if (gameEnded) {
+            saveHistoryState();
+            renderState();
           }
         }
         return;
@@ -698,7 +736,7 @@ if (!engine) {
     const matchedMove = activeLegalMoves.find(m => m.to.r === r && m.to.c === c);
     if (selectedPiece && matchedMove) {
       logSystemEvent(`Executing move from (${selectedPiece.r}, ${selectedPiece.c}) to (${r}, ${c})`);
-      
+
       if (isOnline()) {
         // Send move to server instead of local execution
         window.Multiplayer.sendMove(matchedMove);
@@ -746,14 +784,17 @@ if (!engine) {
       engine.executePromotion(move.to.r, move.to.c, move.promoType, move.promoSubtype, activePlayer.id, gameState);
       engine.checkHillRefill(gameState.turn, gameState);
       checkGameOver();
-      if (gameState) {
-        gameState.turn = (gameState.turn + 1) % 4;
+      if (gameState && !gameEnded) {
+        gameState.turn = engine.getNextActiveTurn(gameState.turn, gameState);
         gameState.lastMove = null;
         gameState.hasSwappedThisTurn = false;
         saveHistoryState();
         renderState();
         triggerTurnStartAnimations();
         checkBotTurn();
+      } else if (gameEnded) {
+        saveHistoryState();
+        renderState();
       }
       return;
     }
@@ -790,15 +831,18 @@ if (!engine) {
       selectedPiece = null;
       activeLegalMoves = [];
 
-      // Step 2: Highlight winning cards and show announcement message after 2 seconds
+      // Step 2: Highlight winning cards and show announcement message
+      const winHighlightDelay = (typeof COMBAT_SHOWDOWN_HIGHLIGHT_DELAY !== 'undefined') ? COMBAT_SHOWDOWN_HIGHLIGHT_DELAY : 2000;
+      const combatResolveDelay = winHighlightDelay + ((typeof COMBAT_SHOWDOWN_WINNING_CARD_DURATION !== 'undefined') ? COMBAT_SHOWDOWN_WINNING_CARD_DURATION : 2500);
+
       setTimeout(() => {
         if (combatShowdown) {
           combatShowdown.step = 2;
           renderState();
         }
-      }, 2000);
+      }, winHighlightDelay);
 
-      // 4. Resolve combat state after 4.5 seconds
+      // 4. Resolve combat state
       setTimeout(() => {
         // Mutate gameState using the evaluation result
         engine.applyCombatResult(move, combatResult, combatCards, gameState);
@@ -812,15 +856,18 @@ if (!engine) {
         // Check win condition
         checkGameOver();
 
-        if (gameState) {
-          gameState.turn = (gameState.turn + 1) % 4;
+        if (gameState && !gameEnded) {
+          gameState.turn = engine.getNextActiveTurn(gameState.turn, gameState);
           gameState.hasSwappedThisTurn = false;
           saveHistoryState();
           renderState();
           triggerTurnStartAnimations();
           checkBotTurn();
+        } else if (gameEnded) {
+          saveHistoryState();
+          renderState();
         }
-      }, 4500);
+      }, combatResolveDelay);
 
       return;
     }
@@ -845,13 +892,16 @@ if (!engine) {
     // Check win condition (count Kings for both teams)
     checkGameOver();
 
-    if (gameState) {
-      gameState.turn = (gameState.turn + 1) % 4;
+    if (gameState && !gameEnded) {
+      gameState.turn = engine.getNextActiveTurn(gameState.turn, gameState);
       gameState.hasSwappedThisTurn = false;
       saveHistoryState();
       renderState();
       triggerTurnStartAnimations();
       checkBotTurn();
+    } else if (gameEnded) {
+      saveHistoryState();
+      renderState();
     }
   }
 
@@ -868,15 +918,65 @@ if (!engine) {
     }
 
     if (kingsA === 0) {
-      elWinnerAnnouncement.textContent = "Team B (E-W) Wins!";
-      elGameOverOverlay.classList.remove('hidden');
+      const winnerText = "Team B (E-W) Wins!";
+      elWinnerAnnouncement.textContent = winnerText;
+
+      elGameOverBannerTitle.textContent = winnerText;
+      if (elGameOverBanner) {
+        elGameOverBanner.className = 'game-over-banner team-b-win';
+        elGameOverBanner.classList.remove('hidden');
+      }
+      if (elBoardFrame) {
+        elBoardFrame.classList.remove('win-team-a');
+        elBoardFrame.classList.add('win-team-b');
+      }
+
       logSystemEvent("Match Over: Team B captured both Team A Kings.");
       gameEnded = true;
+
+      if (!isOnline()) {
+        currentMatchScores['B']++;
+        if (gameState) {
+          gameState.matchScores = { ...currentMatchScores };
+        }
+        if (elBtnRestartBanner) {
+          elBtnRestartBanner.textContent = 'New Game';
+          elBtnRestartBanner.disabled = false;
+        }
+        if (elBtnBackToLobbyBanner) {
+          elBtnBackToLobbyBanner.classList.remove('hidden');
+        }
+      }
     } else if (kingsB === 0) {
-      elWinnerAnnouncement.textContent = "Team A (N-S) Wins!";
-      elGameOverOverlay.classList.remove('hidden');
+      const winnerText = "Team A (N-S) Wins!";
+      elWinnerAnnouncement.textContent = winnerText;
+
+      elGameOverBannerTitle.textContent = winnerText;
+      if (elGameOverBanner) {
+        elGameOverBanner.className = 'game-over-banner team-a-win';
+        elGameOverBanner.classList.remove('hidden');
+      }
+      if (elBoardFrame) {
+        elBoardFrame.classList.remove('win-team-b');
+        elBoardFrame.classList.add('win-team-a');
+      }
+
       logSystemEvent("Match Over: Team A captured both Team B Kings.");
       gameEnded = true;
+
+      if (!isOnline()) {
+        currentMatchScores['A']++;
+        if (gameState) {
+          gameState.matchScores = { ...currentMatchScores };
+        }
+        if (elBtnRestartBanner) {
+          elBtnRestartBanner.textContent = 'New Game';
+          elBtnRestartBanner.disabled = false;
+        }
+        if (elBtnBackToLobbyBanner) {
+          elBtnBackToLobbyBanner.classList.remove('hidden');
+        }
+      }
     }
   }
 
@@ -892,35 +992,51 @@ if (!engine) {
     return SEAT_NAMES[playerIdx];
   }
 
-  // Update the online info card with current room/player info
-  function updateOnlineInfoCard() {
-    if (!isOnline() || !elOnlineInfoCard) {
-      if (elOnlineInfoCard) elOnlineInfoCard.classList.add('hidden');
-      return;
-    }
-
-    elOnlineInfoCard.classList.remove('hidden');
-    
-    if (elOnlineRoomCode) {
-      elOnlineRoomCode.textContent = `Room: ${window.Multiplayer.roomCode || ''}`;
-    }
-
-    if (elOnlinePlayersList && window.Multiplayer.currentSeats) {
-      const seats = window.Multiplayer.currentSeats;
-      elOnlinePlayersList.innerHTML = seats.map((s, i) => {
-        const dir = SEAT_SHORT[i];
-        const name = s.type === 'human' ? s.name : 'Bot';
-        const cls = s.type === 'human' ? 'online-player-human' : 'online-player-bot';
-        const meTag = (i === window.Multiplayer.myPlayerId) ? ' <span class="online-player-me">(You)</span>' : '';
-        return `<div class="online-player-entry ${cls}"><span class="online-player-dir">${dir}:</span> ${escapeHtml(name)}${meTag}</div>`;
-      }).join('');
-    }
-  }
 
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  function startTurnTimer() {
+    if (turnTimerInterval) clearInterval(turnTimerInterval);
+
+    updateTimerText();
+
+    turnTimerInterval = setInterval(() => {
+      updateTimerText();
+    }, 250);
+
+    function updateTimerText() {
+      const timerSpan = document.getElementById('turn-timer');
+      if (!timerSpan) return;
+
+      if (!isOnline() || !gameState || gameState.turnEndTime === null) {
+        timerSpan.textContent = '';
+        clearInterval(turnTimerInterval);
+        turnTimerInterval = null;
+        return;
+      }
+
+      const timeLeft = Math.max(0, Math.ceil((gameState.turnEndTime - Date.now()) / 1000));
+      timerSpan.textContent = ` (${timeLeft}s)`;
+
+      if (timeLeft <= 10) {
+        timerSpan.style.color = '#ff3333';
+        timerSpan.style.opacity = '1';
+        timerSpan.style.fontWeight = '800';
+      } else {
+        timerSpan.style.color = '#ff3333';
+        timerSpan.style.opacity = '0.5';
+        timerSpan.style.fontWeight = '700';
+      }
+
+      if (timeLeft <= 0) {
+        clearInterval(turnTimerInterval);
+        turnTimerInterval = null;
+      }
+    }
   }
 
   // Render the current game state to the DOM
@@ -929,22 +1045,50 @@ if (!engine) {
 
     let winningCards = [];
     if (combatShowdown && combatShowdown.step === 2) {
-      const winnerHand = (combatShowdown.result.winnerTeam === engine.TEAMS.A) 
-        ? combatShowdown.result.teamAHand 
+      const winnerHand = (combatShowdown.result.winnerTeam === engine.TEAMS.A)
+        ? combatShowdown.result.teamAHand
         : combatShowdown.result.teamBHand;
       if (winnerHand && winnerHand.cards) {
-        winningCards = winnerHand.cards;
+        const valMap = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
+        const getVal = c => valMap[c[0]] || 0;
+        const rank = winnerHand.rank;
+        const kickers = winnerHand.kickers;
+
+        if (rank === 0) {
+          // High Card: only highlight the single highest card
+          const maxVal = kickers[0];
+          const matchedCard = winnerHand.cards.find(c => getVal(c) === maxVal);
+          winningCards = matchedCard ? [matchedCard] : [];
+        } else if (rank === 1) {
+          // One Pair: highlight only the pair cards
+          const pairVal = kickers[0];
+          winningCards = winnerHand.cards.filter(c => getVal(c) === pairVal);
+        } else if (rank === 2) {
+          // Two Pair: highlight only the 4 cards forming the two pairs
+          const p1 = kickers[0];
+          const p2 = kickers[1];
+          winningCards = winnerHand.cards.filter(c => getVal(c) === p1 || getVal(c) === p2);
+        } else if (rank === 3) {
+          // Three of a Kind: highlight only the 3 matching cards
+          const tripsVal = kickers[0];
+          winningCards = winnerHand.cards.filter(c => getVal(c) === tripsVal);
+        } else if (rank === 7) {
+          // Four of a Kind: highlight only the 4 matching cards
+          const quadVal = kickers[0];
+          winningCards = winnerHand.cards.filter(c => getVal(c) === quadVal);
+        } else {
+          // Straight, Flush, Full House, Straight Flush: all 5 cards
+          winningCards = winnerHand.cards;
+        }
       }
     }
 
     // Check if active player's King is threatened on their turn
-    const activeKingThreatened = (historyIndex === history.length - 1 && !gameEnded) 
-      ? engine.isKingThreatened(gameState.turn, gameState) 
+    const activeKingThreatened = (historyIndex === history.length - 1 && !gameEnded)
+      ? engine.isKingThreatened(gameState.turn, gameState)
       : false;
 
 
-    // Update online info
-    updateOnlineInfoCard();
 
     // Hide offline-only controls in online mode
     const botTogglesGroup = document.getElementById('bot-toggles-group');
@@ -959,9 +1103,15 @@ if (!engine) {
       if (elBtnNewGame) elBtnNewGame.classList.remove('hidden');
     }
 
-    // Render match score (statically 0:0 for now)
-    elScoreA.textContent = "0";
-    elScoreB.textContent = "0";
+    // Render match score
+    const scoreA = (gameState && gameState.matchScores && gameState.matchScores[engine.TEAMS.A]) !== undefined
+      ? gameState.matchScores[engine.TEAMS.A]
+      : 0;
+    const scoreB = (gameState && gameState.matchScores && gameState.matchScores[engine.TEAMS.B]) !== undefined
+      ? gameState.matchScores[engine.TEAMS.B]
+      : 0;
+    elScoreA.textContent = scoreA;
+    elScoreB.textContent = scoreB;
 
     // Render active player turn indicator
     const activePlayer = gameState.players[gameState.turn];
@@ -970,13 +1120,13 @@ if (!engine) {
     elActivePlayerAvatar.textContent = activePlayer.name[0];
     elActivePlayerAvatar.style.background = isTeamA ? 'var(--color-team-a)' : 'var(--color-team-b)';
     elActivePlayerAvatar.style.boxShadow = isTeamA ? 'var(--shadow-neon-a)' : 'var(--shadow-neon-b)';
-    
+
     // Show player display name (nickname in online mode)
     const displayName = getPlayerDisplayName(gameState.turn);
     elActivePlayerName.textContent = displayName;
     elActivePlayerTeam.textContent = isTeamA ? "Team N-S (A)" : "Team E-W (B)";
     elTurnCard.style.borderColor = isTeamA ? 'var(--color-team-a)' : 'var(--color-team-b)';
-    
+
     if (isOnline() && !isMyTurn()) {
       elTurnPhase.textContent = `Waiting for ${displayName}...`;
     } else if (selectedPiece) {
@@ -994,7 +1144,7 @@ if (!engine) {
       for (let c = 0; c < 8; c++) {
         const cell = document.createElement('div');
         cell.className = 'board-cell';
-        
+
         const isDark = (r + c) % 2 !== 0;
         cell.classList.add(isDark ? 'dark-sq' : 'light-sq');
 
@@ -1002,7 +1152,7 @@ if (!engine) {
         if (r === 0 || r === 7 || c === 0 || c === 7) {
           let labelText = '';
           let labelClass = 'board-cell-label';
-          
+
           if (r === 7 && c >= 0 && c <= 6) {
             // 1/a to g (going right): left bottom corners
             if (r === 7 && c === 0) labelText = '1/a';
@@ -1043,7 +1193,7 @@ if (!engine) {
             cell.classList.add('combat-defender');
           }
         }
-        
+
         // Hill highlights
         const isHill = Object.values(engine.HILL_SQUARES).flat().some(sq => sq.r === r && sq.c === c);
         if (isHill) {
@@ -1109,6 +1259,38 @@ if (!engine) {
               pieceDiv.classList.add('controllable-piece');
             }
           }
+
+          // Piece movement animation
+          if (gameState.lastMove && gameState.lastMove.from && gameState.lastMove.to &&
+            gameState.lastMove.to.r === r && gameState.lastMove.to.c === c) {
+            const hasAlreadyAnimated = lastAnimatedMove &&
+              lastAnimatedMove.from.r === gameState.lastMove.from.r &&
+              lastAnimatedMove.from.c === gameState.lastMove.from.c &&
+              lastAnimatedMove.to.r === gameState.lastMove.to.r &&
+              lastAnimatedMove.to.c === gameState.lastMove.to.c;
+
+            if (!hasAlreadyAnimated) {
+              const dr = gameState.lastMove.from.r - r;
+              const dc = gameState.lastMove.from.c - c;
+              if (dr !== 0 || dc !== 0) {
+                // Adjust coordinates for the current board rotation to compensate for
+                // the piece's CSS counter-rotation
+                const angleRad = (boardRotation * Math.PI) / 180;
+                const cos = Math.round(Math.cos(angleRad));
+                const sin = Math.round(Math.sin(angleRad));
+                const animatedDc = dc * cos - dr * sin;
+                const animatedDr = dc * sin + dr * cos;
+
+                pieceDiv.style.transition = 'none';
+                pieceDiv.style.transform = `translate(${animatedDc * 100}%, ${animatedDr * 100}%)`;
+                requestAnimationFrame(() => {
+                  pieceDiv.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+                  pieceDiv.style.transform = 'translate(0, 0)';
+                });
+              }
+            }
+          }
+
           const imgUrl = PIECE_IMAGES[piece];
           if (imgUrl) {
             const img = document.createElement('img');
@@ -1155,6 +1337,12 @@ if (!engine) {
     else territoryDiv.classList.add('territory-team-b');
     elBoard.appendChild(territoryDiv);
 
+    if (elBoardFrame) {
+      elBoardFrame.classList.remove('active-turn-0', 'active-turn-1', 'active-turn-2', 'active-turn-3', 'active-team-a', 'active-team-b');
+      elBoardFrame.classList.add(`active-turn-${gameState.turn}`);
+      elBoardFrame.classList.add(isTeamA ? 'active-team-a' : 'active-team-b');
+    }
+
     // Render Board Center Dot
     const centerDot = document.createElement('div');
     centerDot.className = 'board-center-dot';
@@ -1164,7 +1352,7 @@ if (!engine) {
     if (gameState.lastMove && gameState.lastMove.from && gameState.lastMove.to) {
       const from = gameState.lastMove.from;
       const to = gameState.lastMove.to;
-      
+
       const fromX = from.c * 100 + 50;
       const fromY = from.r * 100 + 50;
       const toX = to.c * 100 + 50;
@@ -1200,7 +1388,7 @@ if (!engine) {
       const path = document.createElementNS(svgNS, "path");
       path.setAttribute("d", "M0,2 L0,6 L6,4 z");
       path.setAttribute("class", "last-move-arrowhead-path");
-      
+
       marker.appendChild(path);
       defs.appendChild(marker);
       svg.appendChild(defs);
@@ -1211,7 +1399,7 @@ if (!engine) {
       line.setAttribute("x2", x2);
       line.setAttribute("y2", y2);
       line.setAttribute("class", "last-move-arrow");
-      
+
       svg.appendChild(line);
       elBoard.appendChild(svg);
     }
@@ -1219,99 +1407,102 @@ if (!engine) {
     // Render LCR Cards for all players
     const positions = ['n', 'e', 's', 'w'];
     const isHumanTurn = canInteract && historyIndex === history.length - 1 && !gameEnded;
-    
+
     for (let pIdx = 0; pIdx < 4; pIdx++) {
       const char = positions[pIdx];
       const p = gameState.players[pIdx];
       const pTeam = p.team;
       for (let cIdx = 0; cIdx < 3; cIdx++) {
         const cardVal = p.positionalCards[cIdx];
-        const cardEl = document.getElementById(`card-${char}-${cIdx}`);
-        if (cardEl) {
+        const cardSlot = document.getElementById(`card-${char}-${cIdx}`);
+        if (cardSlot) {
           const isWinning = winningCards.includes(cardVal);
-          cardEl.innerHTML = getCardHTML(cardVal, false, false, isWinning);
-          cardEl.classList.remove('highlight-team-a', 'highlight-team-b', 'clickable-pos-card', 'selected-base-card', 'winning-card-highlight');
-          cardEl.onclick = null;
-          cardEl.style.cursor = '';
-          
-          if (combatShowdown) {
-            // Team A (North 0, South 2) uses column region
-            if (pTeam === engine.TEAMS.A && (pIdx === 0 || pIdx === 2) && cIdx === combatShowdown.colRegion) {
-              cardEl.classList.add('highlight-team-a');
-            }
-            // Team B (West 3, East 1) uses row region
-            if (pTeam === engine.TEAMS.B && (pIdx === 1 || pIdx === 3) && cIdx === combatShowdown.rowRegion) {
-              cardEl.classList.add('highlight-team-b');
-            }
-            
-            if (isWinning) {
-              cardEl.classList.add('winning-card-highlight');
-            }
-          }
+          cardSlot.innerHTML = getCardHTML(cardVal, false, false, isWinning);
+          const cardEl = cardSlot.querySelector('.playing-card');
+          if (cardEl) {
+            cardEl.classList.remove('highlight-team-a', 'highlight-team-b', 'clickable-pos-card', 'selected-base-card', 'winning-card-highlight');
+            cardEl.onclick = null;
+            cardEl.style.cursor = '';
 
-          // Card swapping: if active player is a human, they haven't swapped yet this turn
-          if (pIdx === gameState.turn && isHumanTurn && !gameState.hasSwappedThisTurn) {
-            const lcrLabels = ["Left", "Center", "Right"];
-            
-            if (selectedBaseCardIdx !== null) {
-              // Click to swap base card and positional card
-              cardEl.classList.add('clickable-pos-card');
-              cardEl.style.cursor = 'pointer';
-              cardEl.onclick = () => {
-                if (isOnline()) {
-                  window.Multiplayer.sendSwap(selectedBaseCardIdx, cIdx, 'base-to-pos');
-                  resetCardSelection();
-                  return;
-                }
-                const activePlayerId = gameState.turn;
-                const posCardIdx = cIdx;
-                const baseCardVal = activePlayer.baseDeck[selectedBaseCardIdx];
-                const posCardVal = activePlayer.positionalCards[posCardIdx];
-                const swapped = engine.swapCards(activePlayerId, selectedBaseCardIdx, posCardIdx, gameState);
-                if (swapped) {
-                  logSystemEvent(`[Cards] ${activePlayer.name} swapped base card ${baseCardVal} with positional card ${posCardVal} (${lcrLabels[posCardIdx]})`);
-                  resetCardSelection();
-                  renderState();
-                }
-              };
-            } else if (selectedPosCardIdx !== null) {
-              if (cIdx === selectedPosCardIdx) {
-                // Click to deselect
-                cardEl.classList.add('selected-base-card');
-                cardEl.style.cursor = 'pointer';
-                cardEl.onclick = () => {
-                  selectedPosCardIdx = null;
-                  renderState();
-                };
-              } else {
-                // Click to swap positional cards
+            if (combatShowdown) {
+              // Team A (North 0, South 2) uses column region
+              if (pTeam === engine.TEAMS.A && (pIdx === 0 || pIdx === 2) && cIdx === combatShowdown.colRegion) {
+                cardEl.classList.add('highlight-team-a');
+              }
+              // Team B (West 3, East 1) uses row region
+              if (pTeam === engine.TEAMS.B && (pIdx === 1 || pIdx === 3) && cIdx === combatShowdown.rowRegion) {
+                cardEl.classList.add('highlight-team-b');
+              }
+
+              if (isWinning) {
+                cardEl.classList.add('winning-card-highlight');
+              }
+            }
+
+            // Card swapping: if active player is a human, they haven't swapped yet this turn
+            if (pIdx === gameState.turn && isHumanTurn && !gameState.hasSwappedThisTurn) {
+              const lcrLabels = ["Left", "Center", "Right"];
+
+              if (selectedBaseCardIdx !== null) {
+                // Click to swap base card and positional card
                 cardEl.classList.add('clickable-pos-card');
                 cardEl.style.cursor = 'pointer';
                 cardEl.onclick = () => {
                   if (isOnline()) {
-                    window.Multiplayer.sendSwap(selectedPosCardIdx, cIdx, 'pos-to-pos');
+                    window.Multiplayer.sendSwap(selectedBaseCardIdx, cIdx, 'base-to-pos');
                     resetCardSelection();
                     return;
                   }
                   const activePlayerId = gameState.turn;
-                  const cardVal1 = activePlayer.positionalCards[selectedPosCardIdx];
-                  const cardVal2 = activePlayer.positionalCards[cIdx];
-                  const swapped = engine.swapPositionalCards(activePlayerId, selectedPosCardIdx, cIdx, gameState);
+                  const posCardIdx = cIdx;
+                  const baseCardVal = activePlayer.baseDeck[selectedBaseCardIdx];
+                  const posCardVal = activePlayer.positionalCards[posCardIdx];
+                  const swapped = engine.swapCards(activePlayerId, selectedBaseCardIdx, posCardIdx, gameState);
                   if (swapped) {
-                    logSystemEvent(`[Cards] ${activePlayer.name} swapped positional cards: ${lcrLabels[selectedPosCardIdx]} (${cardVal1}) with ${lcrLabels[cIdx]} (${cardVal2})`);
+                    logSystemEvent(`[Cards] ${activePlayer.name} swapped base card ${baseCardVal} with positional card ${posCardVal} (${lcrLabels[posCardIdx]})`);
                     resetCardSelection();
                     renderState();
                   }
                 };
+              } else if (selectedPosCardIdx !== null) {
+                if (cIdx === selectedPosCardIdx) {
+                  // Click to deselect
+                  cardEl.classList.add('selected-base-card');
+                  cardEl.style.cursor = 'pointer';
+                  cardEl.onclick = () => {
+                    selectedPosCardIdx = null;
+                    renderState();
+                  };
+                } else {
+                  // Click to swap positional cards
+                  cardEl.classList.add('clickable-pos-card');
+                  cardEl.style.cursor = 'pointer';
+                  cardEl.onclick = () => {
+                    if (isOnline()) {
+                      window.Multiplayer.sendSwap(selectedPosCardIdx, cIdx, 'pos-to-pos');
+                      resetCardSelection();
+                      return;
+                    }
+                    const activePlayerId = gameState.turn;
+                    const cardVal1 = activePlayer.positionalCards[selectedPosCardIdx];
+                    const cardVal2 = activePlayer.positionalCards[cIdx];
+                    const swapped = engine.swapPositionalCards(activePlayerId, selectedPosCardIdx, cIdx, gameState);
+                    if (swapped) {
+                      logSystemEvent(`[Cards] ${activePlayer.name} swapped positional cards: ${lcrLabels[selectedPosCardIdx]} (${cardVal1}) with ${lcrLabels[cIdx]} (${cardVal2})`);
+                      resetCardSelection();
+                      renderState();
+                    }
+                  };
+                }
+              } else {
+                // Click to select positional card
+                cardEl.classList.add('clickable-pos-card');
+                cardEl.style.cursor = 'pointer';
+                cardEl.onclick = () => {
+                  selectedPosCardIdx = cIdx;
+                  renderState();
+                };
               }
-            } else {
-              // Click to select positional card
-              cardEl.classList.add('clickable-pos-card');
-              cardEl.style.cursor = 'pointer';
-              cardEl.onclick = () => {
-                selectedPosCardIdx = cIdx;
-                renderState();
-              };
             }
           }
         }
@@ -1358,16 +1549,20 @@ if (!engine) {
       if (elBaseDeck) elBaseDeck.classList.add('hidden');
       if (combatShowdown.step === 2 && elCombatAnnouncement && elCombatAnnouncementText) {
         elCombatAnnouncement.classList.remove('hidden');
-        
+
         const isAttackerWinner = (combatShowdown.result.winnerTeam === combatShowdown.result.attackerTeam);
-        const winnerHand = (combatShowdown.result.winnerTeam === engine.TEAMS.A) 
-          ? combatShowdown.result.teamAHand 
+        const winnerHand = (combatShowdown.result.winnerTeam === engine.TEAMS.A)
+          ? combatShowdown.result.teamAHand
           : combatShowdown.result.teamBHand;
-        
+
         const winnerRole = isAttackerWinner ? "Attacker" : "Defender";
         const handDesc = getHandDescription(winnerHand);
-        
-        elCombatAnnouncementText.textContent = `${winnerRole} Win with ${handDesc}!`;
+
+        if (combatShowdown.result.isDraw) {
+          elCombatAnnouncementText.textContent = "Draw - attacker wins";
+        } else {
+          elCombatAnnouncementText.textContent = `${winnerRole} Win with ${handDesc}!`;
+        }
         elCombatAnnouncementText.className = 'combat-announcement-text';
         if (isAttackerWinner) {
           elCombatAnnouncementText.classList.add('attacker-win-msg');
@@ -1397,20 +1592,45 @@ if (!engine) {
       }
     }
 
+    if (elBaseDeckHeader) {
+      if (isHumanTurn) {
+        elBaseDeckHeader.innerHTML = 'YOUR TURN! Select a piece to move <span id="turn-timer"></span>';
+        elBaseDeckHeader.style.color = '#e84c0fc4'; // Vibrant red
+        elBaseDeckHeader.style.fontSize = '1.2rem'; // Bigger
+        elBaseDeckHeader.style.fontWeight = '700';
+      } else {
+        elBaseDeckHeader.innerHTML = 'YOUR BASE DECK <span style="font-size: 0.75rem; color: var(--swap-instruction-color); margin-left: 5px; font-weight: 400;">(Select a card and click another to swap)</span>';
+        elBaseDeckHeader.style.color = 'var(--text-muted)';
+        elBaseDeckHeader.style.fontSize = '0.85rem';
+        elBaseDeckHeader.style.fontWeight = '600';
+      }
+    }
+
+    if (isOnline() && isHumanTurn && gameState && gameState.turnEndTime) {
+      startTurnTimer();
+    } else {
+      if (turnTimerInterval) {
+        clearInterval(turnTimerInterval);
+        turnTimerInterval = null;
+      }
+    }
+
     if (elBaseDeckOwner) elBaseDeckOwner.textContent = displayName;
     if (elBaseDeckCount) elBaseDeckCount.textContent = `${activePlayer.baseDeck.length} / 5`;
     elBaseDeckCards.innerHTML = '';
-    
+
     if (isHumanTurn && !gameState.hasSwappedThisTurn) {
       activePlayer.baseDeck.forEach((card, idx) => {
         const cardSlot = document.createElement('div');
         cardSlot.style.display = 'inline-block';
-        cardSlot.innerHTML = getCardHTML(card, false, selectedBaseCardIdx === idx);
-        
-        // If a positional card is selected, base cards are clickable targets for the swap
-        if (selectedPosCardIdx !== null) {
-          const cardEl = cardSlot.querySelector('.playing-card');
-          if (cardEl) {
+
+        const isSelected = selectedBaseCardIdx === idx;
+        cardSlot.innerHTML = getCardHTML(card, false, isSelected);
+
+        const cardEl = cardSlot.querySelector('.playing-card');
+        if (cardEl) {
+          // If a base card is not selected, it is clickable to select (or to swap if a positional card is selected)
+          if (!isSelected) {
             cardEl.classList.add('clickable-pos-card');
           }
         }
@@ -1450,10 +1670,10 @@ if (!engine) {
     // Render promotional pieces next to base deck
     if (elBaseDeckPromotional) {
       elBaseDeckPromotional.innerHTML = '';
-      
+
       const activeTeam = isTeamA ? engine.TEAMS.A : engine.TEAMS.B;
       const pool = gameState.capturedPieces[activeTeam];
-      
+
       // Collect unique types that have captured count > 0 or not null (for king)
       const uniquePromotables = [];
       if (pool) {
@@ -1496,13 +1716,13 @@ if (!engine) {
 
       if (promotableItems.length > 0) {
         elBaseDeckPromotional.classList.remove('hidden');
-        
+
         promotableItems.forEach(item => {
           const pieceSpan = document.createElement('span');
           const teamClass = activeTeam === engine.TEAMS.A ? 'piece-team-a' : 'piece-team-b';
           pieceSpan.className = `promotable-piece ${teamClass}`;
           pieceSpan.dataset.type = item.type;
-          
+
           const imgUrl = PIECE_IMAGES[item.char];
           if (imgUrl) {
             const img = document.createElement('img');
@@ -1517,16 +1737,16 @@ if (!engine) {
           }
           pieceSpan.title = `${item.label} (Promotable)`;
 
-          if (selectedCapturedPiece && 
-              selectedCapturedPiece.type === item.type && 
-              selectedCapturedPiece.subtype === item.subtype) {
+          if (selectedCapturedPiece &&
+            selectedCapturedPiece.type === item.type &&
+            selectedCapturedPiece.subtype === item.subtype) {
             pieceSpan.classList.add('selected-captured');
           }
 
           pieceSpan.addEventListener('click', () => {
-            if (selectedCapturedPiece && 
-                selectedCapturedPiece.type === item.type && 
-                selectedCapturedPiece.subtype === item.subtype) {
+            if (selectedCapturedPiece &&
+              selectedCapturedPiece.type === item.type &&
+              selectedCapturedPiece.subtype === item.subtype) {
               selectedCapturedPiece = null;
             } else {
               selectedCapturedPiece = { type: item.type, subtype: item.subtype, validSquares: item.validSquares };
@@ -1627,9 +1847,9 @@ if (!engine) {
           if (validSquares.length > 0) {
             hasPromotionAvailable = true;
             pieceSpan.classList.add('promotable-piece');
-            if (selectedCapturedPiece && 
-                selectedCapturedPiece.type === item.type && 
-                selectedCapturedPiece.subtype === item.subtype) {
+            if (selectedCapturedPiece &&
+              selectedCapturedPiece.type === item.type &&
+              selectedCapturedPiece.subtype === item.subtype) {
               pieceSpan.classList.add('selected-captured');
             }
             pieceSpan.addEventListener('click', () => {
@@ -1705,10 +1925,19 @@ if (!engine) {
     const elFlankRule = document.getElementById('rule-pawn-flanks');
     if (elFlankRule) {
       if (gameState && gameState.hillWasVisited === 1) {
-        elFlankRule.innerHTML = `<strong>Pawn Flanks:</strong> <span style="text-decoration: line-through; opacity: 0.6;">Pawns on red flank squares cannot attack each other.</span> <span style="color: var(--color-green); font-weight: bold; text-shadow: 0 0 5px rgba(0,255,0,0.3);">[DROPPED]</span>`;
+        elFlankRule.innerHTML = `<strong>Pawn Flanks:</strong> <span style="text-decoration: line-through; opacity: 0.6;">Pawns on red flank squares cannot attack each other.</span> <span style="color: var(--dropped-rule-color); font-weight: bold; text-shadow: 0 0 5px rgba(0,255,0,0.3);">[DROPPED]</span>`;
       } else {
         elFlankRule.innerHTML = `<strong>Pawn Flanks:</strong> Pawns on red flank squares cannot attack each other <span style="color: var(--text-muted); font-size: 0.8em;">(drops when center hill entered)</span>`;
       }
+    }
+
+    if (gameState && gameState.lastMove) {
+      lastAnimatedMove = {
+        from: { r: gameState.lastMove.from.r, c: gameState.lastMove.from.c },
+        to: { r: gameState.lastMove.to.r, c: gameState.lastMove.to.c }
+      };
+    } else {
+      lastAnimatedMove = null;
     }
   }
 
@@ -1744,13 +1973,18 @@ if (!engine) {
   }
 
   // Event Listeners
-  elBtnNewGame.addEventListener('click', initNewGame);
+  elBtnNewGame.addEventListener('click', () => {
+    currentMatchScores = { 'A': 0, 'B': 0 };
+    lastStartingPlayer = 0; // PLAYERS.NORTH
+    initNewGame();
+  });
   elBtnRotateBoard.addEventListener('click', rotateBoard);
   elBtnRestart.addEventListener('click', () => {
     elGameOverOverlay.classList.add('hidden');
     if (isOnline()) {
       window.Multiplayer.requestRematch();
     } else {
+      lastStartingPlayer = (lastStartingPlayer + 1) % 4; // Rotate starting player
       initNewGame();
     }
   });
@@ -1760,6 +1994,44 @@ if (!engine) {
   if (elBtnBackToLobby) {
     elBtnBackToLobby.addEventListener('click', () => {
       elGameOverOverlay.classList.add('hidden');
+      if (isOnline()) {
+        window.Multiplayer.returnToLobby();
+      } else if (window.Multiplayer) {
+        window.Multiplayer.returnToLobby();
+      }
+    });
+  }
+
+  // New game-over banner buttons
+  if (elBtnRestartBanner) {
+    elBtnRestartBanner.addEventListener('click', () => {
+      if (elGameOverBanner) elGameOverBanner.classList.add('hidden');
+      if (elBoardFrame) elBoardFrame.classList.remove('win-team-a', 'win-team-b');
+      if (isOnline()) {
+        window.Multiplayer.requestRematch();
+      } else {
+        lastStartingPlayer = (lastStartingPlayer + 1) % 4; // Rotate starting player
+        initNewGame();
+      }
+    });
+  }
+
+  if (elBtnReviewGameBanner) {
+    elBtnReviewGameBanner.addEventListener('click', () => {
+      if (history.length > 1) {
+        historyIndex = 0;
+        restoreHistoryState();
+        if (elGameOverBanner) elGameOverBanner.classList.add('hidden');
+        if (elBoardFrame) elBoardFrame.classList.remove('win-team-a', 'win-team-b');
+        logSystemEvent('Review mode activated from game-over banner.');
+      }
+    });
+  }
+
+  if (elBtnBackToLobbyBanner) {
+    elBtnBackToLobbyBanner.addEventListener('click', () => {
+      if (elGameOverBanner) elGameOverBanner.classList.add('hidden');
+      if (elBoardFrame) elBoardFrame.classList.remove('win-team-a', 'win-team-b');
       if (isOnline()) {
         window.Multiplayer.returnToLobby();
       } else if (window.Multiplayer) {
@@ -1779,6 +2051,7 @@ if (!engine) {
 
   const elBtnReplayPrev = document.getElementById('btn-replay-prev');
   const elBtnReplayNext = document.getElementById('btn-replay-next');
+  const elBtnReplayResume = document.getElementById('btn-replay-resume');
   const elBtnCloseOverlay = document.getElementById('btn-close-overlay');
 
   if (elBtnReplayPrev) {
@@ -1799,12 +2072,21 @@ if (!engine) {
     });
   }
 
+  if (elBtnReplayResume) {
+    elBtnReplayResume.addEventListener('click', () => {
+      if (historyIndex !== history.length - 1) {
+        historyIndex = history.length - 1;
+        restoreHistoryState();
+      }
+    });
+  }
+
   if (elBtnCloseOverlay) {
     elBtnCloseOverlay.addEventListener('click', () => {
       elGameOverOverlay.classList.add('hidden');
     });
   }
-  
+
   // Game Speed Slider listener to update UI labels (offline only)
   const elSpeedSliderElement = document.getElementById('speed-slider');
   const elSpeedValueElement = document.getElementById('speed-value');
@@ -1845,7 +2127,7 @@ if (!engine) {
           btn.classList.add('active');
           btn.textContent = `${botNames[i]}: Bot`;
           logSystemEvent(`[System] Seat ${i} (${botNames[i]}) changed to Bot`);
-          
+
           if (gameState && gameState.turn === i) {
             checkBotTurn();
           }
@@ -1857,6 +2139,15 @@ if (!engine) {
   // --- ONLINE MODE: Listen for server state updates ---
   if (window.Multiplayer) {
     window.Multiplayer.onGameState((stateView) => {
+      // If a new game is detected in online mode, clear the client history and log book
+      if (stateView.lastMove === null && history.length > 0) {
+        history = [];
+        historyIndex = -1;
+        elLogEntries.innerHTML = '';
+        turnIndex = 0;
+        appendGameLog("turn Log:", 0);
+      }
+
       // Build a gameState compatible with the existing renderState() function
       onlineSeatIndex = stateView.seatIndex;
 
@@ -1877,7 +2168,9 @@ if (!engine) {
         matchScores: stateView.matchScores,
         lastMove: stateView.lastMove,
         deck: [], // Deck is server-side only
-        hillWasVisited: stateView.hillWasVisited !== undefined ? stateView.hillWasVisited : 0
+        hillWasVisited: stateView.hillWasVisited !== undefined ? stateView.hillWasVisited : 0,
+        turnEndTime: stateView.turnEndTime || null,
+        turnTimerLimit: stateView.turnTimerLimit || 30
       };
 
       // Set combat showdown from server
@@ -1885,23 +2178,24 @@ if (!engine) {
       const newShowdown = stateView.combatShowdown || null;
       if (newShowdown) {
         // If we don't have this combat showdown locally yet, initialize step 1 and the timer
-        const isNewShowdown = !prevShowdown || 
+        const isNewShowdown = !prevShowdown ||
           (prevShowdown.move.from.r !== newShowdown.move.from.r ||
-           prevShowdown.move.from.c !== newShowdown.move.from.c ||
-           prevShowdown.move.to.r !== newShowdown.move.to.r ||
-           prevShowdown.move.to.c !== newShowdown.move.to.c);
-           
+            prevShowdown.move.from.c !== newShowdown.move.from.c ||
+            prevShowdown.move.to.r !== newShowdown.move.to.r ||
+            prevShowdown.move.to.c !== newShowdown.move.to.c);
+
         if (isNewShowdown) {
           combatShowdown = JSON.parse(JSON.stringify(newShowdown));
           combatShowdown.step = 1;
+          const winHighlightDelay = (typeof COMBAT_SHOWDOWN_HIGHLIGHT_DELAY !== 'undefined') ? COMBAT_SHOWDOWN_HIGHLIGHT_DELAY : 2000;
           setTimeout(() => {
             if (combatShowdown && combatShowdown.step === 1 &&
-                combatShowdown.move.from.r === newShowdown.move.from.r &&
-                combatShowdown.move.from.c === newShowdown.move.from.c) {
+              combatShowdown.move.from.r === newShowdown.move.from.r &&
+              combatShowdown.move.from.c === newShowdown.move.from.c) {
               combatShowdown.step = 2;
               renderState();
             }
-          }, 2000);
+          }, winHighlightDelay);
         } else {
           // Keep our current local step so it doesn't get reset if the server broadcasts again
           const currentStep = prevShowdown.step || 1;
@@ -1917,7 +2211,46 @@ if (!engine) {
       selectedCapturedPiece = null;
       resetCardSelection();
       activeLegalMoves = [];
-      gameEnded = false;
+
+      let kingsA = 0;
+      let kingsB = 0;
+      if (stateView && stateView.board) {
+        for (let r = 0; r < 8; r++) {
+          for (let c = 0; c < 8; c++) {
+            const piece = stateView.board[r][c];
+            if (piece === engine.PIECES.KING_A) kingsA++;
+            if (piece === engine.PIECES.KING_B) kingsB++;
+          }
+        }
+      }
+      const isOver = (kingsA === 0 || kingsB === 0);
+
+      if (isOver) {
+        gameEnded = true;
+        const winner = kingsA === 0 ? 'B' : 'A';
+        const winnerText = winner === 'A' ? 'Team A (N-S) Wins!' : 'Team B (E-W) Wins!';
+        if (elWinnerAnnouncement) elWinnerAnnouncement.textContent = winnerText;
+        if (elGameOverBannerTitle) elGameOverBannerTitle.textContent = winnerText;
+        if (elGameOverBanner) {
+          elGameOverBanner.className = 'game-over-banner ' + (winner === 'A' ? 'team-a-win' : 'team-b-win');
+          elGameOverBanner.classList.remove('hidden');
+        }
+        if (elBoardFrame) {
+          elBoardFrame.classList.remove('win-team-a', 'win-team-b');
+          elBoardFrame.classList.add(winner === 'A' ? 'win-team-a' : 'win-team-b');
+        }
+        if (elBtnRestartBanner) {
+          elBtnRestartBanner.textContent = window.Multiplayer.isHost ? 'New Game' : 'New Game (Host only)';
+          elBtnRestartBanner.disabled = !window.Multiplayer.isHost;
+        }
+        if (elBtnBackToLobbyBanner) {
+          elBtnBackToLobbyBanner.classList.remove('hidden');
+        }
+      } else {
+        gameEnded = false;
+        if (elGameOverBanner) elGameOverBanner.classList.add('hidden');
+        if (elBoardFrame) elBoardFrame.classList.remove('win-team-a', 'win-team-b');
+      }
 
       const wasViewingPast = (historyIndex >= 0 && historyIndex < history.length - 1);
 
@@ -1930,7 +2263,9 @@ if (!engine) {
       } else {
         // Render the new live state
         renderState();
-        triggerTurnStartAnimations();
+        if (!isOver) {
+          triggerTurnStartAnimations();
+        }
       }
     });
 
@@ -1938,16 +2273,26 @@ if (!engine) {
       gameEnded = true;
       const winnerText = winner === 'A' ? 'Team A (N-S) Wins!' : 'Team B (E-W) Wins!';
       elWinnerAnnouncement.textContent = winnerText;
-      elGameOverOverlay.classList.remove('hidden');
+
+      elGameOverBannerTitle.textContent = winnerText;
+      if (elGameOverBanner) {
+        elGameOverBanner.className = 'game-over-banner ' + (winner === 'A' ? 'team-a-win' : 'team-b-win');
+        elGameOverBanner.classList.remove('hidden');
+      }
+      if (elBoardFrame) {
+        elBoardFrame.classList.remove('win-team-a', 'win-team-b');
+        elBoardFrame.classList.add(winner === 'A' ? 'win-team-a' : 'win-team-b');
+      }
+
       logSystemEvent(`Match Over: ${winnerText}`);
 
       // Show/hide rematch button based on host status
-      if (elBtnRestart) {
-        elBtnRestart.textContent = window.Multiplayer.isHost ? 'Rematch' : 'Rematch (Host only)';
-        elBtnRestart.disabled = !window.Multiplayer.isHost;
+      if (elBtnRestartBanner) {
+        elBtnRestartBanner.textContent = window.Multiplayer.isHost ? 'New Game' : 'New Game (Host only)';
+        elBtnRestartBanner.disabled = !window.Multiplayer.isHost;
       }
-      if (elBtnBackToLobby) {
-        elBtnBackToLobby.classList.remove('hidden');
+      if (elBtnBackToLobbyBanner) {
+        elBtnBackToLobbyBanner.classList.remove('hidden');
       }
     });
   }

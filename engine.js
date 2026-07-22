@@ -1082,7 +1082,7 @@ function engineComputeRegionProbabilities(gameState) {
 /**
  * Initializes a new Poachers GameState.
  */
-function initGame() {
+function initGame(startingPlayer = PLAYERS.NORTH, initialScores = null) {
   const deck = shuffle(createDeck());
 
   const players = [
@@ -1141,7 +1141,7 @@ function initGame() {
     players: players,
     deck: deck,
     publicCards: flop,         // Current open community cards (starts with 3)
-    turn: PLAYERS.NORTH,       // North starts first
+    turn: startingPlayer,      // Use startingPlayer instead of hardcoded PLAYERS.NORTH
     hasSwappedThisTurn: false, // Track if active player has swapped cards this turn
     hillWasVisited: 0,
     capturedPieces: {
@@ -1162,7 +1162,7 @@ function initGame() {
         knights: 0
       }
     },
-    matchScores: {
+    matchScores: initialScores ? { ...initialScores } : {
       [TEAMS.A]: 0,
       [TEAMS.B]: 0
     }
@@ -1260,6 +1260,38 @@ function swapPositionalCards(playerId, posCardIdx1, posCardIdx2, gameState) {
   return true;
 }
 
+/**
+ * Checks if a player should skip their turn.
+ * True if they have no controllable pieces on their half,
+ * or if they have no legal normal/attack/promotion moves.
+ */
+function shouldSkipPlayerTurn(playerId, gameState) {
+  const board = gameState.board;
+  
+  // Check if player has any pieces on their half of the board.
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      if (isPieceControllable(r, c, playerId, board)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * Returns the next turn index (0-3) skipping players with no legal moves/pieces.
+ */
+function getNextActiveTurn(currentTurn, gameState) {
+  for (let i = 1; i <= 4; i++) {
+    const candidate = (currentTurn + i) % 4;
+    if (!shouldSkipPlayerTurn(candidate, gameState)) {
+      return candidate;
+    }
+  }
+  return (currentTurn + 1) % 4;
+}
+
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1300,7 +1332,9 @@ if (typeof module !== 'undefined' && module.exports) {
     isPlayerKingAlive,
     isPlayerOnHill,
     swapCards,
-    swapPositionalCards
+    swapPositionalCards,
+    shouldSkipPlayerTurn,
+    getNextActiveTurn
   };
 }
 
@@ -1343,7 +1377,9 @@ if (typeof window !== 'undefined') {
     isPlayerKingAlive,
     isPlayerOnHill,
     swapCards,
-    swapPositionalCards
+    swapPositionalCards,
+    shouldSkipPlayerTurn,
+    getNextActiveTurn
   };
 }
 

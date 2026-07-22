@@ -89,6 +89,9 @@
         <!-- 4 seat cards rendered by multiplayer.js -->
       </div>
 
+      <!-- Room settings (Timer Toggle) -->
+      <div id="room-settings" class="room-settings"></div>
+
       <div id="room-status" class="room-status">Waiting for host to start...</div>
       <div id="room-error" class="room-error hidden"></div>
 
@@ -134,15 +137,6 @@
         </div>
       </div>
 
-      <!-- Online Room Info Card -->
-      <div class="card online-info-card" id="online-info-card">
-        <h3>ONLINE GAME</h3>
-        <div class="online-room-code" id="online-room-code"></div>
-        <div class="online-players-list" id="online-players-list">
-          <!-- N: nickname, E: Bot, etc. -->
-        </div>
-      </div>
-
       <!-- Controls Menu (1) -->
       <div class="card menu-card">
         <button id="btn-new-game" class="btn primary-btn">New Match</button>
@@ -177,7 +171,9 @@
           <button id="btn-replay-prev" class="btn icon-btn" title="Previous Move" disabled>
             <span class="arrow-icon">←</span>
           </button>
-          <div class="replay-status" id="replay-step-info">LIVE GAME</div>
+          <button id="btn-replay-resume" class="btn resume-btn" title="Resume Live Game" disabled>
+            Resume Live
+          </button>
           <button id="btn-replay-next" class="btn icon-btn" title="Next Move" disabled>
             <span class="arrow-icon">→</span>
           </button>
@@ -216,29 +212,27 @@
         <div class="game-rotation-wrapper">
           <!-- North Positional Cards (Top) -->
           <div class="lcr-container north-lcr" id="north-lcr">
-            <span class="lcr-player-indicator">N</span>
-            <div class="lcr-card-wrapper" data-idx="0">
-              <div class="playing-card card-back" id="card-n-0"></div>
+            <div class="lcr-card-wrapper" data-idx="0" id="card-n-0">
+              <div class="playing-card card-back"></div>
             </div>
-            <div class="lcr-card-wrapper" data-idx="1">
-              <div class="playing-card card-back" id="card-n-1"></div>
+            <div class="lcr-card-wrapper" data-idx="1" id="card-n-1">
+              <div class="playing-card card-back"></div>
             </div>
-            <div class="lcr-card-wrapper" data-idx="2">
-              <div class="playing-card card-back" id="card-n-2"></div>
+            <div class="lcr-card-wrapper" data-idx="2" id="card-n-2">
+              <div class="playing-card card-back"></div>
             </div>
           </div>
 
           <!-- West Positional Cards (Left) -->
           <div class="lcr-container west-lcr" id="west-lcr">
-            <span class="lcr-player-indicator">W</span>
-            <div class="lcr-card-wrapper" data-idx="0">
-              <div class="playing-card card-back" id="card-w-0"></div>
+            <div class="lcr-card-wrapper" data-idx="0" id="card-w-0">
+              <div class="playing-card card-back"></div>
             </div>
-            <div class="lcr-card-wrapper" data-idx="1">
-              <div class="playing-card card-back" id="card-w-1"></div>
+            <div class="lcr-card-wrapper" data-idx="1" id="card-w-1">
+              <div class="playing-card card-back"></div>
             </div>
-            <div class="lcr-card-wrapper" data-idx="2">
-              <div class="playing-card card-back" id="card-w-2"></div>
+            <div class="lcr-card-wrapper" data-idx="2" id="card-w-2">
+              <div class="playing-card card-back"></div>
             </div>
           </div>
 
@@ -251,67 +245,77 @@
 
           <!-- East Positional Cards (Right) -->
           <div class="lcr-container east-lcr" id="east-lcr">
-            <span class="lcr-player-indicator">E</span>
-            <div class="lcr-card-wrapper" data-idx="0">
-              <div class="playing-card card-back" id="card-e-0"></div>
+            <div class="lcr-card-wrapper" data-idx="0" id="card-e-0">
+              <div class="playing-card card-back"></div>
             </div>
-            <div class="lcr-card-wrapper" data-idx="1">
-              <div class="playing-card card-back" id="card-e-1"></div>
+            <div class="lcr-card-wrapper" data-idx="1" id="card-e-1">
+              <div class="playing-card card-back"></div>
             </div>
-            <div class="lcr-card-wrapper" data-idx="2">
-              <div class="playing-card card-back" id="card-e-2"></div>
+            <div class="lcr-card-wrapper" data-idx="2" id="card-e-2">
+              <div class="playing-card card-back"></div>
             </div>
           </div>
 
           <!-- South Positional Cards (Bottom) -->
           <div class="lcr-container south-lcr" id="south-lcr">
-            <span class="lcr-player-indicator">S</span>
-            <div class="lcr-card-wrapper" data-idx="0">
-              <div class="playing-card card-back" id="card-s-0"></div>
+            <div class="lcr-card-wrapper" data-idx="0" id="card-s-0">
+              <div class="playing-card card-back"></div>
             </div>
-            <div class="lcr-card-wrapper" data-idx="1">
-              <div class="playing-card card-back" id="card-s-1"></div>
+            <div class="lcr-card-wrapper" data-idx="1" id="card-s-1">
+              <div class="playing-card card-back"></div>
             </div>
-            <div class="lcr-card-wrapper" data-idx="2">
-              <div class="playing-card card-back" id="card-s-2"></div>
+            <div class="lcr-card-wrapper" data-idx="2" id="card-s-2">
+              <div class="playing-card card-back"></div>
             </div>
           </div>
         </div>
 
-        <!-- Active Player's Base Deck (4) (Outside rotation) -->
-        <div class="base-deck-wrapper hidden" id="base-deck">
-          <div class="base-deck-row">
-            <div class="base-deck-cards" id="base-deck-cards">
-              <!-- 5 Base cards -->
-              <div class="playing-card card-back"></div>
-              <div class="playing-card card-back"></div>
-              <div class="playing-card card-back"></div>
-              <div class="playing-card card-back"></div>
-              <div class="playing-card card-back"></div>
-            </div>
-            <div id="base-deck-promotional" class="base-deck-promotional hidden">
-              <!-- Promotional pieces -->
-            </div>
+      <div class="board-main-stack">
+        <!-- Game Over Banner -->
+        <div id="game-over-banner" class="game-over-banner hidden">
+          <h2 id="game-over-banner-title">Team A Wins!</h2>
+          <div class="game-over-banner-buttons">
+            <button id="btn-restart-banner" class="btn primary-btn">New Game</button>
+            <button id="btn-review-game-banner" class="btn secondary-btn">Review Game</button>
+            <button id="btn-back-to-lobby-banner" class="btn secondary-btn">Return to Lobby</button>
           </div>
-          <div class="base-deck-header"
-            style="text-align: center; margin-top: 6px; font-family: var(--font-title); font-size: 0.85rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em;">
-            YOUR BASE DECK <span
-              style="font-size: 0.75rem; color: var(--color-green); margin-left: 5px; font-weight: 400;">(Select a card
-              and click another to swap)</span>
-          </div>
-        </div>
-        
-        <!-- Combat Announcement -->
-        <div class="combat-announcement-wrapper hidden" id="combat-announcement">
-          <div class="combat-announcement-text" id="combat-announcement-text"></div>
         </div>
       </div>
 
-      <!-- Promotion Instructions -->
-      <div id="promotion-instruction" class="promotion-instruction hidden">
-        <span class="promo-icon">✨</span>
-        <span class="promo-text">Promotion Possible! Select a captured piece to revive.</span>
+      <!-- Active Player's Base Deck (4) (Outside rotation) -->
+      <div class="base-deck-wrapper hidden" id="base-deck">
+        <div class="base-deck-row">
+          <div class="base-deck-cards" id="base-deck-cards">
+            <!-- 5 Base cards -->
+            <div class="playing-card card-back"></div>
+            <div class="playing-card card-back"></div>
+            <div class="playing-card card-back"></div>
+            <div class="playing-card card-back"></div>
+            <div class="playing-card card-back"></div>
+          </div>
+          <div id="base-deck-promotional" class="base-deck-promotional hidden">
+            <!-- Promotional pieces -->
+          </div>
+        </div>
+        <div class="base-deck-header" id="base-deck-header"
+          style="text-align: center; margin-top: 6px; font-family: var(--font-title); font-size: 0.85rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em;">
+          YOUR BASE DECK <span
+            style="font-size: 0.75rem; color: var(--swap-instruction-color); margin-left: 5px; font-weight: 400;">(Select a card
+            and click another to swap)</span>
+        </div>
       </div>
+      
+      <!-- Combat Announcement -->
+      <div class="combat-announcement-wrapper hidden" id="combat-announcement">
+        <div class="combat-announcement-text" id="combat-announcement-text"></div>
+      </div>
+    </div>
+
+    <!-- Promotion Instructions -->
+    <div id="promotion-instruction" class="promotion-instruction hidden">
+      <span class="promo-icon">✨</span>
+      <span class="promo-text">Promotion Possible! Select a captured piece to revive.</span>
+    </div>
 
     </main>
 
@@ -406,6 +410,7 @@
 
   <!-- Javascript Scripts -->
   <script src="/socket.io/socket.io.js"></script>
+  <script src="speeds.js?v=32"></script>
   <script src="engine.js?v=32"
     onerror="const l = document.getElementById('log-entries'); if(l) l.innerHTML += '<div style=\'color:red\'>[CRITICAL] Failed to load engine.js</div>'"></script>
   <script src="multiplayer.js?v=32"></script>

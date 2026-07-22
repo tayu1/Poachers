@@ -12,35 +12,75 @@
 
   /* Teams */
   --color-team-a: #ffe6a0;
-  /* Amber/Yellow for N-S */
   --color-team-a-rgb: 251, 191, 36;
   --color-team-b: #b4e3ff;
-  /* Cyan/Blue for E-W */
   --color-team-b-rgb: 6, 182, 212;
-
-  /* Highlights & Statuses */
-  --color-green: #6d2b2b77;
-  --color-green-rgb: 34, 197, 94;
-  --color-red: #c50606;
-  --color-red-rgb: 239, 68, 68;
-  --color-orange: #f97316;
-  --color-orange-rgb: 249, 115, 22;
-  --color-select: #3b82f6;
-  --color-select-rgb: 59, 130, 246;
-  --color-highlight-public: #10b981;
 
   /* Neon Shadows */
   --shadow-neon-a: 0 0 15px rgba(255, 255, 255, 0.241);
   --shadow-neon-b: 0 0 15px rgba(255, 255, 255, 0.2);
 
   /* Chess Board Squares */
-  --board-dark: #97330e;
-  --board-light: #d23e03;
+  --board-dark: #7d4309;
+  --board-light: #b76a05;
   --board-label-color: rgba(105, 105, 105, 0.248);
   --color-hill-border: #430202;
-  --color-center-dot: #ffd700;
+  --color-lcr-separator: #f4f4f47b;
+  --color-center-dot: #ffd90076;
   --flank_cross_color: #361010;
 
   /* Playing Cards */
   --color-card-black: #1e293b;
+
+  /* Replay Control Panel */
+  --replay-status-color: #6d2b2b77;
+  --replay-live-color: #6d2b2b77;
+  --replay-step-color: #f97316;
+
+  /* Game Log Panel */
+  --log-combat-color: #f97316;
+  --log-error-color: #c50606;
+
+  /* Board Move Dots */
+  --legal-move-dot-color: #c5c6f38a;
+  --attack-move-dot-color: #f91616d5;
+  --capture-move-dot-color: #c50606cd;
+
+  /* Board Highlights & Targets */
+  --selected-cell-bg-color: rgba(239, 161, 6, 0.4);
+  --selected-cell-border-color: #ffffff3c;
+  --move-target-dot-bg-color: rgba(34, 197, 94, 0.7);
+  --move-target-dot-shadow-color: #6d2b2b77;
+
+  --attack-target-border-color: #f97316;
+  --attack-target-pulse-start-color: rgba(249, 117, 22, 0.8);
+  --attack-target-pulse-end-color: rgba(249, 117, 22, 0.3);
+
+  --capture-target-border-color: #c50606;
+  --capture-target-pulse-start-color: rgba(239, 68, 68, 0.8);
+  --capture-target-pulse-end-color: rgba(239, 68, 68, 0.3);
+
+  --king-pulse-color: #ff0202;
+
+  /* Cards */
+  --card-suit-red-color: #c50606;
+  --selected-base-card-outline-color: #6d2b2b77;
+  --clickable-pos-card-outline-color: #bfff00;
+  --swap-instruction-color: #6d2b2b77;
+
+  /* Player Status / Lobby Seats / Combat */
+  --active-turn-indicator-color: #6d2b2b77;
+  --combat-attacker-outline-color: #f7cd00ad;
+  --combat-attacker-bg-color: rgba(129, 113, 37, 0.639);
+  --combat-defender-outline-color: #cf0404;
+  --combat-defender-bg-color: rgba(255, 2, 2, 0.383);
+  --status-dot-on-color: #6d2b2b77;
+  --dropped-rule-color: #6d2b2b77;
+  --seat-human-border-color: #6d2b2b77;
+  --online-player-human-color: #6d2b2b77;
+
+  /* Errors */
+  --error-text-color: #c50606;
+  --error-bg-color: rgba(239, 68, 68, 0.12);
+  --error-border-color: rgba(239, 68, 68, 0.3);
 }
