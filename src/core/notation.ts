@@ -159,7 +159,7 @@ export function formatCombatAnnouncementText(combat: CombatResult): string {
   if (
     winnerHand.rank === HandRank.ONE_PAIR &&
     loserHand.rank === HandRank.ONE_PAIR &&
-    winnerHand.winningCards[0]?.rank === loserHand.winningCards[0]?.rank
+    winnerHand.winningCards?.[0]?.rank === loserHand.winningCards?.[0]?.rank
   ) {
     let kickerRank = 0;
     for (let i = 0; i < 5; i++) {

@@ -891,9 +891,9 @@ function getSlotScore(state: GameState, seat: PlayerSeat, trenchIndex: number, t
     : PlayerSeat.EAST;
   const teammate = state.players[teammateSeat];
   const teammateCard = teammate?.positionalCards[trenchIndex];
-  const communityCards = state.publicFlop.filter((c: any) => c !== null);
+  const communityCards = state.publicFlop.filter((c: any) => c !== null) as Card[];
 
-  const pool = [...communityCards];
+  const pool: Card[] = [...communityCards];
   if (testCard) pool.push(testCard);
   if (teammateCard) pool.push(teammateCard);
 
