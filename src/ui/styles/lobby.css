@@ -1,0 +1,503 @@
+/* Lobby Overlay & Room Styling */
+.lobby-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 15, 25, 0.96);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', sans-serif;
+  color: #e2e8f0;
+}
+
+.lobby-modal {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 680px;
+  padding: 32px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.lobby-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.lobby-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #f59e0b 0%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+
+.lobby-subtitle {
+  font-size: 14px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.lobby-room-code-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #f8fafc;
+}
+
+.copy-btn {
+  background: #334155;
+  border: none;
+  color: #94a3b8;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+  background: #475569;
+  color: #ffffff;
+}
+
+/* Join / Create Form */
+.lobby-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.lobby-input {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 15px;
+  color: #f8fafc;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.lobby-input:focus {
+  border-color: #38bdf8;
+}
+
+.form-actions-row {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-primary {
+  flex: 1;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-secondary {
+  flex: 1;
+  background: #334155;
+  color: #f8fafc;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: #475569;
+}
+
+/* Teams & Seat Grid */
+.teams-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.team-column {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.team-column.team-a {
+  border-top: 4px solid #f59e0b;
+}
+
+.team-column.team-b {
+  border-top: 4px solid #06b6d4;
+}
+
+.team-header {
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.team-a .team-header { color: #f59e0b; }
+.team-b .team-header { color: #06b6d4; }
+
+.seat-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 125px;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.1s ease;
+}
+
+.seat-card.clickable-seat {
+  cursor: pointer;
+}
+
+.seat-card.clickable-seat:hover {
+  border-color: #f59e0b;
+  background: #243047;
+}
+
+.seat-card.my-seat {
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.seat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.seat-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #cbd5e1;
+}
+
+.seat-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.seat-badge.bot {
+  background: #334155;
+  color: #94a3b8;
+}
+
+.seat-badge.ready {
+  background: #166534;
+  color: #4ade80;
+}
+
+.seat-badge.not-ready {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(248, 250, 252, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.seat-badge.waiting {
+  background: #854d0e;
+  color: #fde047;
+}
+
+.seat-badge.empty {
+  background: #0f172a;
+  color: #64748b;
+}
+
+.seat-occupant {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  text-align: center;
+}
+
+.seat-icon {
+  font-size: 32px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.seat-occupant-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f8fafc;
+  word-break: break-word;
+}
+
+.seat-occupant.empty-seat-text {
+  justify-content: center;
+  color: #38bdf8;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.seat-actions {
+  display: flex;
+  gap: 8px;
+  min-height: 28px;
+  align-items: center;
+}
+
+.btn-seat-action {
+  flex: 1;
+  background: #334155;
+  border: none;
+  color: #f8fafc;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-seat-action:hover {
+  background: #475569;
+}
+
+.btn-seat-action.sit {
+  background: #2563eb;
+}
+.btn-seat-action.sit:hover {
+  background: #1d4ed8;
+}
+
+.btn-seat-action.leave {
+  background: #991b1b;
+}
+.btn-seat-action.leave:hover {
+  background: #b91c1c;
+}
+
+/* Footer & Launch Controls */
+.lobby-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.error-banner {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.lobby-controls-bar {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-ready {
+  flex: 1;
+  background: #166534;
+  color: #ffffff;
+  border: none;
+  padding: 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-ready:hover {
+  background: #15803d;
+}
+
+.btn-ready.is-ready {
+  background: #854d0e;
+}
+.btn-ready.is-ready:hover {
+  background: #a16207;
+}
+
+.btn-start-game {
+  flex: 2;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  border: none;
+  padding: 14px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+  transition: transform 0.1s ease, filter 0.2s ease;
+}
+
+.btn-start-game:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-start-game:disabled {
+  background: #334155;
+  color: #64748b;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mobile Vertical View for Lobby & Room Modal */
+@media (max-width: 640px) {
+  .lobby-backdrop {
+    padding: 12px 8px;
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
+  .lobby-modal {
+    width: 100%;
+    max-width: 100%;
+    padding: 18px 14px;
+    gap: 16px;
+    border-radius: 12px;
+    margin: auto 0;
+    box-sizing: border-box;
+  }
+
+  .lobby-title {
+    font-size: 22px;
+  }
+
+  .lobby-subtitle {
+    font-size: 12px;
+  }
+
+  .lobby-room-code-badge {
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: 13px;
+    gap: 6px;
+    padding: 6px 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .teams-container {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .team-column {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .seat-card {
+    padding: 8px;
+    height: 115px;
+    box-sizing: border-box;
+  }
+
+  .seat-name {
+    font-size: 12px;
+  }
+
+  .seat-badge {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+
+  .seat-occupant {
+    font-size: 13px;
+    min-height: 18px;
+  }
+
+  .seat-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .btn-seat-action {
+    padding: 8px 10px;
+    font-size: 12px;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .form-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .lobby-controls-bar {
+    flex-direction: column;
+    gap: 8px;
+  }
+}

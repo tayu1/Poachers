@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Poachers - Chess × Poker Strategy Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <div class="game-container">
+      <!-- Left Sidebar -->
+      <div class="left-sidebar">
+        <div id="controls-panel"></div>
+        <div id="log-panel"></div>
+      </div>
+
+      <!-- Center Board Area -->
+      <div class="center-area">
+        <div class="board-layout-container">
+          <!-- Public Cards Stack (Far Left) -->
+          <div id="flop-panel" class="public-cards-vertical"></div>
+
+          <!-- Board Frame Grid -->
+          <div class="board-spatial-frame">
+            <!-- North Cards Row -->
+            <div id="lcr-north" class="lcr-row-north"></div>
+
+            <!-- Middle Row: West Cards, Chess Board, East Cards -->
+            <div class="board-middle-section">
+              <div id="lcr-west" class="lcr-col-west"></div>
+              <div id="board-container"></div>
+              <div id="lcr-east" class="lcr-col-east"></div>
+            </div>
+
+            <!-- South Cards Row -->
+            <div id="lcr-south" class="lcr-row-south"></div>
+
+            <!-- South Base Deck Row -->
+            <div id="base-deck-panel"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Sidebar -->
+      <div class="right-sidebar">
+        <div id="status-panel"></div>
+        <div id="captures-panel"></div>
+      </div>
+    </div>
+
+    <!-- Mobile Bottom Menu Bar -->
+    <div id="mobile-bottom-menu-bar" class="mobile-bottom-menu-bar"></div>
+
+    <!-- Overlays -->
+    <div id="lobby-overlay"></div>
+    <div id="modal-overlay" class="overlay hidden"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
