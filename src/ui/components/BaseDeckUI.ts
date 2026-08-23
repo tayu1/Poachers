@@ -83,7 +83,7 @@ export class BaseDeckUI {
     }
 
     const cardEl = document.createElement('div');
-    cardEl.className = 'lcr-card';
+    cardEl.className = 'trench-card';
 
     const valEl = document.createElement('div');
     valEl.className = 'card-val-top';
@@ -134,7 +134,11 @@ export class BaseDeckUI {
     const activePlayerSeat = state.pendingRefills.length > 0
       ? state.pendingRefills[0].seat
       : (state.setupState?.inSetup
-          ? ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s)) ?? state.activePlayer
+          ? (
+              ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s) && (store.mySeats?.includes(s) || store.mySeat === s)) ??
+              ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s)) ??
+              state.activePlayer
+            )
           : state.activePlayer);
     const activePlayerState = state.players[activePlayerSeat];
     const isBotTurn = store.botSeats[activePlayerSeat];
@@ -166,7 +170,7 @@ export class BaseDeckUI {
       const isSelected = !isFaceDown && store.selectedBaseCardIndex === originalIdx;
 
       if (isFaceDown) {
-        holder.cardEl.className = `lcr-card card-back face-down ${teamClass}`;
+        holder.cardEl.className = `trench-card card-back face-down ${teamClass}`;
         holder.cardEl.style.cursor = 'default';
         holder.valEl.style.display = 'none';
         holder.suitEl.style.display = 'none';
@@ -186,7 +190,7 @@ export class BaseDeckUI {
           highlightClass = ' highlight-mild-swap';
         }
 
-        holder.cardEl.className = `lcr-card ${teamClass} ${colorClass}${selectedClass}${highlightClass}`;
+        holder.cardEl.className = `trench-card ${teamClass} ${colorClass}${selectedClass}${highlightClass}`;
         holder.cardEl.style.cursor = 'pointer';
 
         holder.valEl.className = `card-val-top${tenClass}`;

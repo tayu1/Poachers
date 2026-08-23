@@ -114,7 +114,7 @@ input,
 select,
 .sq,
 .piece-img,
-.lcr-card,
+.trench-card,
 .public-card {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;

@@ -4,13 +4,13 @@ import {
   createDeck,
   dealInitialPlayerCards,
   getBestHandFrom7CardPool,
-  getPositionalCardIndexForSquare,
+  getTrenchCardIndexForSquare,
   getSquareCombatOdds,
   grantTurnEndCardRewards,
   popHighestRankCard,
   popMedianRankCard,
   processPostCombat,
-  refillAllPositionalCards,
+  refillAllTrenchCards,
   swapPlayerCards,
   TrenchStrategy
 } from './cards';
@@ -108,10 +108,10 @@ export function fastCloneState(state: GameState): GameState {
     threatMap: state.threatMap ? toUint8Array(state.threatMap, 4096) : new Uint8Array(INITIAL_THREAT_MAP),
     activePlayer: state.activePlayer,
     players: {
-      0: { ...state.players[0], baseDeck: state.players[0].baseDeck.slice(), positionalCards: [...state.players[0].positionalCards] },
-      1: { ...state.players[1], baseDeck: state.players[1].baseDeck.slice(), positionalCards: [...state.players[1].positionalCards] },
-      2: { ...state.players[2], baseDeck: state.players[2].baseDeck.slice(), positionalCards: [...state.players[2].positionalCards] },
-      3: { ...state.players[3], baseDeck: state.players[3].baseDeck.slice(), positionalCards: [...state.players[3].positionalCards] }
+      0: { ...state.players[0], baseDeck: state.players[0].baseDeck.slice(), trenchCards: [...state.players[0].trenchCards] },
+      1: { ...state.players[1], baseDeck: state.players[1].baseDeck.slice(), trenchCards: [...state.players[1].trenchCards] },
+      2: { ...state.players[2], baseDeck: state.players[2].baseDeck.slice(), trenchCards: [...state.players[2].trenchCards] },
+      3: { ...state.players[3], baseDeck: state.players[3].baseDeck.slice(), trenchCards: [...state.players[3].trenchCards] }
     },
     deck: state.deck.slice(),
     publicFlop: [...state.publicFlop],
@@ -171,24 +171,15 @@ export function initializeTrenchDraftPhase(
   _autoCardPick: boolean = false,
   botStrategies?: Partial<Record<PlayerSeat, TrenchStrategy>>
 ): void {
+  for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST]) {
+    const strat = botStrategies?.[seat] || 'BOT_DEFAULT_DRAFT';
+    autoPickBotTrenches(state.players[seat], strat, state.publicFlop);
+  }
+
   state.setupState = {
-    inSetup: true,
-    setupCompletedSeats: []
+    inSetup: false,
+    setupCompletedSeats: [0, 1, 2, 3]
   };
-
-  for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]) {
-    if (botSeats?.[seat]) {
-      const strat = botStrategies?.[seat] || 'ALWAYS_HIGHEST';
-      autoPickBotTrenches(state.players[seat], strat, state.publicFlop);
-      if (!state.setupState.setupCompletedSeats.includes(seat)) {
-        state.setupState.setupCompletedSeats.push(seat);
-      }
-    }
-  }
-
-  if (state.setupState.setupCompletedSeats.length === 4) {
-    state.setupState.inSetup = false;
-  }
 }
 
 export interface CreateInitialGameStateOptions {
@@ -199,7 +190,7 @@ export interface CreateInitialGameStateOptions {
   score?: { teamA: number; teamB: number };
   startingPlayer?: PlayerSeat;
   turnTimeLimit?: TurnTimeLimit;
-  enableManualDraft?: boolean;
+  skipSetup?: boolean;
 }
 
 export function createInitialGameState(options?: CreateInitialGameStateOptions): GameState {
@@ -213,10 +204,10 @@ export function createInitialGameState(options?: CreateInitialGameStateOptions):
   const westSetup = dealInitialPlayerCards(deck);
 
   const players: Record<PlayerSeat, PlayerState> = {
-    [PlayerSeat.NORTH]: { seat: PlayerSeat.NORTH, team: 'A', baseDeck: northSetup.baseDeck, positionalCards: northSetup.positionalCards },
-    [PlayerSeat.EAST]:  { seat: PlayerSeat.EAST,  team: 'B', baseDeck: eastSetup.baseDeck,  positionalCards: eastSetup.positionalCards },
-    [PlayerSeat.SOUTH]: { seat: PlayerSeat.SOUTH, team: 'A', baseDeck: southSetup.baseDeck, positionalCards: southSetup.positionalCards },
-    [PlayerSeat.WEST]:  { seat: PlayerSeat.WEST,  team: 'B', baseDeck: westSetup.baseDeck,  positionalCards: westSetup.positionalCards }
+    [PlayerSeat.NORTH]: { seat: PlayerSeat.NORTH, team: 'A', baseDeck: northSetup.baseDeck, trenchCards: northSetup.trenchCards },
+    [PlayerSeat.EAST]:  { seat: PlayerSeat.EAST,  team: 'B', baseDeck: eastSetup.baseDeck,  trenchCards: eastSetup.trenchCards },
+    [PlayerSeat.SOUTH]: { seat: PlayerSeat.SOUTH, team: 'A', baseDeck: southSetup.baseDeck, trenchCards: southSetup.trenchCards },
+    [PlayerSeat.WEST]:  { seat: PlayerSeat.WEST,  team: 'B', baseDeck: westSetup.baseDeck,  trenchCards: westSetup.trenchCards }
   };
 
   const publicFlop: [Card, Card, Card] = [deck.pop()!, deck.pop()!, deck.pop()!];
@@ -254,15 +245,14 @@ export function createInitialGameState(options?: CreateInitialGameStateOptions):
     seatActionCounts: { 0: 0, 1: 0, 2: 0, 3: 0 }
   };
 
-  if (options?.enableManualDraft) {
-    initializeTrenchDraftPhase(state, options?.botSeats, false, options?.botStrategies);
-  } else {
-    // Default: automatically pick highest 3 cards for all players for instant seamless play
+  if (options?.skipSetup) {
     for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]) {
       const strat = options?.botStrategies?.[seat] || 'ALWAYS_HIGHEST';
       autoPickBotTrenches(state.players[seat], strat, state.publicFlop);
     }
     state.setupState = { inSetup: false, setupCompletedSeats: [0, 1, 2, 3] };
+  } else {
+    initializeTrenchDraftPhase(state, options?.botSeats, false, options?.botStrategies);
   }
 
   state.threatenedKings = getThreatenedKings(state.board, state.threatMap);
@@ -290,7 +280,7 @@ export function executeTrenchSelectAction(
   }
 
   chosen.reverse();
-  player.positionalCards = [chosen[0], chosen[1], chosen[2]];
+  player.trenchCards = [chosen[0], chosen[1], chosen[2]];
 
   if (!state.setupState.setupCompletedSeats.includes(seat)) {
     state.setupState.setupCompletedSeats.push(seat);
@@ -316,9 +306,9 @@ export function executeTrenchSingleCardSelect(
   botSeats?: Record<PlayerSeat, boolean>
 ): TurnActionResult {
   const player = state.players[seat];
-  const emptySlotIdx = player.positionalCards.findIndex(c => c === null);
+  const emptySlotIdx = player.trenchCards.findIndex(c => c === null);
   if (emptySlotIdx === -1) {
-    throw new Error(`Seat ${seat} positional cards are already full`);
+    throw new Error(`Seat ${seat} trench cards are already full`);
   }
 
   if (baseCardIndex < 0 || baseCardIndex >= player.baseDeck.length) {
@@ -326,9 +316,9 @@ export function executeTrenchSingleCardSelect(
   }
 
   const card = player.baseDeck.splice(baseCardIndex, 1)[0];
-  player.positionalCards[emptySlotIdx] = card;
+  player.trenchCards[emptySlotIdx] = card;
 
-  if (!player.positionalCards.includes(null)) {
+  if (!player.trenchCards.includes(null)) {
     if (!state.setupState.setupCompletedSeats.includes(seat)) {
       state.setupState.setupCompletedSeats.push(seat);
     }
@@ -364,7 +354,7 @@ export function executeRefillTrenchAction(
   }
 
   const card = player.baseDeck.splice(baseCardIndex, 1)[0];
-  player.positionalCards[trenchSlot] = card;
+  player.trenchCards[trenchSlot] = card;
 
   const stillPending = handlePostCombatRefillStage(state, botSeats, undefined, autoCardPick);
   if (!stillPending) {
@@ -434,18 +424,18 @@ function resolveCombatInternal(
   const attackerTeam = state.players[attackerSeat].team;
   const defenderTeam = state.players[defenderSeat].team;
 
-  const attCardIdx = getPositionalCardIndexForSquare(defenderPos, attackerTeam);
-  const defCardIdx = getPositionalCardIndexForSquare(defenderPos, defenderTeam);
+  const attCardIdx = getTrenchCardIndexForSquare(defenderPos, attackerTeam);
+  const defCardIdx = getTrenchCardIndexForSquare(defenderPos, defenderTeam);
 
   const attackerSeats = TEAM_SEATS[attackerTeam];
   const defenderSeats = TEAM_SEATS[defenderTeam];
 
-  const attackerPositionalCards: Card[] = attackerSeats
-    .map(seat => state.players[seat].positionalCards[attCardIdx])
+  const attackerTrenchCards: Card[] = attackerSeats
+    .map(seat => state.players[seat].trenchCards[attCardIdx])
     .filter((c): c is Card => c !== null && c !== undefined);
 
-  const defenderPositionalCards: Card[] = defenderSeats
-    .map(seat => state.players[seat].positionalCards[defCardIdx])
+  const defenderTrenchCards: Card[] = defenderSeats
+    .map(seat => state.players[seat].trenchCards[defCardIdx])
     .filter((c): c is Card => c !== null && c !== undefined);
 
   const communityCards = [
@@ -453,8 +443,8 @@ function resolveCombatInternal(
     ...state.publicTurnRiver.filter((c): c is Card => c !== null)
   ];
 
-  const attackerPool = [...communityCards, ...attackerPositionalCards];
-  const defenderPool = [...communityCards, ...defenderPositionalCards];
+  const attackerPool = [...communityCards, ...attackerTrenchCards];
+  const defenderPool = [...communityCards, ...defenderTrenchCards];
 
   const attackerHand = getBestHandFrom7CardPool(attackerPool);
   const defenderHand = getBestHandFrom7CardPool(defenderPool);
@@ -665,6 +655,13 @@ export function getRandomLegalAction(
 }
 
 export function advanceTurn(state: GameState): void {
+  // Grant turn end card rewards to the current active player before their turn ends.
+  // This must happen after all trench refills are complete so we don't hit the base deck cap artificially.
+  const cardRewards = grantTurnEndCardRewards(state, state.activePlayer);
+  if (cardRewards.hillGranted) {
+    state.regionOdds = computeRegionProbabilities(state);
+  }
+
   let nextSeat = ((state.activePlayer + 1) % 4) as PlayerSeat;
   let attempts = 0;
 
@@ -719,14 +716,13 @@ function finalizeTurn(
   let pendingHumanRefill = false;
 
   if (reqType !== BotRequestType.FAST_CALC) {
-    const cardRewards = grantTurnEndCardRewards(state, seat);
     pendingHumanRefill = handlePostCombatRefillStage(
       state, options?.botSeats, options?.botStrategies, options?.autoCardPick ?? true
     );
 
     const skipOdds = options?.skipOddsRecompute ?? (reqType !== BotRequestType.UI_GAME);
     if (!skipOdds) {
-      if (cardRewards.hillGranted || !state.regionOdds || state.regionOdds.length === 0) {
+      if (!state.regionOdds || state.regionOdds.length === 0) {
         state.regionOdds = computeRegionProbabilities(state);
       }
     }
@@ -760,8 +756,8 @@ export function handlePostCombatRefillStage(
   if (state.pendingRefills.length === 0) {
     for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST]) {
       const player = state.players[seat];
-      for (let slot = 0; slot < player.positionalCards.length; slot++) {
-        if (player.positionalCards[slot] === null && player.baseDeck.length > 0) {
+      for (let slot = 0; slot < player.trenchCards.length; slot++) {
+        if (player.trenchCards[slot] === null && player.baseDeck.length > 0) {
           state.pendingRefills.push({ seat, slot });
         }
       }
@@ -770,30 +766,30 @@ export function handlePostCombatRefillStage(
 
   for (const pr of state.pendingRefills) {
     const player = state.players[pr.seat];
-    if (effectiveBotSeats[pr.seat] && player.positionalCards[pr.slot] === null && player.baseDeck.length > 0) {
+    if (effectiveBotSeats[pr.seat] && player.trenchCards[pr.slot] === null && player.baseDeck.length > 0) {
       const strat = botStrategies?.[pr.seat] || 'ALWAYS_HIGHEST';
       const card = strat === 'MEDIUM_RESERVE_ATTACK'
         ? popMedianRankCard(player.baseDeck)
         : popHighestRankCard(player.baseDeck);
       if (card) {
-        player.positionalCards[pr.slot] = card;
+        player.trenchCards[pr.slot] = card;
       }
-    } else if (autoCardPick && !effectiveBotSeats[pr.seat] && player.positionalCards[pr.slot] === null && player.baseDeck.length > 0) {
+    } else if (autoCardPick && !effectiveBotSeats[pr.seat] && player.trenchCards[pr.slot] === null && player.baseDeck.length > 0) {
       const card = popHighestRankCard(player.baseDeck);
       if (card) {
-        player.positionalCards[pr.slot] = card;
+        player.trenchCards[pr.slot] = card;
       }
     }
   }
 
   state.pendingRefills = state.pendingRefills.filter(pr => {
     const player = state.players[pr.seat];
-    return player && player.positionalCards[pr.slot] === null && player.baseDeck.length > 0;
+    return player && player.trenchCards[pr.slot] === null && player.baseDeck.length > 0;
   });
 
   const remainingHumanRefill = state.pendingRefills.find(pr => {
     const player = state.players[pr.seat];
-    return !effectiveBotSeats[pr.seat] && player.positionalCards[pr.slot] === null && player.baseDeck.length > 0;
+    return !effectiveBotSeats[pr.seat] && player.trenchCards[pr.slot] === null && player.baseDeck.length > 0;
   });
 
   if (remainingHumanRefill) {

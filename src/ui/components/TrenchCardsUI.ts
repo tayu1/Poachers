@@ -1,7 +1,7 @@
 import { Card, GameState, PlayerSeat } from '../../core/types';
 import { GameStore } from '../../store/store';
 
-export interface LCRContainers {
+export interface TRENCHContainers {
   north: HTMLElement;
   east: HTMLElement;
   south: HTMLElement;
@@ -13,7 +13,7 @@ interface PerimeterSlotRef {
   cardIndex: number;
 }
 
-// 12 Positional card slots ordered in continuous clockwise perimeter sequence starting from Top-Left (Slot 0)
+// 12 Trench card slots ordered in continuous clockwise perimeter sequence starting from Top-Left (Slot 0)
 const CLOCKWISE_PERIMETER_SLOTS: PerimeterSlotRef[] = [
   { seat: PlayerSeat.NORTH, cardIndex: 0 }, // Slot 0:  Top-Left (cols 0-2)
   { seat: PlayerSeat.NORTH, cardIndex: 1 }, // Slot 1:  Top-Center (cols 3-4)
@@ -35,14 +35,14 @@ interface SlotElementHolder {
   suitEl: HTMLElement;
 }
 
-export class LCRCardsUI {
-  private containers: LCRContainers;
+export class TrenchCardsUI {
+  private containers: TRENCHContainers;
   private onCardClick: (seat: PlayerSeat, cardIndex: number) => void;
   private slotHolders: Map<number, SlotElementHolder> = new Map();
   private slotClickTargets: Map<number, { seat: PlayerSeat; cardIndex: number }> = new Map();
   private isInitialized = false;
 
-  constructor(containers: LCRContainers, onCardClick: (seat: PlayerSeat, cardIndex: number) => void) {
+  constructor(containers: TRENCHContainers, onCardClick: (seat: PlayerSeat, cardIndex: number) => void) {
     this.containers = containers;
     this.onCardClick = onCardClick;
   }
@@ -52,7 +52,7 @@ export class LCRCardsUI {
 
     const createSlotHolder = (slotIdx: number): SlotElementHolder => {
       const cardEl = document.createElement('div');
-      cardEl.className = 'lcr-card card-empty';
+      cardEl.className = 'trench-card card-empty';
 
       const valEl = document.createElement('div');
       valEl.className = 'card-val-top';
@@ -155,7 +155,7 @@ export class LCRCardsUI {
           ? ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s)) ?? state.activePlayer
           : state.activePlayer);
     const activePlayerState = state.players[activeSeat];
-    const draftTargetSlotIdx = activePlayerState ? activePlayerState.positionalCards.findIndex(c => c === null) : -1;
+    const draftTargetSlotIdx = activePlayerState ? activePlayerState.trenchCards.findIndex(c => c === null) : -1;
     const isBotTurn = Boolean(store.botSeats[activeSeat]);
     const isSwapAvailable = !isDrafting && !state.hasSwappedThisTurn && !isBotTurn;
 
@@ -183,15 +183,15 @@ export class LCRCardsUI {
       this.slotClickTargets.set(slotIdx, { seat: ref.seat, cardIndex: ref.cardIndex });
 
       const player = state.players[ref.seat];
-      const actualCard = player.positionalCards[ref.cardIndex];
+      const actualCard = player.trenchCards[ref.cardIndex];
 
       const isRefillTargetSlot = isRefillStage && Boolean(
         state.pendingRefills?.some(pr => pr.seat === ref.seat && pr.slot === ref.cardIndex)
       );
 
       const isEmptySlot = actualCard === null;
-      const isFaceDown = !isEmptySlot && (isDrafting || isRefillTargetSlot);
-      const isSelected = state.activePlayer === ref.seat && store.selectedLcrCardIndex === ref.cardIndex;
+      const isFaceDown = !isEmptySlot && isDrafting;
+      const isSelected = state.activePlayer === ref.seat && store.selectedTrenchCardIndex === ref.cardIndex;
       const teamClass = player.team === 'A' ? 'card-team-a' : 'card-team-b';
 
       const isWinning = actualCard !== null && winningCardIds.has(actualCard.id);
@@ -209,11 +209,11 @@ export class LCRCardsUI {
       }
 
       if (isEmptySlot) {
-        holder.cardEl.className = `lcr-card card-empty ${teamClass} ${highlightClass}`.trim();
+        holder.cardEl.className = `trench-card card-empty ${teamClass} ${highlightClass}`.trim();
         holder.valEl.style.display = 'none';
         holder.suitEl.style.display = 'none';
       } else if (isFaceDown) {
-        holder.cardEl.className = `lcr-card card-back face-down ${teamClass} ${highlightClass}`.trim();
+        holder.cardEl.className = `trench-card card-back face-down ${teamClass} ${highlightClass}`.trim();
         holder.valEl.style.display = 'none';
         holder.suitEl.style.display = 'none';
       } else if (actualCard) {
@@ -226,7 +226,7 @@ export class LCRCardsUI {
         const tenClass = actualCard.rank === 10 ? ' rank-ten' : '';
         const selectedClass = isSelected ? ' selected' : '';
 
-        holder.cardEl.className = `lcr-card ${teamClass} ${colorClass}${selectedClass} ${highlightClass}`.trim();
+        holder.cardEl.className = `trench-card ${teamClass} ${colorClass}${selectedClass} ${highlightClass}`.trim();
         holder.valEl.className = `card-val-top${tenClass}`;
         holder.valEl.textContent = rankSymbol;
         holder.valEl.style.display = 'block';

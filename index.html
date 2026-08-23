@@ -9,6 +9,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
 </head>
 <body>
+  <script>
+    window.addEventListener('error', function(e) {
+      alert("Error: " + e.message + " at " + e.filename + ":" + e.lineno);
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      alert("Unhandled promise rejection: " + (e.reason && e.reason.message ? e.reason.message : e.reason));
+    });
+  </script>
   <div id="app">
     <div class="game-container">
       <!-- Left Sidebar -->
@@ -26,17 +34,17 @@
           <!-- Board Frame Grid -->
           <div class="board-spatial-frame">
             <!-- North Cards Row -->
-            <div id="lcr-north" class="lcr-row-north"></div>
+            <div id="trench-north" class="trench-row-north"></div>
 
             <!-- Middle Row: West Cards, Chess Board, East Cards -->
             <div class="board-middle-section">
-              <div id="lcr-west" class="lcr-col-west"></div>
+              <div id="trench-west" class="trench-col-west"></div>
               <div id="board-container"></div>
-              <div id="lcr-east" class="lcr-col-east"></div>
+              <div id="trench-east" class="trench-col-east"></div>
             </div>
 
             <!-- South Cards Row -->
-            <div id="lcr-south" class="lcr-row-south"></div>
+            <div id="trench-south" class="trench-row-south"></div>
 
             <!-- South Base Deck Row -->
             <div id="base-deck-panel"></div>

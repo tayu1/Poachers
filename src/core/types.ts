@@ -138,7 +138,7 @@ export interface PlayerState {
   seat: PlayerSeat;
   team: Team;
   baseDeck: Card[];
-  positionalCards: [Card | null, Card | null, Card | null]; // LCR
+  trenchCards: [Card | null, Card | null, Card | null]; // TRENCH
 }
 
 export enum ActionType {

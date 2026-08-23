@@ -148,7 +148,7 @@ export function getHandDescription(hand: EvaluatedHand): string {
  */
 export function formatCombatAnnouncementText(combat: CombatResult): string {
   if (combat.attackerHand.score === combat.defenderHand.score) {
-    return 'hand draw, attacker win.';
+    return 'Draw - attacker wins';
   }
 
   const isAttackerWinner = combat.winnerSeat === combat.attackerSeat;

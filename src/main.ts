@@ -11,7 +11,7 @@ import { BaseDeckUI } from './ui/components/BaseDeckUI';
 import { BoardUI } from './ui/components/BoardUI';
 import { CapturesUI } from './ui/components/CapturesUI';
 import { ControlsUI } from './ui/components/ControlsUI';
-import { LCRCardsUI } from './ui/components/LCRCardsUI';
+import { TrenchCardsUI } from './ui/components/TrenchCardsUI';
 import { LobbyUI } from './ui/components/LobbyUI';
 import { LogUI } from './ui/components/LogUI';
 import { MobileMenuUI } from './ui/components/MobileMenuUI';
@@ -37,14 +37,14 @@ const boardUI = new BoardUI(
   (index: number) => inputHandler.handleSquareClick(index)
 );
 
-const lcrUI = new LCRCardsUI(
+const trenchUI = new TrenchCardsUI(
   {
-    north: document.getElementById('lcr-north')!,
-    east: document.getElementById('lcr-east')!,
-    south: document.getElementById('lcr-south')!,
-    west: document.getElementById('lcr-west')!
+    north: document.getElementById('trench-north')!,
+    east: document.getElementById('trench-east')!,
+    south: document.getElementById('trench-south')!,
+    west: document.getElementById('trench-west')!
   },
-  (seat: PlayerSeat, cardIndex: number) => inputHandler.handleLcrCardClick(seat, cardIndex)
+  (seat: PlayerSeat, cardIndex: number) => inputHandler.handleTrenchCardClick(seat, cardIndex)
 );
 
 const baseDeckUI = new BaseDeckUI(
@@ -77,7 +77,7 @@ store.subscribeToTimer((_state: GameState, storeInstance) => {
 store.subscribe((state: GameState, storeInstance) => {
   lobbyUI.render(storeInstance);
   boardUI.render(state, storeInstance);
-  lcrUI.render(state, storeInstance);
+  trenchUI.render(state, storeInstance);
   baseDeckUI.render(state, storeInstance);
   publicCardsUI.render(state);
   statusUI.render(state, storeInstance);
@@ -139,10 +139,10 @@ document.addEventListener('click', (e: MouseEvent) => {
     target.closest('#lobby-overlay') ||
     target.closest('#mobile-bottom-menu-bar') ||
     target.closest('#controls-panel') ||
-    target.closest('#lcr-north') ||
-    target.closest('#lcr-east') ||
-    target.closest('#lcr-south') ||
-    target.closest('#lcr-west') ||
+    target.closest('#trench-north') ||
+    target.closest('#trench-east') ||
+    target.closest('#trench-south') ||
+    target.closest('#trench-west') ||
     target.closest('#base-deck-panel') ||
     target.closest('#captures-panel')
   ) {

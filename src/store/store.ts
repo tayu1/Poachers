@@ -40,7 +40,7 @@ export class GameStore {
   public selectedSquare: number | null = null;
   public legalMoves: (ActionInt | Move)[] = [];
   public selectedBaseCardIndex: number | null = null;
-  public selectedLcrCardIndex: number | null = null;
+  public selectedTrenchCardIndex: number | null = null;
   public selectedPromotionPiece: PieceType | null = null;
   public selectedDraftIndices: number[] = [];
   public isSettingBunker: boolean = false;
@@ -55,7 +55,7 @@ export class GameStore {
   public botSeats: Record<PlayerSeat, boolean> = {
     [PlayerSeat.NORTH]: false,
     [PlayerSeat.EAST]: true,
-    [PlayerSeat.SOUTH]: false,
+    [PlayerSeat.SOUTH]: true,
     [PlayerSeat.WEST]: true
   };
   private _botSpeedMs: number = BOT_SPEED_MS;
@@ -188,7 +188,7 @@ export class GameStore {
     this.selectedSquare = null;
     this.legalMoves = [];
     this.selectedBaseCardIndex = null;
-    this.selectedLcrCardIndex = null;
+    this.selectedTrenchCardIndex = null;
     this.selectedPromotionPiece = null;
     this.recordSnapshot();
     this.notify();
@@ -208,7 +208,7 @@ export class GameStore {
       [PlayerSeat.WEST]: true
     };
     this.setBotSpeedMs(10);
-    this.resetGame(false);
+    this.resetGame(false, true); // skipSetup = true for Bot Fast Match
   }
 
   public leaveLocalGame(): void {
@@ -367,8 +367,8 @@ export class GameStore {
     this.notify();
   }
 
-  public selectLcrCard(index: number | null): void {
-    this.selectedLcrCardIndex = index;
+  public selectTrenchCard(index: number | null): void {
+    this.selectedTrenchCardIndex = index;
     this.notify();
   }
 
@@ -417,7 +417,7 @@ export class GameStore {
     this.selectedSquare = null;
     this.legalMoves = [];
     this.selectedBaseCardIndex = null;
-    this.selectedLcrCardIndex = null;
+    this.selectedTrenchCardIndex = null;
     this.selectedPromotionPiece = null;
     this.notify();
   }
@@ -440,7 +440,7 @@ export class GameStore {
     return { winnerTeam: result.winnerTeam!, logText: result.logText };
   }
 
-  public resetGame(isRematch: boolean = false): void {
+  public resetGame(isRematch: boolean = false, skipSetup: boolean = false): void {
     if (this.combatTimer) {
       clearTimeout(this.combatTimer);
       this.combatTimer = null;
@@ -460,7 +460,8 @@ export class GameStore {
       autoCardPick: this.autoCardPick,
       score: this.matchScore,
       startingPlayer: this.startingSeatIndex as PlayerSeat,
-      turnTimeLimit: this.turnTimeLimit
+      turnTimeLimit: this.turnTimeLimit,
+      skipSetup: skipSetup
     });
     this.history = [];
     this.historyIndex = -1;
@@ -468,7 +469,7 @@ export class GameStore {
     this.selectedSquare = null;
     this.legalMoves = [];
     this.selectedBaseCardIndex = null;
-    this.selectedLcrCardIndex = null;
+    this.selectedTrenchCardIndex = null;
     this.selectedPromotionPiece = null;
     this.isReplaying = false;
     this.recordSnapshot();

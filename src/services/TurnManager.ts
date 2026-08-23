@@ -241,7 +241,11 @@ export class TurnManager {
     const activeSeat = state.pendingRefills.length > 0
       ? state.pendingRefills[0].seat
       : (state.setupState?.inSetup
-          ? (([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s)) ?? state.activePlayer)
+          ? (
+              ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s) && (this.store.mySeats?.includes(s) || this.store.mySeat === s)) ??
+              ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s)) ??
+              state.activePlayer
+            )
           : state.activePlayer);
     const limit = this.store.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT;
 

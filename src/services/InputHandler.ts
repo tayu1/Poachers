@@ -137,7 +137,11 @@ export class InputHandler {
     const activeSeat = state.pendingRefills.length > 0
       ? state.pendingRefills[0].seat
       : (state.setupState?.inSetup
-          ? ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s)) ?? state.activePlayer
+          ? (
+              ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s) && (this.store.mySeats?.includes(s) || this.store.mySeat === s)) ??
+              ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s)) ??
+              state.activePlayer
+            )
           : state.activePlayer);
 
     const isMyTurn = !this.store.isMultiplayer || (this.store.mySeat !== null && this.store.mySeat === activeSeat) || (this.store.mySeats && this.store.mySeats.includes(activeSeat));
@@ -166,11 +170,11 @@ export class InputHandler {
     }
 
     const baseSlot = 3 + index;
-    const selectedLcr = this.store.selectedLcrCardIndex;
+    const selectedLcr = this.store.selectedTrenchCardIndex;
 
     if (selectedLcr !== null) {
       this.executeCardSwap(selectedLcr, baseSlot);
-      this.store.selectLcrCard(null);
+      this.store.selectTrenchCard(null);
       this.store.selectBaseCard(null);
       return;
     }
@@ -180,7 +184,7 @@ export class InputHandler {
     }
   }
 
-  public handleLcrCardClick(seat: PlayerSeat, cardIndex: number): void {
+  public handleTrenchCardClick(seat: PlayerSeat, cardIndex: number): void {
     const state = this.store.getState();
     if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
     if (seat !== state.activePlayer) return;
@@ -189,31 +193,31 @@ export class InputHandler {
     if (!isMyTurn) return;
 
     const playerState = state.players[seat];
-    const card = playerState?.positionalCards[cardIndex];
+    const card = playerState?.trenchCards[cardIndex];
     if (card && (card.id === 'hidden' || card.rank <= 0)) return;
 
     const selectedBase = this.store.selectedBaseCardIndex;
-    const selectedLcr = this.store.selectedLcrCardIndex;
+    const selectedLcr = this.store.selectedTrenchCardIndex;
 
     if (selectedBase !== null) {
       this.executeCardSwap(3 + selectedBase, cardIndex);
       this.store.selectBaseCard(null);
-      this.store.selectLcrCard(null);
+      this.store.selectTrenchCard(null);
       return;
     }
 
     if (selectedLcr !== null) {
       if (selectedLcr === cardIndex) {
-        this.store.selectLcrCard(null);
+        this.store.selectTrenchCard(null);
       } else {
         this.executeCardSwap(selectedLcr, cardIndex);
-        this.store.selectLcrCard(null);
+        this.store.selectTrenchCard(null);
       }
       return;
     }
 
     if (!state.hasSwappedThisTurn) {
-      this.store.selectLcrCard(cardIndex);
+      this.store.selectTrenchCard(cardIndex);
     }
   }
 

@@ -212,7 +212,7 @@ export class StatusUI {
       const isBotActive = store ? Boolean(store.botSeats[activeSeat]) : (activeSeat === PlayerSeat.EAST || activeSeat === PlayerSeat.WEST);
       const occupantType = isBotActive ? 'Bot' : 'Player';
 
-      const draftCount = activePlayerState ? activePlayerState.positionalCards.filter(c => c !== null).length : 0;
+      const draftCount = activePlayerState ? activePlayerState.trenchCards.filter(c => c !== null).length : 0;
 
       if (store && store.isMultiplayer && store.mySeats && store.mySeats.length > 0) {
         isMyTurn = store.mySeats.includes(activeSeat);

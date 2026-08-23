@@ -76,8 +76,8 @@
   flex-shrink: 0;
 }
 
-.lcr-row-north,
-.lcr-row-south {
+.trench-row-north,
+.trench-row-south {
   width: 432px;
   height: 58px;
 }
@@ -88,8 +88,8 @@
   justify-content: center;
 }
 
-.lcr-col-west,
-.lcr-col-east {
+.trench-col-west,
+.trench-col-east {
   width: 50px;
   height: 432px;
 }
@@ -388,8 +388,8 @@
   50% { opacity: 1; }
 }
 
-/* LCR & Public Cards (Poachers v1 Style) */
-.lcr-card,
+/* TRENCH & Public Cards (Poachers v1 Style) */
+.trench-card,
 .public-card {
   width: 42px;
   height: 56px;
@@ -403,7 +403,7 @@
   box-sizing: border-box;
 }
 
-.lcr-card:hover,
+.trench-card:hover,
 .public-card:hover {
   transform: translateY(-2px) scale(1.05);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
@@ -441,13 +441,13 @@
   color: var(--color-card-black, #1e293b);
 }
 
-.lcr-card.card-empty {
+.trench-card.card-empty {
   background: rgba(15, 23, 42, 0.4) !important;
   border: 1px dashed rgba(255, 255, 255, 0.18) !important;
   box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.5) !important;
 }
 
-.lcr-card.card-back,
+.trench-card.card-back,
 .public-card.card-back,
 .public-card.face-down {
   background-color: #0b1938 !important;
@@ -460,41 +460,41 @@
   overflow: hidden;
 }
 
-.lcr-card.card-team-a {
+.trench-card.card-team-a {
   border: var(--card-border-width, 2px) solid var(--team-a-color);
 }
 
-.lcr-card.card-team-b {
+.trench-card.card-team-b {
   border: var(--card-border-width, 2px) solid var(--team-b-color);
 }
 
-.lcr-card {
+.trench-card {
   cursor: pointer;
 }
 
-.lcr-card.selected {
+.trench-card.selected {
   border: var(--card-border-width, 2px) solid #ffffff !important;
   outline: var(--card-border-width, 2px) solid var(--accent-cyan) !important;
   transform: scale(1.05);
 }
 
-.lcr-card.highlight-strong-green {
+.trench-card.highlight-strong-green {
   border: 3px solid #22c55e !important;
 }
 
-.lcr-card.highlight-mild-swap {
+.trench-card.highlight-mild-swap {
   border-width: var(--swap-card-border-width, 3.5px) !important;
 }
 
-.lcr-card.card-team-a.highlight-mild-swap {
+.trench-card.card-team-a.highlight-mild-swap {
   border: var(--swap-card-border-width, 3.5px) solid var(--team-a-color) !important;
 }
 
-.lcr-card.card-team-b.highlight-mild-swap {
+.trench-card.card-team-b.highlight-mild-swap {
   border: var(--swap-card-border-width, 3.5px) solid var(--team-b-color) !important;
 }
 
-.lcr-card.winning-card-highlight,
+.trench-card.winning-card-highlight,
 .public-card.winning-card-highlight {
   outline-width: var(--winning-card-border-width, 3.5px) !important;
   outline-style: solid !important;
@@ -618,7 +618,7 @@
 }
 
 .sq,
-.lcr-card,
+.trench-card,
 .public-card,
 .btn,
 .board-grid {

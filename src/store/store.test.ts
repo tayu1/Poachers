@@ -59,10 +59,10 @@ describe('GameStore Network State Deserialization', () => {
       deadPoolCounts: { type: 'Buffer', data: new Array(16).fill(0) },
       activePlayer: 0,
       players: {
-        0: { baseDeck: [], positionalCards: [null, null, null] },
-        1: { baseDeck: [], positionalCards: [null, null, null] },
-        2: { baseDeck: [], positionalCards: [null, null, null] },
-        3: { baseDeck: [], positionalCards: [null, null, null] }
+        0: { baseDeck: [], trenchCards: [null, null, null] },
+        1: { baseDeck: [], trenchCards: [null, null, null] },
+        2: { baseDeck: [], trenchCards: [null, null, null] },
+        3: { baseDeck: [], trenchCards: [null, null, null] }
       },
       deck: [],
       publicFlop: [],
@@ -102,10 +102,10 @@ describe('GameStore Network State Deserialization', () => {
       deadPoolCounts: new Array(16).fill(0),
       activePlayer: 0,
       players: {
-        0: { baseDeck: [], positionalCards: [null, null, null] },
-        1: { baseDeck: [], positionalCards: [null, null, null] },
-        2: { baseDeck: [], positionalCards: [null, null, null] },
-        3: { baseDeck: [], positionalCards: [null, null, null] }
+        0: { baseDeck: [], trenchCards: [null, null, null] },
+        1: { baseDeck: [], trenchCards: [null, null, null] },
+        2: { baseDeck: [], trenchCards: [null, null, null] },
+        3: { baseDeck: [], trenchCards: [null, null, null] }
       },
       deck: [],
       publicFlop: [],
@@ -138,10 +138,10 @@ describe('GameStore Network State Deserialization', () => {
       deadPoolCounts: new Array(16).fill(0),
       activePlayer: 0,
       players: {
-        0: { baseDeck: [], positionalCards: [null, null, null] },
-        1: { baseDeck: [], positionalCards: [null, null, null] },
-        2: { baseDeck: [], positionalCards: [null, null, null] },
-        3: { baseDeck: [], positionalCards: [null, null, null] }
+        0: { baseDeck: [], trenchCards: [null, null, null] },
+        1: { baseDeck: [], trenchCards: [null, null, null] },
+        2: { baseDeck: [], trenchCards: [null, null, null] },
+        3: { baseDeck: [], trenchCards: [null, null, null] }
       },
       deck: [],
       publicFlop: [],

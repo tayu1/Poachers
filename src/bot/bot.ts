@@ -119,7 +119,7 @@ export const DEFAULT_BOT_PROFILE: BotProfile = {
   depth: 4,
   topK: 8,
   adaptiveBranching: false,
-  trenchStrategy: 'POKER_SYNERGY'
+  trenchStrategy: 'BOT_DEFAULT_DRAFT'
 };
 
 /** Pre-allocated scratch buffer stack for zero-allocation tree search */
@@ -890,7 +890,7 @@ function getSlotScore(state: GameState, seat: PlayerSeat, trenchIndex: number, t
     : seat === PlayerSeat.EAST ? PlayerSeat.WEST
     : PlayerSeat.EAST;
   const teammate = state.players[teammateSeat];
-  const teammateCard = teammate?.positionalCards[trenchIndex];
+  const teammateCard = teammate?.trenchCards[trenchIndex];
   const communityCards = state.publicFlop.filter((c: any) => c !== null) as any[];
 
   const pool: any[] = [...communityCards];
@@ -918,8 +918,8 @@ function findBestCardSwap(state: GameState, seat: PlayerSeat): ActionInt | null 
   const trySwap = (slot1: number, slot2: number) => {
     const isPos1 = slot1 < 3;
     const isPos2 = slot2 < 3;
-    const c1 = isPos1 ? player.positionalCards[slot1] : player.baseDeck[slot1 - 3];
-    const c2 = isPos2 ? player.positionalCards[slot2] : player.baseDeck[slot2 - 3];
+    const c1 = isPos1 ? player.trenchCards[slot1] : player.baseDeck[slot1 - 3];
+    const c2 = isPos2 ? player.trenchCards[slot2] : player.baseDeck[slot2 - 3];
     
     const isValidCard = (c: any) => c && c.id !== 'hidden' && c.rank > 0;
     if (!isValidCard(c1) && !isValidCard(c2)) return;
