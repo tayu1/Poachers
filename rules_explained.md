@@ -1,6 +1,6 @@
 # Poachers - Game Rules
 
-4-player, 2-team (North-South vs. East-West) turn-based board game.
+A 4-player, 2-team (North-South vs. East-West) turn-based board game.
 
 **Objective:** Win by capturing both of the opposing team's Kings.
 
@@ -28,7 +28,9 @@
 
 ## Combat
 
-Triggered when attacking an enemy piece. Resolved via a Poker hand.
+**Attack on King or by King:** result in immidiate capture without Cards involved.
+
+**Other piece on piece attacks:** Resolved via a Poker hand:
 
 **The Cards:** Best 5-card poker hand wins. The pool consists of:
 
@@ -50,11 +52,11 @@ Triggered when attacking an enemy piece. Resolved via a Poker hand.
 
 ### Bunkers
 
-**Bunkered Pieces** - assigned to one piece (shown as a circle over the piece) initially set the side pawn of each player. 
+**Bunkered Pieces** - (shown as a circle over the piece) initially set the side pawns of each player.
 
-Bunkered pieces cannot move or attack.
+Bunkered pieces cannot move or attack, until the bunker is realesed.
 
-**Combat:** when attacking bunkered pieces: combat is resolved normally, but the attacking piece is captured in any case.
+**Combat:** when attacking bunkered pieces: combat is resolved normally as explained, but the *attacking piece is captured in any case.*
 
 **How to Change the Bunkered pieces** (counts as a turn):
 
@@ -66,6 +68,6 @@ Click another piece in your control (but not on the Hill) to transfer the bunker
 
 Possible when you have a Pawn on your half of the Hill.
 
-Resurrect your Captured pieces by clicking them and then the Hill Pawn (counts as a turn).
+Resurrect your Captured pieces by clicking them, and then clicking on the Hill Pawn (this counts as a turn).
 
-**Restrictions:** 1 King per player. Kings can't touch enemy kings. No 2 Same Team Bishops on the same colored square.
+**Restrictions to pawn poromotions:** 1 King per player half. Kings can't touch enemy kings. No 2 Same Team Bishops on the same colored square.
