@@ -54,7 +54,7 @@ A 4-player, 2-team (North-South vs. East-West) turn-based board game.
 
 **Bunkered Pieces** - (shown as a circle over the piece) initially set the side pawns of each player.
 
-Bunkered pieces cannot move or attack, until the bunker is realesed.
+Bunkered pieces cannot move or attack, until the bunker is released.
 
 **Combat:** when attacking bunkered pieces: combat is resolved normally as explained, but the *attacking piece is captured in any case.*
 
