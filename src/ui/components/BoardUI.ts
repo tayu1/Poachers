@@ -7,9 +7,28 @@ import { GameStore } from '../../store/store';
 export class BoardUI {
   private container: HTMLElement;
   private onSquareClick: (index: number) => void;
+  private onPieceDrop: (fromIndex: number, toIndex: number) => void;
   private lastAnimatedMoveKey: string | null = null;
   private displayedArrowMove: LastMove | null = null;
   private arrowTimer: any = null;
+
+  // Cached state references for active drag resolution
+  private latestState: GameState | null = null;
+  private latestStore: GameStore | null = null;
+
+  // Drag and Drop pointer state
+  private activeDrag: {
+    pointerId: number;
+    fromIndex: number;
+    startX: number;
+    startY: number;
+    isDragging: boolean;
+    piece: number;
+    pieceSrc: string;
+  } | null = null;
+  private dragAvatar: HTMLImageElement | null = null;
+  private currentHoverIndex: number | null = null;
+  private suppressNextClick: boolean = false;
 
   // Cached DOM elements for zero-recreation rendering
   private boardFrame: HTMLElement | null = null;
@@ -20,9 +39,14 @@ export class BoardUI {
   private midHorizontalElement: HTMLElement | null = null;
   private midVerticalElement: HTMLElement | null = null;
 
-  constructor(container: HTMLElement, onSquareClick: (index: number) => void) {
+  constructor(
+    container: HTMLElement,
+    onSquareClick: (index: number) => void,
+    onPieceDrop?: (fromIndex: number, toIndex: number) => void
+  ) {
     this.container = container;
     this.onSquareClick = onSquareClick;
+    this.onPieceDrop = onPieceDrop || (() => {});
   }
 
   private getPieceSVGFilename(piece: PieceType | number): string {
@@ -32,6 +56,187 @@ export class BoardUI {
     const prefix = isTeamA ? 'w_' : 'b_';
     const SVG_NAMES = ['', 'p', 'n', 'b', 'r', 'k'];
     return `/assets/${prefix}${SVG_NAMES[pType]}.svg`;
+  }
+
+  private handlePointerDown(e: PointerEvent, index: number): void {
+    if (!e.isPrimary || e.button !== 0) return;
+    if (!this.latestState || !this.latestStore) return;
+
+    const state = this.latestState;
+    const store = this.latestStore;
+
+    // Check if board interactions are currently active
+    if (
+      state.isGameOver ||
+      store.isReplaying ||
+      store.isCombatDelaying ||
+      state.setupState?.inSetup ||
+      state.pendingRefills.length > 0
+    ) {
+      return;
+    }
+
+    // Bunker setup and promotion piecing rely on direct tap/click
+    if (store.isSettingBunker || store.selectedPromotionPiece !== null) {
+      return;
+    }
+
+    const piece = state.board[index];
+    const isControllable = piece !== 0 && isPieceControllable(piece, state.activePlayer, index);
+
+    if (isControllable) {
+      this.activeDrag = {
+        pointerId: e.pointerId,
+        fromIndex: index,
+        startX: e.clientX,
+        startY: e.clientY,
+        isDragging: false,
+        piece,
+        pieceSrc: this.getPieceSVGFilename(piece)
+      };
+
+      window.addEventListener('pointermove', this.onWindowPointerMove, { passive: false });
+      window.addEventListener('pointerup', this.onWindowPointerUp);
+      window.addEventListener('pointercancel', this.onWindowPointerCancel);
+    }
+  }
+
+  private onWindowPointerMove = (e: PointerEvent): void => {
+    if (!this.activeDrag || e.pointerId !== this.activeDrag.pointerId) return;
+
+    const dx = e.clientX - this.activeDrag.startX;
+    const dy = e.clientY - this.activeDrag.startY;
+    const dist = Math.hypot(dx, dy);
+
+    if (!this.activeDrag.isDragging && dist >= 5) {
+      this.activeDrag.isDragging = true;
+      this.suppressNextClick = true;
+
+      // Select piece square if not already selected to immediately reveal move markers
+      if (this.latestStore && this.latestStore.selectedSquare !== this.activeDrag.fromIndex) {
+        this.onSquareClick(this.activeDrag.fromIndex);
+      }
+
+      // Mark source square as dragging
+      const srcSq = this.squareElements[this.activeDrag.fromIndex];
+      if (srcSq) {
+        srcSq.classList.add('drag-source');
+      }
+
+      // Create or configure floating drag avatar
+      if (!this.dragAvatar) {
+        this.dragAvatar = document.createElement('img');
+        this.dragAvatar.className = 'dragged-piece-avatar';
+        document.body.appendChild(this.dragAvatar);
+      }
+      this.dragAvatar.src = this.activeDrag.pieceSrc;
+      this.dragAvatar.style.display = 'block';
+
+      const rotationAngle = this.latestStore ? this.latestStore.boardRotationAngle : 0;
+      this.dragAvatar.style.transform = `translate(-50%, -50%) rotate(-${rotationAngle}deg)`;
+    }
+
+    if (this.activeDrag.isDragging) {
+      e.preventDefault();
+      if (this.dragAvatar) {
+        this.dragAvatar.style.left = `${e.clientX}px`;
+        this.dragAvatar.style.top = `${e.clientY}px`;
+      }
+
+      // Detect target square under pointer (handles CSS scaling and rotations)
+      const elem = document.elementFromPoint(e.clientX, e.clientY);
+      const sqElem = elem ? (elem.closest('.sq') as HTMLElement | null) : null;
+      let targetIndex: number | null = null;
+      if (sqElem && sqElem.dataset.index !== undefined) {
+        targetIndex = parseInt(sqElem.dataset.index, 10);
+      }
+
+      if (this.currentHoverIndex !== targetIndex) {
+        if (this.currentHoverIndex !== null && this.squareElements[this.currentHoverIndex]) {
+          this.squareElements[this.currentHoverIndex].classList.remove('drop-target-hover');
+        }
+
+        if (targetIndex !== null && this.latestStore) {
+          const isLegal = this.latestStore.legalMoves.some((m: any) =>
+            typeof m === 'number' ? ((m >>> 8) & 0x3F) === targetIndex : m.toIndex === targetIndex
+          );
+          if (isLegal && this.squareElements[targetIndex]) {
+            this.squareElements[targetIndex].classList.add('drop-target-hover');
+            this.currentHoverIndex = targetIndex;
+          } else {
+            this.currentHoverIndex = null;
+          }
+        } else {
+          this.currentHoverIndex = null;
+        }
+      }
+    }
+  };
+
+  private onWindowPointerUp = (e: PointerEvent): void => {
+    if (!this.activeDrag || e.pointerId !== this.activeDrag.pointerId) return;
+
+    window.removeEventListener('pointermove', this.onWindowPointerMove);
+    window.removeEventListener('pointerup', this.onWindowPointerUp);
+    window.removeEventListener('pointercancel', this.onWindowPointerCancel);
+
+    const fromIndex = this.activeDrag.fromIndex;
+    const wasDragging = this.activeDrag.isDragging;
+    this.activeDrag = null;
+
+    if (wasDragging) {
+      const elem = document.elementFromPoint(e.clientX, e.clientY);
+      const sqElem = elem ? (elem.closest('.sq') as HTMLElement | null) : null;
+      let toIndex: number | null = null;
+      if (sqElem && sqElem.dataset.index !== undefined) {
+        toIndex = parseInt(sqElem.dataset.index, 10);
+      }
+
+      this.cleanupDragVisuals(fromIndex);
+
+      if (toIndex !== null && toIndex !== fromIndex) {
+        this.onPieceDrop(fromIndex, toIndex);
+      }
+
+      setTimeout(() => {
+        this.suppressNextClick = false;
+      }, 60);
+    } else {
+      this.suppressNextClick = false;
+    }
+  };
+
+  private onWindowPointerCancel = (e: PointerEvent): void => {
+    if (!this.activeDrag || e.pointerId !== this.activeDrag.pointerId) return;
+
+    window.removeEventListener('pointermove', this.onWindowPointerMove);
+    window.removeEventListener('pointerup', this.onWindowPointerUp);
+    window.removeEventListener('pointercancel', this.onWindowPointerCancel);
+
+    const fromIndex = this.activeDrag.fromIndex;
+    this.activeDrag = null;
+    this.cleanupDragVisuals(fromIndex);
+    this.suppressNextClick = false;
+  };
+
+  private cleanupDragVisuals(fromIndex: number): void {
+    if (this.dragAvatar) {
+      this.dragAvatar.style.display = 'none';
+    }
+    if (this.squareElements[fromIndex]) {
+      this.squareElements[fromIndex].classList.remove('drag-source');
+    }
+    if (this.currentHoverIndex !== null && this.squareElements[this.currentHoverIndex]) {
+      this.squareElements[this.currentHoverIndex].classList.remove('drop-target-hover');
+      this.currentHoverIndex = null;
+    }
+  }
+
+  private handleClick(index: number): void {
+    if (this.suppressNextClick) {
+      return;
+    }
+    this.onSquareClick(index);
   }
 
   private initDOMStructure(): void {
@@ -65,14 +270,19 @@ export class BoardUI {
 
       const sq = document.createElement('div');
       sq.className = `sq ${isLight ? 'light-sq' : 'dark-sq'} ${isHill ? 'hill-sq' : ''}`;
+      sq.dataset.index = index.toString();
       sq.style.cursor = 'pointer';
+      sq.style.touchAction = 'none';
+
+      sq.addEventListener('pointerdown', (e) => this.handlePointerDown(e, index));
       sq.addEventListener('click', (e) => {
         e.preventDefault();
-        this.onSquareClick(index);
+        this.handleClick(index);
       });
 
       const img = document.createElement('img');
       img.style.display = 'none';
+      img.draggable = false;
       sq.appendChild(img);
 
       this.squareElements.push(sq);
@@ -176,6 +386,9 @@ export class BoardUI {
   }
 
   public render(state: GameState, store: GameStore): void {
+    this.latestState = state;
+    this.latestStore = store;
+
     if (!this.boardFrame || !this.container.contains(this.boardFrame)) {
       this.initDOMStructure();
     }
@@ -244,13 +457,6 @@ export class BoardUI {
         sqClasses += ' selected-sq';
       }
 
-      if (state.lastMove && !isRefillOrSetupStage) {
-        if (state.lastMove.fromIndex === index) {
-          sqClasses += ' last-move-from';
-        } else if (state.lastMove.toIndex === index) {
-          sqClasses += ' last-move-to';
-        }
-      }
 
       if (store.selectedPromotionPiece) {
         const selectedType = getPieceType(store.selectedPromotionPiece);

@@ -113,6 +113,36 @@ export class InputHandler {
     this.store.selectSquare(null, []);
   }
 
+  public handlePieceDrop(fromIndex: number, toIndex: number): boolean {
+    const state = this.store.getState();
+    if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) {
+      return false;
+    }
+
+    if (fromIndex === toIndex) {
+      return false;
+    }
+
+    const piece = state.board[fromIndex];
+    if (!piece || !isPieceControllable(piece, state.activePlayer, fromIndex)) {
+      return false;
+    }
+
+    const legalMoves = getLegalMoves1D(state.board, fromIndex, state.activePlayer, state.threatMap);
+    const validMove = legalMoves.find((m: any) =>
+      typeof m === 'number' ? ((m >>> 8) & 0x3F) === toIndex : m.toIndex === toIndex
+    );
+
+    if (validMove) {
+      this.store.setSettingBunker(false);
+      this.executeMove(fromIndex, toIndex);
+      this.store.selectSquare(null, []);
+      return true;
+    }
+
+    return false;
+  }
+
   public executeMove(fromIndex: number, toIndex: number): void {
     const state = this.store.getState();
     if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
@@ -246,7 +276,10 @@ export class InputHandler {
 
   public handleResign(): void {
     const state = this.store.getState();
-    if (state.isGameOver) return;
+    if (state.isGameOver || this.store.isReplaying) {
+      this.turnManager.showGameOverMenu();
+      return;
+    }
 
     if (this.store.isMultiplayer) {
       const resigningSeat = this.store.mySeat !== null ? this.store.mySeat : state.activePlayer;

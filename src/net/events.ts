@@ -22,6 +22,8 @@ export interface PublicRoomSummary {
   roomCode: string;
   hostName: string;
   seatsTaken: number;
+  status: 'lobby' | 'playing' | 'ended';
+  isPublic: boolean;
 }
 
 export interface RoomState {
@@ -34,6 +36,7 @@ export interface RoomState {
   autoCardPick: boolean;
   isPublic: boolean;
   turnTimeLimit: TurnTimeLimit;
+  startingPlayerIds?: string[];
 }
 
 export interface NetworkLogEntry {

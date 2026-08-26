@@ -106,6 +106,7 @@ export class SoundManager {
 
   public handleStateUpdate(state: any, storeInstance: any): void {
     if (!storeInstance) return;
+    if (typeof storeInstance.isInMatch === 'function' && !storeInstance.isInMatch()) return;
 
     if (state?.isGameOver && !storeInstance.isReplaying) {
       if (!this.hasPlayedWinSound) {
@@ -126,6 +127,11 @@ export class SoundManager {
       return;
     }
 
+    // Suppress the initial move sound during the turnriver delay before combat resolution
+    if (state?.pendingCombat && (!state.isTurnRiverRevealed || state.pendingCombat.winnerSeat === null || state.pendingCombat.winnerSeat === undefined)) {
+      return;
+    }
+
     const currentMoveKey = `${lastMove.fromIndex}->${lastMove.toIndex}:${lastMove.type || 'move'}@${lastMove.moveId || historyLength}`;
 
     if (currentMoveKey !== this.lastPlayedMoveKey) {
@@ -143,6 +149,7 @@ export class SoundManager {
 
   public handleTimerUpdate(storeInstance: any): void {
     if (!storeInstance || storeInstance.isReplaying) return;
+    if (typeof storeInstance.isInMatch === 'function' && !storeInstance.isInMatch()) return;
     const remaining = storeInstance.timerRemainingSeconds;
     const activeSeat = storeInstance.timerActiveSeat;
     const turnCount = storeInstance.getState()?.turnCount ?? 0;

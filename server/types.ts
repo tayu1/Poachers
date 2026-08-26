@@ -31,4 +31,5 @@ export interface ServerRoom {
   rematchOffer: { requestedByPlayerId: string; requestedByName: string; acceptedPlayerIds: string[] } | null;
   matchScore: { teamA: number; teamB: number };
   startingSeatIndex: number;
+  startingPlayerIds: string[];
 }

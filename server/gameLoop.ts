@@ -1,8 +1,8 @@
 import { Server } from 'socket.io';
 import { DEFAULT_BOT_PROFILE, getBestBotAction } from '../src/bot/bot';
-import { applyAction, completePostCombat, createInitialGameState, getRandomLegalAction } from '../src/core/engine';
+import { applyAction, completePostCombat, executeCombatResolution, createInitialGameState, getRandomLegalAction } from '../src/core/engine';
 import { getSeatCode } from '../src/core/notation';
-import { BOT_SPEED_MS, COMBAT_TURN_RIVER_DELAY_MS, DEFAULT_TURN_TIME_LIMIT } from '../src/config';
+import { BOT_SPEED_MS, POST_COMBAT_DELAY_MS, DEFAULT_TURN_TIME_LIMIT, TURN_RIVER_DELAY_MS } from '../src/config';
 import { PlayerSeat } from '../src/core/types';
 import { ClientToServerEvents, ServerToClientEvents } from '../src/net/events';
 import { emitGameStateToRoom, serializeRoomState } from './roomManager';
@@ -89,17 +89,6 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
         deferPostCombat: true
       });
 
-      if (randomAction.type === 'MOVE' || randomAction.type === 'PROMOTION' || randomAction.type === 'SKIP_TURN' || randomAction.type === 'SET_BUNKER') {
-        const historyIdx = room.logs.length;
-        room.logs.push({
-          turnNumber: turnNum,
-          seat: seatCode,
-          text: `⏱️ Time Out: ${result.logText}`,
-          pokerText: result.pokerText,
-          historyIndex: historyIdx
-        });
-      }
-
       if (result.combatOccurred && result.pendingCombat) {
         const combat = result.pendingCombat;
         emitGameStateToRoom(io, room);
@@ -108,23 +97,55 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
         room.botTimer = setTimeout(() => {
           room.botTimer = null;
           if (!room.gameState) return;
-          completePostCombat(room.gameState, combat, {
+
+          const combatOutcome = executeCombatResolution(room.gameState, combat, {
             botSeats: room.gameState.botSeats,
             autoCardPick: room.autoCardPick ?? true
           });
-          if (room.gameState.isGameOver) {
-            room.matchScore = { ...room.gameState.score };
-            room.status = 'ended';
-            clearTurnTimeout(room);
-            if (room.botTimer) { clearTimeout(room.botTimer); room.botTimer = null; }
-          }
+
+          const historyIdx = room.logs.length;
+          room.logs.push({
+            turnNumber: turnNum,
+            seat: seatCode,
+            text: `⏱️ Time Out: ${combatOutcome.logText}`,
+            pokerText: combatOutcome.pokerText,
+            historyIndex: historyIdx
+          });
+
           emitGameStateToRoom(io, room);
-          if (!room.gameState.isGameOver) {
-            startTurnTimeout(room, io);
-          }
-          triggerBotTurnIfNeeded(room, io);
-        }, COMBAT_TURN_RIVER_DELAY_MS);
+
+          room.botTimer = setTimeout(() => {
+            room.botTimer = null;
+            if (!room.gameState) return;
+            completePostCombat(room.gameState, combat, {
+              botSeats: room.gameState.botSeats,
+              autoCardPick: room.autoCardPick ?? true
+            });
+            if (room.gameState.isGameOver) {
+              room.matchScore = { ...room.gameState.score };
+              room.status = 'ended';
+              clearTurnTimeout(room);
+              if (room.botTimer) { clearTimeout(room.botTimer); room.botTimer = null; }
+            }
+            emitGameStateToRoom(io, room);
+            if (!room.gameState.isGameOver) {
+              startTurnTimeout(room, io);
+            }
+            triggerBotTurnIfNeeded(room, io);
+          }, POST_COMBAT_DELAY_MS);
+        }, TURN_RIVER_DELAY_MS);
       } else {
+        if (randomAction.type === 'MOVE' || randomAction.type === 'PROMOTION' || randomAction.type === 'SKIP_TURN' || randomAction.type === 'SET_BUNKER') {
+          const historyIdx = room.logs.length;
+          room.logs.push({
+            turnNumber: turnNum,
+            seat: seatCode,
+            text: `⏱️ Time Out: ${result.logText}`,
+            pokerText: result.pokerText,
+            historyIndex: historyIdx
+          });
+        }
+
         if (room.gameState.isGameOver) {
           room.matchScore = { ...room.gameState.score };
           room.status = 'ended';
@@ -225,17 +246,6 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
       deferPostCombat: true
     });
 
-    if (botCandidate.action.type === 'MOVE' || botCandidate.action.type === 'PROMOTION' || botCandidate.action.type === 'SKIP_TURN' || botCandidate.action.type === 'SET_BUNKER') {
-      const historyIdx = room.logs.length;
-      room.logs.push({
-        turnNumber: turnNum,
-        seat: seatCode,
-        text: result.logText,
-        pokerText: result.pokerText,
-        historyIndex: historyIdx
-      });
-    }
-
     if (result.combatOccurred && result.pendingCombat) {
       const combat = result.pendingCombat;
       emitGameStateToRoom(io, room);
@@ -244,23 +254,56 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
       room.botTimer = setTimeout(() => {
         room.botTimer = null;
         if (!room.gameState) return;
-        completePostCombat(room.gameState, combat, {
+
+        const combatOutcome = executeCombatResolution(room.gameState, combat, {
           botSeats: room.gameState.botSeats,
           botStrategies,
           autoCardPick: room.autoCardPick ?? true
         });
-        if (room.gameState.isGameOver) {
-          room.matchScore = { ...room.gameState.score };
-          room.status = 'ended';
-        }
+
+        const historyIdx = room.logs.length;
+        room.logs.push({
+          turnNumber: turnNum,
+          seat: seatCode,
+          text: combatOutcome.logText,
+          pokerText: combatOutcome.pokerText,
+          historyIndex: historyIdx
+        });
+
         emitGameStateToRoom(io, room);
 
-        if (!room.gameState.isGameOver) {
-          startTurnTimeout(room, io);
-        }
-        triggerBotTurnIfNeeded(room, io);
-      }, COMBAT_TURN_RIVER_DELAY_MS);
+        room.botTimer = setTimeout(() => {
+          room.botTimer = null;
+          if (!room.gameState) return;
+          completePostCombat(room.gameState, combat, {
+            botSeats: room.gameState.botSeats,
+            botStrategies,
+            autoCardPick: room.autoCardPick ?? true
+          });
+          if (room.gameState.isGameOver) {
+            room.matchScore = { ...room.gameState.score };
+            room.status = 'ended';
+          }
+          emitGameStateToRoom(io, room);
+
+          if (!room.gameState.isGameOver) {
+            startTurnTimeout(room, io);
+          }
+          triggerBotTurnIfNeeded(room, io);
+        }, POST_COMBAT_DELAY_MS);
+      }, TURN_RIVER_DELAY_MS);
     } else {
+      if (botCandidate.action.type === 'MOVE' || botCandidate.action.type === 'PROMOTION' || botCandidate.action.type === 'SKIP_TURN' || botCandidate.action.type === 'SET_BUNKER') {
+        const historyIdx = room.logs.length;
+        room.logs.push({
+          turnNumber: turnNum,
+          seat: seatCode,
+          text: result.logText,
+          pokerText: result.pokerText,
+          historyIndex: historyIdx
+        });
+      }
+
       if (room.gameState.isGameOver) {
         room.matchScore = { ...room.gameState.score };
         room.status = 'ended';
@@ -283,6 +326,13 @@ export function startMatch(room: ServerRoom, io: IOServer, isRematch: boolean = 
     }
     room.startingSeatIndex = (room.startingSeatIndex + 1) % 4;
   }
+
+  const seats = [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[];
+  room.startingPlayerIds = Array.from(new Set(
+    seats
+      .filter(s => !room.seats[s].isBot && room.seats[s].playerId !== null)
+      .map(s => room.seats[s].playerId as string)
+  ));
 
   const botSeats: Record<PlayerSeat, boolean> = {
     [PlayerSeat.NORTH]: room.seats[PlayerSeat.NORTH].isBot,
@@ -312,6 +362,14 @@ export function startMatch(room: ServerRoom, io: IOServer, isRematch: boolean = 
 
 export function checkAndAutoStartMatch(room: ServerRoom, io: IOServer): void {
   if (room.status === 'playing') return;
+
+  const humanSeatsCount = [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST].filter(
+    s => !room.seats[s].isBot && room.seats[s].playerId !== null
+  ).length;
+
+  if (humanSeatsCount === 0) {
+    return;
+  }
 
   let allReady = true;
   for (let s = 0; s < 4; s++) {

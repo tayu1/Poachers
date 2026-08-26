@@ -113,6 +113,16 @@ export class BaseDeckUI {
 
     if (state.pendingCombat || store.isCombatDelaying) {
       if (state.pendingCombat) {
+        if (!state.isTurnRiverRevealed || state.pendingCombat.winnerSeat === null || state.pendingCombat.winnerSeat === undefined) {
+          if (this.combatText && this.combatWrapper && this.cardsRow) {
+            this.combatText.className = 'combat-announcement-text';
+            this.combatText.innerText = '';
+            this.combatWrapper.style.display = 'flex';
+            this.cardsRow.style.display = 'none';
+          }
+          return;
+        }
+
         const text = formatCombatAnnouncementText(state.pendingCombat);
         const winnerSeat = state.pendingCombat.winnerSeat ?? state.pendingCombat.attackerSeat;
         const winnerTeam = state.players[winnerSeat]?.team;
@@ -134,12 +144,12 @@ export class BaseDeckUI {
     const activePlayerSeat = state.pendingRefills.length > 0
       ? state.pendingRefills[0].seat
       : (state.setupState?.inSetup
-          ? (
-              ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s) && (store.mySeats?.includes(s) || store.mySeat === s)) ??
-              ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s)) ??
-              state.activePlayer
-            )
-          : state.activePlayer);
+        ? (
+          ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s) && (store.mySeats?.includes(s) || store.mySeat === s)) ??
+          ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s)) ??
+          state.activePlayer
+        )
+        : state.activePlayer);
     const activePlayerState = state.players[activePlayerSeat];
     const isBotTurn = store.botSeats[activePlayerSeat];
     const teamClass = activePlayerState.team === 'A' ? 'card-team-a' : 'card-team-b';

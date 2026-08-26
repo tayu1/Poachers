@@ -13,24 +13,28 @@
   --font-body: 'Inter', sans-serif;
 
   /* Board & Square Colors */
-  --board-light: #8b4a15;
-  --board-dark: #703b10;
-  --hill-border-color: rgba(254, 223, 137, 0.719);
+  --board-light: rgb(155, 81, 24);
+  --board-dark: rgb(117, 59, 9);
+  --hill-border-color: rgba(250, 223, 149, 0.793);
   --hill-border-width: 1.5px;
   --hill-border-style: dotted;
   --midline-border-width: 0.3px;
   --midline-border-style: dotted;
+  --trench_border_color: rgba(255, 255, 255, 0.25);
+  --trench-border-color: var(--trench_border_color);
+  --trench-border-width: 1.5px;
+  --trench-border-style: dotted;
 
   /* Piece Outline & Active Highlight Controls */
-  --active-piece-team-a-color: #f59e0b;
-  --active-piece-team-b-color: #06b6d4;
+  --active-piece-team-a-color: #ffe100;
+  --active-piece-team-b-color: #00d7fd;
   --active-piece-shadow-radius: 6px;
 
   /* Bunkered Piece Circle Controls */
-  --bunker-circle-size: 30px;
-  --bunker-circle-team-a-color: rgba(201, 127, 0, 0.220);
-  --bunker-circle-team-b-color: rgba(0, 154, 181, 0.220);
-  --bunker-circle-team-a-outline-color: #fe1e1e;
+  --bunker-circle-size: 24px;
+  --bunker-circle-team-a-color: rgba(255, 0, 0, 0.2);
+  --bunker-circle-team-b-color: rgba(255, 0, 0, 0.2);
+  --bunker-circle-team-a-outline-color: #ffffffc9;
   --bunker-circle-team-b-outline-color: var(--bunker-circle-team-a-outline-color);
   --bunker-circle-outline-width: 2.5px;
   --bunker-circle-outline-style: dotted;
@@ -47,14 +51,14 @@
   --board-glow-line-shadow-large: 14px;
 
   /* Move & Tactical Markers (Colors & Border Thicknesses) */
-  --legal-move-color: rgba(34, 197, 94, 0.85);
+  --legal-move-color: rgba(25, 171, 101, 0.625);
   --attack-move-color: #ff0000a1;
   --attack-move-border-width: 3px;
   --king-capture-color: #ef4444;
   --king-capture-border-width: 3px;
   --promotion-target-color: #a855f7;
   --promotion-target-border-width: 2px;
-  --promotion-available-color: rgba(237, 71, 255, 0.472);
+  --promotion-available-color: rgba(237, 71, 255, 0.657);
 
   /* Card Colors, Sizing & Border Thicknesses */
   --color-card-black: #1e293b;
@@ -64,6 +68,7 @@
   --card-suit-font-size: 1.3rem;
   --card-border-width: 2px;
   --swap-card-border-width: 3.5px;
+  --combat-dimmed-opacity: 0.75;
 
   /* Winning Card Highlight Controls */
   --winning-card-border-team-a: #fccc54;

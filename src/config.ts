@@ -9,5 +9,11 @@ export const DEFAULT_TURN_TIME_LIMIT: TurnTimeLimit = 60;
 // Bot execution speed (in milliseconds)
 export const BOT_SPEED_MS = 1500;
 
-// Delay (in milliseconds) for combat turn / river reveal animation step
-export const COMBAT_TURN_RIVER_DELAY_MS = 2500;
+// Delay (in milliseconds) before turn & river cards open and combat is resolved
+export const TURN_RIVER_DELAY_MS = 1000;
+
+// Delay (in milliseconds) displaying combat outcome before advancing turn
+export const POST_COMBAT_DELAY_MS = 2900;
+
+
+

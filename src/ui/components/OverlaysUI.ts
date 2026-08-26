@@ -20,7 +20,8 @@ export class OverlaysUI {
     options: GameOverOptions,
     message?: string,
     rematchOffer?: RematchOfferState | null,
-    myPlayerId?: string | null
+    myPlayerId?: string | null,
+    rematchMode: 'available' | 'disabled' | 'return_to_lobby' = 'available'
   ): void {
     this.container.innerHTML = '';
     this.container.className = 'overlay';
@@ -58,7 +59,7 @@ export class OverlaysUI {
       isAcceptedByMe = rematchOffer.acceptedPlayerIds.includes(myPlayerId);
     }
 
-    if (rematchOffer) {
+    if (rematchOffer && rematchMode === 'available') {
       const banner = document.createElement('div');
       banner.style.padding = '8px 12px';
       banner.style.marginBottom = '16px';
@@ -100,7 +101,24 @@ export class OverlaysUI {
     rematchBtn.style.fontSize = '15px';
     rematchBtn.style.border = 'none';
 
-    if (rematchOffer) {
+    if (rematchMode === 'disabled') {
+      rematchBtn.innerText = 'Rematch (Unavailable)';
+      rematchBtn.style.background = '#334155';
+      rematchBtn.style.color = '#64748b';
+      rematchBtn.style.cursor = 'not-allowed';
+      rematchBtn.style.opacity = '0.6';
+      rematchBtn.disabled = true;
+      rematchBtn.title = 'Cannot rematch: Opponent left the match';
+    } else if (rematchMode === 'return_to_lobby') {
+      rematchBtn.innerText = 'Rematch (Seat Setup)';
+      rematchBtn.style.background = '#2563eb';
+      rematchBtn.style.color = '#fff';
+      rematchBtn.style.cursor = 'pointer';
+      rematchBtn.title = 'A player left. Click to return to seat setting room.';
+      rematchBtn.addEventListener('click', () => {
+        options.onRematch();
+      });
+    } else if (rematchOffer) {
       if (isMyRequest) {
         rematchBtn.innerText = '⏳ Waiting for Opponent...';
         rematchBtn.style.background = '#334155';

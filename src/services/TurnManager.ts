@@ -1,6 +1,6 @@
 import { DEFAULT_BOT_PROFILE, getBestBotAction } from '../bot/bot';
-import { DEFAULT_TURN_TIME_LIMIT, COMBAT_TURN_RIVER_DELAY_MS } from '../config';
-import { applyAction, completePostCombat, getRandomLegalAction, executeTrenchSingleCardSelect, GameAction } from '../core/engine';
+import { DEFAULT_TURN_TIME_LIMIT, POST_COMBAT_DELAY_MS, TURN_RIVER_DELAY_MS } from '../config';
+import { applyAction, completePostCombat, executeCombatResolution, getRandomLegalAction, executeTrenchSingleCardSelect, GameAction } from '../core/engine';
 import { getSeatCode } from '../core/notation';
 import { actionIntToGameAction, GameState, PlayerSeat, Team, TurnPhase } from '../core/types';
 import { socketClient } from '../net/socketClient';
@@ -43,6 +43,7 @@ export class TurnManager {
       clearTimeout(this.botTimer);
       this.botTimer = null;
     }
+    this.store.cancelCombatTimers();
     this.lastSeat = null;
     this.lastTurnCount = null;
     this.lastStage = null;
@@ -88,36 +89,49 @@ export class TurnManager {
         this.botTimer = null;
       }
 
-      if (!opts?.skipLog) {
-        this.store.recordSnapshot();
-        const prefix = opts?.logPrefix ?? '';
-        this.store.addLogEntry({
-          turnNumber: turnNum,
-          seat,
-          text: prefix + result.logText,
-          pokerText: result.pokerText
-        });
-      } else {
-        this.store.triggerUIUpdate();
-      }
+      this.store.recordSnapshot();
+      this.store.triggerUIUpdate();
 
-      this.store.scheduleCombatDelay(() => {
+      // Step 1: Wait for turnriver_delay before opening Turn/River & resolving combat
+      this.store.scheduleTurnRiverDelay(() => {
         const freshState = this.store.getState();
-        completePostCombat(freshState, combat, {
+        const combatOutcome = executeCombatResolution(freshState, combat, {
           botSeats: this.store.botSeats,
           botStrategies: opts?.botStrategies,
           autoCardPick: this.store.autoCardPick
         });
 
-        this.phase = freshState.isGameOver ? TurnPhase.GAME_OVER : TurnPhase.AWAITING_INPUT;
-
-        if (freshState.isGameOver && freshState.winnerTeam) {
-          this.handleGameOver(freshState.winnerTeam);
+        if (!opts?.skipLog) {
+          const prefix = opts?.logPrefix ?? '';
+          this.store.addLogEntry({
+            turnNumber: turnNum,
+            seat,
+            text: prefix + combatOutcome.logText,
+            pokerText: combatOutcome.pokerText
+          });
         }
-
         this.store.recordSnapshot();
         this.store.triggerUIUpdate();
-        this.syncTurn(this.store.getState());
+
+        // Step 2: Wait for combat delay before completing post-combat
+        this.store.scheduleCombatDelay(() => {
+          const freshState2 = this.store.getState();
+          completePostCombat(freshState2, combat, {
+            botSeats: this.store.botSeats,
+            botStrategies: opts?.botStrategies,
+            autoCardPick: this.store.autoCardPick
+          });
+
+          this.phase = freshState2.isGameOver ? TurnPhase.GAME_OVER : TurnPhase.AWAITING_INPUT;
+
+          if (freshState2.isGameOver && freshState2.winnerTeam) {
+            this.handleGameOver(freshState2.winnerTeam);
+          }
+
+          this.store.recordSnapshot();
+          this.store.triggerUIUpdate();
+          this.syncTurn(this.store.getState());
+        });
       });
       return;
     }
@@ -160,7 +174,7 @@ export class TurnManager {
       }
     }
 
-    if (this.store.isMultiplayer) {
+    if (!this.store.isInMatch() || this.store.isMultiplayer) {
       this.cancelAllTimers();
       return;
     }
@@ -425,15 +439,22 @@ export class TurnManager {
     this.updateScreenGlow(this.pendingWinnerTeam);
 
     if (this.isGameOverShown) {
-      this.overlaysUI.showGameOver(this.pendingWinnerTeam, {
-        onRematch: () => this.handleResetOrRematch(),
-        onAcceptRematch: () => this.handleAcceptRematch(),
-        onBackToLobby: () => this.handleBackToLobby(),
-        onReviewGame: () => {
-          this.overlaysUI.hideAll();
-          this.store.reviewGame();
-        }
-      }, this.pendingMessage, this.store.rematchOffer, this.store.myPlayerId);
+      this.overlaysUI.showGameOver(
+        this.pendingWinnerTeam,
+        {
+          onRematch: () => this.handleResetOrRematch(),
+          onAcceptRematch: () => this.handleAcceptRematch(),
+          onBackToLobby: () => this.handleBackToLobby(),
+          onReviewGame: () => {
+            this.overlaysUI.hideAll();
+            this.store.reviewGame();
+          }
+        },
+        this.pendingMessage,
+        this.store.rematchOffer,
+        this.store.myPlayerId,
+        this.store.getRematchMode()
+      );
       return;
     }
 
@@ -443,7 +464,37 @@ export class TurnManager {
       this.gameOverTimeoutId = null;
       this.isGameOverShown = true;
       this.updateScreenGlow(this.pendingWinnerTeam);
-      this.overlaysUI.showGameOver(this.pendingWinnerTeam, {
+      this.overlaysUI.showGameOver(
+        this.pendingWinnerTeam,
+        {
+          onRematch: () => this.handleResetOrRematch(),
+          onAcceptRematch: () => this.handleAcceptRematch(),
+          onBackToLobby: () => this.handleBackToLobby(),
+          onReviewGame: () => {
+            this.overlaysUI.hideAll();
+            this.store.reviewGame();
+          }
+        },
+        this.pendingMessage,
+        this.store.rematchOffer,
+        this.store.myPlayerId,
+        this.store.getRematchMode()
+      );
+    }, 600);
+  }
+
+  public showGameOverMenu(): void {
+    const state = this.store.getState();
+    const winnerTeam = this.pendingWinnerTeam ?? state.winnerTeam ?? null;
+    if (this.gameOverTimeoutId !== null) {
+      clearTimeout(this.gameOverTimeoutId);
+      this.gameOverTimeoutId = null;
+    }
+    this.isGameOverShown = true;
+    this.updateScreenGlow(winnerTeam);
+    this.overlaysUI.showGameOver(
+      winnerTeam,
+      {
         onRematch: () => this.handleResetOrRematch(),
         onAcceptRematch: () => this.handleAcceptRematch(),
         onBackToLobby: () => this.handleBackToLobby(),
@@ -451,15 +502,32 @@ export class TurnManager {
           this.overlaysUI.hideAll();
           this.store.reviewGame();
         }
-      }, this.pendingMessage, this.store.rematchOffer, this.store.myPlayerId);
-    }, 600);
+      },
+      this.pendingMessage,
+      this.store.rematchOffer,
+      this.store.myPlayerId,
+      this.store.getRematchMode()
+    );
   }
 
   public handleResetOrRematch(): void {
-    this.clearGameOverPopupState();
     if (this.store.isMultiplayer) {
-      socketClient.requestRematch();
+      if (this.store.getRematchMode() === 'return_to_lobby') {
+        this.clearGameOverPopupState();
+        this.updateScreenGlow(null);
+        this.overlaysUI.hideAll();
+        socketClient.resetMatch();
+      } else {
+        const startingHumans = this.store.roomState?.startingPlayerIds ?? [];
+        if (startingHumans.length <= 1) {
+          this.clearGameOverPopupState();
+          this.updateScreenGlow(null);
+          this.overlaysUI.hideAll();
+        }
+        socketClient.requestRematch();
+      }
     } else {
+      this.clearGameOverPopupState();
       this.updateScreenGlow(null);
       this.overlaysUI.hideAll();
       this.cancelAllTimers();

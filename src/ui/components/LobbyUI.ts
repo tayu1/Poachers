@@ -44,7 +44,7 @@ export class LobbyUI {
       modal = document.createElement('div');
       modal.id = 'rules-overlay';
       modal.className = 'rules-backdrop hidden';
-      
+
       const parseMarkdown = (md: string) => {
         return md
           .replace(/^### (.*$)/gim, '<h3>$1</h3>')
@@ -65,14 +65,14 @@ export class LobbyUI {
         </div>
       `;
       document.body.appendChild(modal);
-      
+
       const btnClose = modal.querySelector('#btn-close-rules');
       if (btnClose) {
         btnClose.addEventListener('click', () => {
           modal!.classList.add('hidden');
         });
       }
-      
+
       modal.addEventListener('click', (e) => {
         if (e.target === modal) {
           modal!.classList.add('hidden');
@@ -85,21 +85,38 @@ export class LobbyUI {
   private renderPublicRoomsList(): string {
     const rooms = socketClient.publicRooms;
     if (!rooms || rooms.length === 0) {
-      return `<div style="font-size: 13px; color: #64748b; font-style: italic; padding: 6px 0;">No active public rooms right now. Create one above!</div>`;
+      return `<div style="font-size: 13px; color: #64748b; font-style: italic; padding: 6px 0;">No active rooms right now. Create one above!</div>`;
     }
 
     return `
       <div style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto;">
-        ${rooms.map(r => `
-          <div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155;">
+        ${rooms.map(r => {
+      const isPlaying = r.status === 'playing' || r.status === 'ended';
+      const isPrivate = r.isPublic === false;
+      const displayCode = isPrivate ? '----' : r.roomCode;
+      return `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 8px 12px; border-radius: 6px; border: 1px solid ${isPlaying ? '#475569' : (isPrivate ? '#334155' : '#38bdf8')}; opacity: ${isPlaying || isPrivate ? '0.85' : '1'};">
             <div>
-              <span style="font-weight: 700; color: #f59e0b; font-size: 14px;">ROOM ${r.roomCode}</span>
+              <span style="font-weight: 700; color: #f59e0b; font-size: 14px;">ROOM ${displayCode}</span>
               <span style="font-size: 12px; color: #94a3b8; margin-left: 8px;">Host: ${r.hostName}</span>
-              <span style="font-size: 11px; color: #38bdf8; margin-left: 8px; font-weight: 600;">(${r.seatsTaken}/4 Seats)</span>
+              ${isPlaying
+          ? `<span style="font-size: 11px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; padding: 1px 6px; border-radius: 4px; font-weight: 700; margin-left: 8px;">IN GAME</span>`
+          : (isPrivate
+            ? `<span style="font-size: 11px; background: rgba(148, 163, 184, 0.2); border: 1px solid #64748b; color: #cbd5e1; padding: 1px 6px; border-radius: 4px; font-weight: 700; margin-left: 8px;">🔒 PRIVATE</span>`
+            : `<span style="font-size: 11px; color: #38bdf8; margin-left: 8px; font-weight: 600;">(${r.seatsTaken}/4 Seats)</span>`
+          )
+        }
             </div>
-            <button class="btn-join-public-room copy-btn" data-code="${r.roomCode}" style="background: #2563eb; color: #fff; padding: 4px 10px; font-weight: 600;">Join Game</button>
+            ${isPlaying
+          ? `<button class="copy-btn" disabled style="background: #334155; color: #64748b; padding: 4px 10px; font-weight: 600; cursor: not-allowed; opacity: 0.6;" title="Game is already in progress">In Game</button>`
+          : (isPrivate
+            ? `<button class="copy-btn" disabled style="background: #334155; color: #64748b; padding: 4px 10px; font-weight: 600; cursor: not-allowed; opacity: 0.6;" title="Private room - enter code below to join">Private</button>`
+            : `<button class="btn-join-public-room copy-btn" data-code="${r.roomCode}" style="background: #2563eb; color: #fff; padding: 4px 10px; font-weight: 600; cursor: pointer;">Join Game</button>`
+          )
+        }
           </div>
-        `).join('')}
+        `;
+    }).join('')}
       </div>
     `;
   }
@@ -113,7 +130,7 @@ export class LobbyUI {
           <div class="lobby-header" style="position: relative;">
             <button class="btn-show-rules copy-btn" style="position: absolute; right: 0; top: 0; background: #10b981; color: #fff; padding: 6px 12px; font-weight: bold; border-radius: 6px;">📜 RULES</button>
             <h1 class="lobby-title">POACHERS LOBBY</h1>
-            <p class="lobby-subtitle">Create a room or select a public room to join</p>
+            <p class="lobby-subtitle">Create a room or select an open room to join</p>
           </div>
 
           ${store.netError ? `<div class="error-banner">${store.netError}</div>` : ''}
@@ -132,10 +149,10 @@ export class LobbyUI {
               </label>
             </div>
 
-            <!-- Public Rooms Section -->
+            <!-- Public / Active Rooms Section -->
             <div class="public-rooms-section" style="margin-top: 6px; background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 12px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 12px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">🌐 OPEN PUBLIC ROOMS</span>
+                <span style="font-size: 12px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">🌐 ACTIVE ROOMS</span>
                 <button id="btn-refresh-rooms" class="copy-btn">Refresh</button>
               </div>
               ${this.renderPublicRoomsList()}
@@ -262,7 +279,7 @@ export class LobbyUI {
         <div class="lobby-modal">
           <div class="lobby-header" style="position: relative;">
             <button class="btn-show-rules copy-btn" style="position: absolute; right: 0; top: 0; background: #10b981; color: #fff; padding: 6px 12px; font-weight: bold; border-radius: 6px;">📜 RULES</button>
-            <h1 class="lobby-title">POACHERS ROOM</h1>
+            <h1 class="lobby-title">GAME ROOM</h1>
             <p class="lobby-subtitle" style="font-size: 13px; color: #94a3b8; margin-top: 2px;">Pick seats, click READY, or add bots to start match</p>
             <div class="lobby-room-code-badge" style="margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 8px;">
               <span style="display: inline-flex; align-items: center; gap: 4px;">
@@ -300,12 +317,19 @@ export class LobbyUI {
             <div style="text-align: center; font-size: 13px; color: #94a3b8; font-weight: 600; padding: 4px 0;">
               ⚡ Game starts once all 4 seats are sat & READY.
             </div>
-            <div class="lobby-controls-bar" style="display: flex; gap: 10px;">
+            <div class="lobby-controls-bar" style="display: flex; gap: 10px; flex-wrap: wrap;">
               ${isSeated
-        ? `<button id="btn-toggle-ready" class="btn-primary ${isMyReady ? 'btn-ready-active' : ''}" style="flex: 2; padding: 10px 16px; font-weight: 700; background: ${isMyReady ? '#22c55e' : '#f59e0b'}; color: #000;">${isMyReady ? '✓ READY (Click to Unready)' : '⚡ READY UP'}</button>`
+        ? `<button id="btn-toggle-ready" class="btn-primary ${isMyReady ? 'btn-ready-active' : ''}" style="flex: 2; min-width: 140px; padding: 10px 16px; font-weight: 700; background: ${isMyReady ? '#22c55e' : '#f59e0b'}; color: #000;">${isMyReady ? '✓ READY' : '⚡ READY UP'}</button>`
         : ''
       }
-              <button id="btn-leave-lobby" class="btn-secondary" style="flex: 1;">Leave Lobby</button>
+              ${isHost && [0, 1, 2, 3].some(s => !roomState.seats[s as PlayerSeat].isBot && !roomState.seats[s as PlayerSeat].playerId)
+        ? (() => {
+          const allHumansReady = Object.values(roomState.players).filter(p => p.isOnline).every(p => p.isReady);
+          return `<button id="btn-assign-bots-start" class="btn-primary" ${allHumansReady ? '' : 'disabled'} style="flex: 2; min-width: 180px; padding: 10px 16px; font-weight: 700; background: ${allHumansReady ? '#10b981' : '#334155'}; color: ${allHumansReady ? '#fff' : '#64748b'}; cursor: ${allHumansReady ? 'pointer' : 'not-allowed'}; opacity: ${allHumansReady ? '1' : '0.7'};" title="${allHumansReady ? 'Fill empty seats with bots and start match' : 'All players must be ready first'}">🤖 Assign Bots & Start</button>`;
+        })()
+        : ''
+      }
+              <button id="btn-leave-lobby" class="btn-secondary" style="flex: 1; min-width: 100px;">Leave Room</button>
             </div>
           </div>
         </div>
@@ -347,6 +371,13 @@ export class LobbyUI {
       });
     }
 
+    const btnAssignBotsStart = this.container.querySelector('#btn-assign-bots-start');
+    if (btnAssignBotsStart) {
+      btnAssignBotsStart.addEventListener('click', async () => {
+        await socketClient.startGame();
+      });
+    }
+
     const btnLeave = this.container.querySelector('#btn-leave-lobby');
     if (btnLeave) {
       btnLeave.addEventListener('click', () => {
@@ -368,16 +399,8 @@ export class LobbyUI {
           } else if (slot.playerId === store.myPlayerId) {
             await socketClient.selectSeat(seatEnum);
           } else if (slot.isBot) {
-            await socketClient.toggleBotSeat(seatEnum);
+            await socketClient.selectSeat(seatEnum);
           }
-        });
-      }
-
-      const btnBot = this.container.querySelector(`#btn-bot-${seatEnum}`);
-      if (btnBot) {
-        btnBot.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          await socketClient.toggleBotSeat(seatEnum);
         });
       }
     }
@@ -402,15 +425,23 @@ export class LobbyUI {
       }
     }
 
-    let icon = '';
-    let occupantName = 'Sit Here';
+    let iconHtml = '';
+    let occupantName = 'Open Seat / BOT';
 
     if (slot.isBot) {
-      icon = '🤖';
+      iconHtml = '<span style="font-size: 28px; line-height: 1;">🤖</span>';
       occupantName = 'Bot';
     } else if (slot.playerId) {
-      icon = '🎮';
       occupantName = `${slot.name} ${isMySeat ? '(YOU)' : ''}`;
+      if (slot.playerId === roomState.hostPlayerId) {
+        iconHtml = '<img src="/assets/Controller.png" class="controller-img controller-host" alt="host controller" />';
+      } else {
+        const sortedGuests = Object.keys(roomState.players).filter(id => id !== roomState.hostPlayerId).sort();
+        const guestIdx = sortedGuests.indexOf(slot.playerId);
+        const guestClasses = ['controller-pink', 'controller-green', 'controller-blue'];
+        const colorClass = guestClasses[guestIdx >= 0 ? guestIdx % guestClasses.length : 0];
+        iconHtml = `<img src="/assets/Controller.png" class="controller-img ${colorClass}" alt="player controller" />`;
+      }
     }
 
     const canSit = !slot.isBot && !slot.playerId;
@@ -423,14 +454,8 @@ export class LobbyUI {
           <span class="seat-badge ${badgeClass}">${badgeText}</span>
         </div>
         <div class="seat-occupant ${canSit ? 'empty-seat-text' : ''}">
-          ${icon ? `<div class="seat-icon">${icon}</div>` : ''}
+          ${iconHtml ? `<div class="seat-icon">${iconHtml}</div>` : ''}
           <div class="seat-occupant-name">${occupantName}</div>
-        </div>
-        <div class="seat-actions">
-          ${canSit
-        ? `<button id="btn-bot-${seat}" class="btn-seat-action">Add Bot</button>`
-        : ''
-      }
         </div>
       </div>
     `;

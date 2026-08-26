@@ -2,7 +2,7 @@ import { applyAction, createInitialGameState, fastCloneState, toUint8Array } fro
 import { getSeatCode } from '../core/notation';
 import { generateFullThreatMap, INITIAL_THREAT_MAP } from '../core/moves';
 
-import { BOT_SPEED_MS, COMBAT_TURN_RIVER_DELAY_MS, DEFAULT_TURN_TIME_LIMIT, TurnTimeLimit } from '../config';
+import { BOT_SPEED_MS, POST_COMBAT_DELAY_MS, DEFAULT_TURN_TIME_LIMIT, TurnTimeLimit, TURN_RIVER_DELAY_MS } from '../config';
 import { ActionInt, GameState, Move, PieceType, PlayerSeat, Team } from '../core/types';
 import { NetworkLogEntry, RematchOfferState, RoomState } from '../net/events';
 
@@ -52,6 +52,7 @@ export class GameStore {
     return this._isCombatDelaying;
   }
   private combatTimer: any = null;
+  private turnRiverTimer: any = null;
   public botSeats: Record<PlayerSeat, boolean> = {
     [PlayerSeat.NORTH]: false,
     [PlayerSeat.EAST]: true,
@@ -143,6 +144,42 @@ export class GameStore {
     this.notify();
   }
 
+  public isInMatch(): boolean {
+    if (this.isLocalGame) return true;
+    if (this.isMultiplayer && this.roomState && (this.roomState.status === 'playing' || this.roomState.status === 'ended')) {
+      return true;
+    }
+    return false;
+  }
+
+  public getRematchMode(): 'available' | 'disabled' | 'return_to_lobby' {
+    if (!this.isMultiplayer || !this.roomState) {
+      return 'available';
+    }
+    const roomState = this.roomState;
+    const startingHumans = roomState.startingPlayerIds ?? (roomState.hostPlayerId ? [roomState.hostPlayerId] : []);
+    const onlineStartingHumans = startingHumans.filter(id => roomState.players[id]?.isOnline);
+    const allPresent = onlineStartingHumans.length === startingHumans.length;
+
+    if (allPresent || startingHumans.length <= 1) {
+      return 'available';
+    }
+
+    if (startingHumans.length === 2) {
+      return 'disabled';
+    }
+
+    if (startingHumans.length >= 3) {
+      return 'return_to_lobby';
+    }
+
+    return 'available';
+  }
+
+  public canRematch(): boolean {
+    return this.getRematchMode() !== 'disabled';
+  }
+
   public updateTimerState(remainingSeconds: number, activeSeat: PlayerSeat): void {
     this.turnEndsAt = remainingSeconds > 0 ? Date.now() + remainingSeconds * 1000 : null;
     this.timerActiveSeat = activeSeat;
@@ -232,6 +269,20 @@ export class GameStore {
     this.notify();
   }
 
+  public scheduleTurnRiverDelay(onComplete: () => void): void {
+    if (this.turnRiverTimer) {
+      clearTimeout(this.turnRiverTimer);
+      this.turnRiverTimer = null;
+    }
+    this._isCombatDelaying = true;
+
+    const delay = this._botSpeedMs <= 50 ? this._botSpeedMs : TURN_RIVER_DELAY_MS;
+    this.turnRiverTimer = setTimeout(() => {
+      this.turnRiverTimer = null;
+      onComplete();
+    }, delay);
+  }
+
   public scheduleCombatDelay(onComplete: () => void): void {
     if (this.combatTimer) {
       clearTimeout(this.combatTimer);
@@ -239,12 +290,24 @@ export class GameStore {
     }
     this._isCombatDelaying = true;
 
-    const delay = this._botSpeedMs <= 50 ? this._botSpeedMs : COMBAT_TURN_RIVER_DELAY_MS;
+    const delay = this._botSpeedMs <= 50 ? this._botSpeedMs : POST_COMBAT_DELAY_MS;
     this.combatTimer = setTimeout(() => {
       this.combatTimer = null;
       this._isCombatDelaying = false;
       onComplete();
     }, delay);
+  }
+
+  public cancelCombatTimers(): void {
+    if (this.turnRiverTimer) {
+      clearTimeout(this.turnRiverTimer);
+      this.turnRiverTimer = null;
+    }
+    if (this.combatTimer) {
+      clearTimeout(this.combatTimer);
+      this.combatTimer = null;
+    }
+    this._isCombatDelaying = false;
   }
 
   public get historyLength(): number {

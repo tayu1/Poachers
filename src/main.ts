@@ -34,7 +34,8 @@ socketClient.connect();
 // 3. Initialize Board & Card Components
 const boardUI = new BoardUI(
   document.getElementById('board-container')!,
-  (index: number) => inputHandler.handleSquareClick(index)
+  (index: number) => inputHandler.handleSquareClick(index),
+  (fromIndex: number, toIndex: number) => inputHandler.handlePieceDrop(fromIndex, toIndex)
 );
 
 const trenchUI = new TrenchCardsUI(
@@ -64,8 +65,7 @@ const logUI = new LogUI(document.getElementById('log-panel')!, (historyIndex: nu
 const controlsUI = new ControlsUI(
   document.getElementById('controls-panel')!,
   () => store.rotateBoard(),
-  () => inputHandler.handleResign(),
-  () => turnManager.handleBackToLobby()
+  () => inputHandler.handleResign()
 );
 
 // 4. Reactive Store Subscriptions

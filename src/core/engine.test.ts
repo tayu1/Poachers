@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createInitialGameState, applyAction, completePostCombat, isSeatOccupyingHill, grantHillCardReward } from './engine';
+import { createInitialGameState, applyAction, completePostCombat, executeCombatResolution, isSeatOccupyingHill, grantHillCardReward } from './engine';
 import { PlayerSeat } from './types';
 
 describe('Core Engine & Combat Integration', () => {
@@ -60,9 +60,13 @@ describe('Core Engine & Combat Integration', () => {
     expect(result.combatOccurred).toBe(true);
     expect(result.pendingCombat).toBeDefined();
     expect(state.isCombatDelaying).toBe(true);
+    expect(state.isTurnRiverRevealed).toBe(false);
+
+    // Step 1: Execute combat resolution (Turn/River reveals and hands evaluate)
+    executeCombatResolution(state, result.pendingCombat!);
     expect(state.isTurnRiverRevealed).toBe(true);
 
-    // Complete post combat
+    // Step 2: Complete post combat
     completePostCombat(state, result.pendingCombat!);
     expect(state.isCombatDelaying).toBe(false);
     expect(state.pendingCombat).toBeNull();
@@ -371,6 +375,7 @@ describe('Core Engine & Combat Integration', () => {
       expect(result.pendingCombat).toBeDefined();
 
       // With default autoCardPick: true, North poaches defender card (+1), gains hill bonus (+1), and refills trench (-1) = net +1 base deck
+      executeCombatResolution(state, result.pendingCombat!, { forceCombatWinner: PlayerSeat.NORTH });
       completePostCombat(state, result.pendingCombat!, { autoCardPick: true });
 
       expect(isSeatOccupyingHill(state.board, PlayerSeat.NORTH)).toBe(true);

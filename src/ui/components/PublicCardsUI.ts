@@ -44,7 +44,7 @@ export class PublicCardsUI {
     const winningCardIds = new Set<string>();
     let winningTeamClass = '';
 
-    if (state.pendingCombat) {
+    if (state.pendingCombat && state.isTurnRiverRevealed && state.pendingCombat.winnerSeat !== null && state.pendingCombat.winnerSeat !== undefined) {
       const combat = state.pendingCombat;
       const winnerSeat = combat.winnerSeat ?? combat.attackerSeat;
       const winnerTeam = state.players[winnerSeat]?.team ?? 'A';

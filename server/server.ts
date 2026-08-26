@@ -5,14 +5,14 @@ import path from 'path';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 
-import { applyAction, completePostCombat } from '../src/core/engine';
+import { applyAction, completePostCombat, executeCombatResolution } from '../src/core/engine';
 import { getSeatCode } from '../src/core/notation';
-import { DEFAULT_TURN_TIME_LIMIT, TURN_TIME_LIMIT_OPTIONS, TurnTimeLimit, COMBAT_TURN_RIVER_DELAY_MS } from '../src/config';
+import { DEFAULT_TURN_TIME_LIMIT, TURN_TIME_LIMIT_OPTIONS, TurnTimeLimit, POST_COMBAT_DELAY_MS, TURN_RIVER_DELAY_MS } from '../src/config';
 import { PlayerSeat } from '../src/core/types';
 import { ClientToServerEvents, ServerToClientEvents } from '../src/net/events';
 
 import { checkAndAutoStartMatch, clearTurnTimeout, startMatch, startTurnTimeout, triggerBotTurnIfNeeded } from './gameLoop';
-import { broadcastPublicRooms, createEmptySeats, emitGameStateToRoom, generateRoomCode, getPublicRoomsSummary, getSeatTeam, getSeatsForPlayer, rooms, sanitizeGameStateForClient, serializeRoomState } from './roomManager';
+import { assignInitialHostSeats, assignSeat, autoAssignSeat, broadcastPublicRooms, clearPlayerSeats, createEmptySeats, emitGameStateToRoom, ensureAllHumansSeated, generateRoomCode, getPublicRoomsSummary, getSeatTeam, getSeatsForPlayer, rooms, sanitizeGameStateForClient, serializeRoomState, toggleBot } from './roomManager';
 
 import { ServerPlayer, ServerRoom } from './types';
 
@@ -48,6 +48,11 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
 });
 
 const PORT = process.env.PORT || 3001;
+
+// Grace period: keep rooms alive for 2 minutes after all humans disconnect
+// so that a browser refresh (which takes ~0.5s) doesn't destroy the game.
+const DISCONNECT_GRACE_PERIOD_MS = 120_000;
+const roomCleanupTimers = new Map<string, NodeJS.Timeout>();
 
 io.on('connection', (socket) => {
   console.log(`[Socket] Client connected: ${socket.id}`);
@@ -89,8 +94,11 @@ io.on('connection', (socket) => {
         turnTimeLimit: DEFAULT_TURN_TIME_LIMIT,
         rematchOffer: null,
         matchScore: { teamA: 0, teamB: 0 },
-        startingSeatIndex: PlayerSeat.NORTH
+        startingSeatIndex: PlayerSeat.NORTH,
+        startingPlayerIds: [playerId]
       };
+
+      assignInitialHostSeats(room, player);
 
       rooms.set(roomCode, room);
       socket.join(roomCode);
@@ -124,7 +132,13 @@ io.on('connection', (socket) => {
       player.socketId = socket.id;
       player.isOnline = true;
       if (playerName) player.name = playerName;
+      // Ensure existing player has seat
+      autoAssignSeat(room, player);
     } else {
+      if (room.status !== 'lobby') {
+        if (callback) callback({ success: false, error: 'Game is already in progress' });
+        return;
+      }
       playerId = `player_${Math.random().toString(36).substring(2, 9)}`;
       player = {
         playerId,
@@ -136,6 +150,13 @@ io.on('connection', (socket) => {
         isReady: false,
         isOnline: true
       };
+
+      const assignedSeat = autoAssignSeat(room, player);
+      if (assignedSeat === null) {
+        if (callback) callback({ success: false, error: 'Room is full (all seats occupied by players)' });
+        return;
+      }
+
       room.players.set(playerId, player);
     }
 
@@ -145,6 +166,7 @@ io.on('connection', (socket) => {
     const roomState = serializeRoomState(room);
     if (callback) callback({ success: true, roomState, playerId });
     io.to(code).emit('room_state_update', roomState);
+    broadcastPublicRooms(io);
 
     if (room.status === 'playing' && room.gameState) {
       socket.emit('game_state_update', {
@@ -157,6 +179,14 @@ io.on('connection', (socket) => {
   socket.on('reconnect_session', ({ roomCode, playerId }, callback) => {
     const code = roomCode.toUpperCase();
     const room = rooms.get(code);
+
+    // Cancel any pending grace-period cleanup — player is back
+    const pendingTimer = roomCleanupTimers.get(code);
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      roomCleanupTimers.delete(code);
+      console.log(`[Grace] Cancelled cleanup timer for room ${code} — player reconnected`);
+    }
 
     if (!room || !room.players.has(playerId)) {
       if (callback) callback({ success: false, error: 'Session expired or room unavailable' });
@@ -179,6 +209,12 @@ io.on('connection', (socket) => {
     }
 
     io.to(code).emit('room_state_update', roomState);
+
+    // Resume game loop if mid-game (timers were paused while no humans were online)
+    if (room.status === 'playing' && room.gameState && !room.gameState.isGameOver) {
+      startTurnTimeout(room, io);
+      triggerBotTurnIfNeeded(room, io);
+    }
   });
 
   socket.on('select_seat', ({ roomCode, playerId, seat }, callback) => {
@@ -189,67 +225,11 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const player = room.players.get(playerId);
-    if (!player) {
-      if (callback) callback({ success: false, error: 'Player not in room' });
+    const res = assignSeat(room, playerId, seat);
+    if (!res.success) {
+      if (callback) callback({ success: false, error: res.error });
       return;
     }
-
-    if (room.gameStarted) {
-      if (callback) callback({ success: false, error: 'Game already in progress' });
-      return;
-    }
-
-    if (seat === null) {
-      for (let s = 0; s < 4; s++) {
-        if (room.seats[s as PlayerSeat].playerId === playerId) {
-          room.seats[s as PlayerSeat] = { playerId: null, name: null, isBot: false, isReady: false };
-        }
-      }
-      player.isReady = false;
-      player.seat = null;
-      io.to(code).emit('room_state_update', serializeRoomState(room));
-      if (callback) callback({ success: true });
-      return;
-    }
-
-    const slot = room.seats[seat];
-
-    if (slot.playerId === playerId) {
-      room.seats[seat] = { playerId: null, name: null, isBot: false, isReady: false };
-
-      const remainingSeats = [0, 1, 2, 3].filter(s => room.seats[s as PlayerSeat].playerId === playerId) as PlayerSeat[];
-      if (remainingSeats.length > 0) {
-        player.seat = remainingSeats[0];
-        player.team = getSeatTeam(remainingSeats[0]);
-      } else {
-        player.seat = null;
-        player.team = null;
-        player.isReady = false;
-      }
-
-      io.to(code).emit('room_state_update', serializeRoomState(room));
-      broadcastPublicRooms(io);
-      if (callback) callback({ success: true });
-      return;
-    }
-
-    if (slot.playerId && slot.playerId !== playerId && !slot.isBot) {
-      if (callback) callback({ success: false, error: 'Seat already occupied by another player' });
-      return;
-    }
-
-    const targetTeam = getSeatTeam(seat);
-
-    player.isReady = false;
-    player.seat = seat;
-    player.team = targetTeam;
-    room.seats[seat] = {
-      playerId,
-      name: player.name,
-      isBot: false,
-      isReady: false
-    };
 
     io.to(code).emit('room_state_update', serializeRoomState(room));
     broadcastPublicRooms(io);
@@ -266,24 +246,14 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const player = room.players.get(playerId);
-    if (!player || !player.isHost) {
-      if (callback) callback({ success: false, error: 'Only room host can toggle bots' });
+    const res = toggleBot(room, playerId, seat);
+    if (!res.success) {
+      if (callback) callback({ success: false, error: res.error });
       return;
     }
-
-    const slot = room.seats[seat];
-    if (slot.playerId && !slot.isBot) {
-      if (callback) callback({ success: false, error: 'Cannot replace an active human player with a bot' });
-      return;
-    }
-
-    slot.isBot = !slot.isBot;
-    slot.playerId = slot.isBot ? `bot_${seat}` : null;
-    slot.name = slot.isBot ? `BOT (${getSeatCode(seat)})` : null;
-    slot.isReady = slot.isBot;
 
     io.to(code).emit('room_state_update', serializeRoomState(room));
+    broadcastPublicRooms(io);
     if (callback) callback({ success: true });
 
     checkAndAutoStartMatch(room, io);
@@ -367,9 +337,17 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const hasHuman = Array.from(room.players.values()).some(p => p.isOnline);
-    if (!hasHuman) {
-      if (callback) callback({ success: false, error: 'Need at least 1 human player' });
+    const hasSeatedHuman = [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST].some(
+      s => !room.seats[s].isBot && room.seats[s].playerId !== null
+    );
+    if (!hasSeatedHuman) {
+      if (callback) callback({ success: false, error: 'Need at least 1 seated human player' });
+      return;
+    }
+
+    const allHumansReady = Array.from(room.players.values()).filter(p => p.isOnline).every(p => p.isReady);
+    if (!allHumansReady) {
+      if (callback) callback({ success: false, error: 'All players must be ready first' });
       return;
     }
 
@@ -429,6 +407,7 @@ io.on('connection', (socket) => {
       if (state.isGameOver) {
         room.matchScore = { ...state.score };
         room.status = 'ended';
+        io.to(code).emit('room_state_update', serializeRoomState(room));
       }
 
       emitGameStateToRoom(io, room);
@@ -468,17 +447,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (action.type === 'MOVE' || action.type === 'PROMOTION' || action.type === 'SKIP_TURN' || action.type === 'SET_BUNKER') {
-      const historyIdx = room.logs.length;
-      room.logs.push({
-        turnNumber: turnNum,
-        seat: seatCode,
-        text: result.logText,
-        pokerText: result.pokerText,
-        historyIndex: historyIdx
-      });
-    }
-
     if (result.combatOccurred && result.pendingCombat) {
       clearTurnTimeout(room);
       const combat = result.pendingCombat;
@@ -488,24 +456,60 @@ io.on('connection', (socket) => {
       room.botTimer = setTimeout(() => {
         room.botTimer = null;
         if (!room.gameState) return;
-        completePostCombat(room.gameState, combat, {
+
+        const combatOutcome = executeCombatResolution(room.gameState, combat, {
           botSeats: room.gameState.botSeats,
           autoCardPick: room.autoCardPick ?? true
         });
-        if (room.gameState.isGameOver) {
-          room.matchScore = { ...room.gameState.score };
-          room.status = 'ended';
-        }
-        if (!room.gameState.isGameOver) {
-          startTurnTimeout(room, io);
-        }
+
+        const historyIdx = room.logs.length;
+        room.logs.push({
+          turnNumber: turnNum,
+          seat: seatCode,
+          text: combatOutcome.logText,
+          pokerText: combatOutcome.pokerText,
+          historyIndex: historyIdx
+        });
+
         emitGameStateToRoom(io, room);
-        triggerBotTurnIfNeeded(room, io);
-      }, COMBAT_TURN_RIVER_DELAY_MS);
+
+        room.botTimer = setTimeout(() => {
+          room.botTimer = null;
+          if (!room.gameState) return;
+          completePostCombat(room.gameState, combat, {
+            botSeats: room.gameState.botSeats,
+            autoCardPick: room.autoCardPick ?? true
+          });
+          if (room.gameState.isGameOver) {
+            room.matchScore = { ...room.gameState.score };
+            room.status = 'ended';
+            io.to(code).emit('room_state_update', serializeRoomState(room));
+            broadcastPublicRooms(io);
+          }
+          if (!room.gameState.isGameOver) {
+            startTurnTimeout(room, io);
+          }
+          emitGameStateToRoom(io, room);
+          triggerBotTurnIfNeeded(room, io);
+        }, POST_COMBAT_DELAY_MS);
+      }, TURN_RIVER_DELAY_MS);
     } else {
+      if (action.type === 'MOVE' || action.type === 'PROMOTION' || action.type === 'SKIP_TURN' || action.type === 'SET_BUNKER') {
+        const historyIdx = room.logs.length;
+        room.logs.push({
+          turnNumber: turnNum,
+          seat: seatCode,
+          text: result.logText,
+          pokerText: result.pokerText,
+          historyIndex: historyIdx
+        });
+      }
+
       if (room.gameState.isGameOver) {
         room.matchScore = { ...room.gameState.score };
         room.status = 'ended';
+        io.to(code).emit('room_state_update', serializeRoomState(room));
+        broadcastPublicRooms(io);
       }
       if (!room.gameState.isGameOver && action.type !== 'CARD_SWAP') {
         startTurnTimeout(room, io);
@@ -524,28 +528,56 @@ io.on('connection', (socket) => {
     const player = room.players.get(playerId);
     if (!player) return;
 
-    let hasOpposingHuman = false;
-    for (const p of room.players.values()) {
-      if (p.playerId !== playerId && p.isOnline) {
-        hasOpposingHuman = true;
-        break;
+    const startingHumans = room.startingPlayerIds ?? (room.hostPlayerId ? [room.hostPlayerId] : []);
+    const onlineStartingHumans = startingHumans.filter(id => room.players.get(id)?.isOnline);
+    const allPresent = onlineStartingHumans.length === startingHumans.length;
+
+    if (!allPresent && startingHumans.length > 1) {
+      if (startingHumans.length === 2) {
+        // There was 1 other human and he left -> rematch not available
+        return;
+      }
+      if (startingHumans.length >= 3) {
+        // There was more than 1 other human and anyone left -> return to seat setting room
+        room.gameStarted = false;
+        room.status = 'lobby';
+        room.gameState = null;
+        room.logs = [];
+        room.rematchOffer = null;
+        room.matchScore = { teamA: 0, teamB: 0 };
+        for (const p of room.players.values()) {
+          p.isReady = false;
+        }
+        for (let s = 0; s < 4; s++) {
+          const slot = room.seats[s as PlayerSeat];
+          if (slot.isBot) {
+            room.seats[s as PlayerSeat] = { playerId: null, name: null, isBot: false, isReady: false };
+          } else {
+            slot.isReady = false;
+          }
+        }
+        ensureAllHumansSeated(room);
+        io.to(code).emit('rematch_offer_update', null);
+        io.to(code).emit('room_state_update', serializeRoomState(room));
+        broadcastPublicRooms(io);
+        return;
       }
     }
 
-    if (!hasOpposingHuman) {
+    if (startingHumans.length <= 1) {
+      // Solo player against bots -> immediate instant rematch without waiting!
       room.rematchOffer = null;
       io.to(code).emit('rematch_offer_update', null);
       startMatch(room, io, true);
-      return;
+    } else {
+      // 2 or more human players -> offer rematch and wait for accept rematch!
+      room.rematchOffer = {
+        offeredByPlayerId: playerId,
+        offeredByName: player.name,
+        acceptedPlayerIds: [playerId]
+      };
+      io.to(code).emit('rematch_offer_update', room.rematchOffer);
     }
-
-    room.rematchOffer = {
-      requestedByPlayerId: playerId,
-      requestedByName: player.name,
-      acceptedPlayerIds: [playerId]
-    };
-
-    io.to(code).emit('rematch_offer_update', room.rematchOffer);
   });
 
   socket.on('accept_rematch', ({ roomCode, playerId }) => {
@@ -592,13 +624,18 @@ io.on('connection', (socket) => {
       p.isReady = false;
     }
     for (let s = 0; s < 4; s++) {
-      if (!room.seats[s as PlayerSeat].isBot) {
-        room.seats[s as PlayerSeat].isReady = false;
+      const slot = room.seats[s as PlayerSeat];
+      if (slot.isBot) {
+        room.seats[s as PlayerSeat] = { playerId: null, name: null, isBot: false, isReady: false };
+      } else {
+        slot.isReady = false;
       }
     }
+    ensureAllHumansSeated(room);
 
     io.to(code).emit('rematch_offer_update', null);
     io.to(code).emit('room_state_update', serializeRoomState(room));
+    broadcastPublicRooms(io);
   });
 
   socket.on('leave_room', ({ roomCode, playerId }) => {
@@ -607,12 +644,7 @@ io.on('connection', (socket) => {
     if (!room) return;
 
     room.players.delete(playerId);
-
-    for (let s = 0; s < 4; s++) {
-      if (room.seats[s as PlayerSeat].playerId === playerId) {
-        room.seats[s as PlayerSeat] = { playerId: null, name: null, isBot: false, isReady: false };
-      }
-    }
+    clearPlayerSeats(room, playerId);
 
     socket.leave(code);
 
@@ -628,15 +660,9 @@ io.on('connection', (socket) => {
       }
     }
 
-    const hasOnlineHumans = Array.from(room.players.values()).some(p => p.isOnline);
-    if (!hasOnlineHumans || room.players.size === 0) {
-      clearTurnTimeout(room);
-      if (room.botTimer) clearTimeout(room.botTimer);
-      rooms.delete(code);
-    } else {
+    if (!cleanupRoomIfEmpty(code, room)) {
       io.to(code).emit('room_state_update', serializeRoomState(room));
     }
-
     broadcastPublicRooms(io);
   });
 
@@ -652,20 +678,78 @@ io.on('connection', (socket) => {
         }
       }
       if (playerUpdated) {
-        io.to(code).emit('room_state_update', serializeRoomState(room));
+        // Don't delete instantly — schedule a grace period cleanup
+        scheduleGracePeriodCleanup(code, room);
+        if (!isRoomEffectivelyEmpty(room)) {
+          io.to(code).emit('room_state_update', serializeRoomState(room));
+        }
       }
     }
     broadcastPublicRooms(io);
   });
 });
 
+/** Check if a room has no online human players. */
+function isRoomEffectivelyEmpty(room: ServerRoom): boolean {
+  return !Array.from(room.players.values()).some(p => p.isOnline);
+}
+
+/** Immediately destroy a room and clean up its timers. */
+function destroyRoom(code: string, room: ServerRoom): void {
+  clearTurnTimeout(room);
+  if (room.botTimer) { clearTimeout(room.botTimer); room.botTimer = null; }
+  rooms.delete(code);
+  const pendingTimer = roomCleanupTimers.get(code);
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    roomCleanupTimers.delete(code);
+  }
+  console.log(`[Grace] Room ${code} destroyed`);
+}
+
+/**
+ * Instant cleanup for intentional actions (e.g. leave_room).
+ * Returns true if the room was destroyed.
+ */
+function cleanupRoomIfEmpty(code: string, room: ServerRoom): boolean {
+  if (isRoomEffectivelyEmpty(room) || room.players.size === 0) {
+    destroyRoom(code, room);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Schedule a delayed cleanup after disconnect.
+ * If a player reconnects before the timer fires (e.g. browser refresh),
+ * the timer is cancelled in the reconnect_session handler.
+ */
+function scheduleGracePeriodCleanup(code: string, room: ServerRoom): void {
+  // Only schedule if no humans are currently online
+  if (!isRoomEffectivelyEmpty(room)) return;
+  // Don't double-schedule
+  if (roomCleanupTimers.has(code)) return;
+
+  console.log(`[Grace] Room ${code} has no online humans — scheduling cleanup in ${DISCONNECT_GRACE_PERIOD_MS / 1000}s`);
+
+  const timer = setTimeout(() => {
+    roomCleanupTimers.delete(code);
+    const currentRoom = rooms.get(code);
+    if (currentRoom && isRoomEffectivelyEmpty(currentRoom)) {
+      destroyRoom(code, currentRoom);
+      broadcastPublicRooms(io);
+    }
+  }, DISCONNECT_GRACE_PERIOD_MS);
+
+  roomCleanupTimers.set(code, timer);
+}
+
+// Periodic safety-net cleanup: destroy rooms that have been empty for a while
+// (the grace period timers handle the primary case, this is a fallback)
 setInterval(() => {
   for (const [code, room] of rooms.entries()) {
-    const hasOnlineHumans = Array.from(room.players.values()).some(p => p.isOnline);
-    if (!hasOnlineHumans) {
-      clearTurnTimeout(room);
-      if (room.botTimer) clearTimeout(room.botTimer);
-      rooms.delete(code);
+    if (isRoomEffectivelyEmpty(room) && !roomCleanupTimers.has(code)) {
+      destroyRoom(code, room);
     }
   }
   broadcastPublicRooms(io);

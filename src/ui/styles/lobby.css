@@ -201,21 +201,61 @@
   justify-content: space-between;
   height: 125px;
   box-sizing: border-box;
-  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.1s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+/* Team A (Gold) Sit Box Styling */
+.team-a .seat-card {
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.04);
+}
+
+.team-a .seat-name {
+  color: #f59e0b;
+}
+
+.team-a .seat-occupant.empty-seat-text {
+  color: #f59e0b;
+}
+
+.team-a .seat-card.my-seat {
+  border-color: #f59e0b;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+/* Team B (Cyan) Sit Box Styling */
+.team-b .seat-card {
+  border: 1px solid rgba(6, 182, 212, 0.45);
+  background: rgba(6, 182, 212, 0.04);
+}
+
+.team-b .seat-name {
+  color: #06b6d4;
+}
+
+.team-b .seat-occupant.empty-seat-text {
+  color: #06b6d4;
+}
+
+.team-b .seat-card.my-seat {
+  border-color: #06b6d4;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
 }
 
 .seat-card.clickable-seat {
   cursor: pointer;
 }
 
-.seat-card.clickable-seat:hover {
-  border-color: #f59e0b;
+/* White Hover Highlight Border */
+.seat-card:hover,
+.seat-card.clickable-seat:hover,
+.team-a .seat-card:hover,
+.team-a .seat-card.clickable-seat:hover,
+.team-b .seat-card:hover,
+.team-b .seat-card.clickable-seat:hover {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
   background: #243047;
-}
-
-.seat-card.my-seat {
-  border-color: #38bdf8;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
 }
 
 .seat-header {
@@ -278,9 +318,39 @@
 }
 
 .seat-icon {
-  font-size: 32px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
   margin-bottom: 2px;
+}
+
+.controller-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  display: inline-block;
+  transition: filter 0.2s ease;
+}
+
+/* Host: Original white with dark lines */
+.controller-img.controller-host {
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.3));
+}
+
+/* Guest 1: Pink tint on white (dark lines preserved) */
+.controller-img.controller-pink {
+  filter: sepia(1) saturate(5) hue-rotate(275deg) brightness(1.05) drop-shadow(0 0 4px rgba(236, 72, 153, 0.5));
+}
+
+/* Guest 2: Green tint on white (dark lines preserved) */
+.controller-img.controller-green {
+  filter: sepia(1) saturate(5) hue-rotate(75deg) brightness(1.05) drop-shadow(0 0 4px rgba(16, 185, 129, 0.5));
+}
+
+/* Guest 3: Blue/Cyan tint on white (dark lines preserved) */
+.controller-img.controller-blue {
+  filter: sepia(1) saturate(5) hue-rotate(175deg) brightness(1.1) drop-shadow(0 0 4px rgba(56, 189, 248, 0.5));
 }
 
 .seat-occupant-name {

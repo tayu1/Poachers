@@ -25,6 +25,55 @@ describe('GameStore Fast Bot Mode', () => {
     expect(store.botSeats[PlayerSeat.SOUTH]).toBe(false);
     expect(store.botSeats[PlayerSeat.WEST]).toBe(true);
   });
+
+  it('should correctly determine isInMatch based on local and multiplayer state', () => {
+    // 1. Initial / Lobby state
+    store.leaveLocalGame();
+    store.leaveMultiplayerRoom();
+    expect(store.isInMatch()).toBe(false);
+
+    // 2. Local game active
+    store.startBotFastMatch();
+    expect(store.isInMatch()).toBe(true);
+
+    // 3. Left local game
+    store.leaveLocalGame();
+    expect(store.isInMatch()).toBe(false);
+
+    // 4. In multiplayer waiting room
+    store.setRoomState({
+      roomCode: 'TEST',
+      status: 'waiting',
+      hostPlayerId: 'p1',
+      players: {},
+      seats: {
+        [PlayerSeat.NORTH]: { isBot: false, isReady: false },
+        [PlayerSeat.EAST]: { isBot: false, isReady: false },
+        [PlayerSeat.SOUTH]: { isBot: false, isReady: false },
+        [PlayerSeat.WEST]: { isBot: false, isReady: false }
+      }
+    });
+    expect(store.isInMatch()).toBe(false);
+
+    // 5. In multiplayer playing room
+    store.setRoomState({
+      roomCode: 'TEST',
+      status: 'playing',
+      hostPlayerId: 'p1',
+      players: {},
+      seats: {
+        [PlayerSeat.NORTH]: { isBot: false, isReady: true },
+        [PlayerSeat.EAST]: { isBot: false, isReady: true },
+        [PlayerSeat.SOUTH]: { isBot: false, isReady: true },
+        [PlayerSeat.WEST]: { isBot: false, isReady: true }
+      }
+    });
+    expect(store.isInMatch()).toBe(true);
+
+    // Clean up
+    store.leaveMultiplayerRoom();
+    expect(store.isInMatch()).toBe(false);
+  });
 });
 
 describe('GameStore Starting Player Logic', () => {
@@ -170,5 +219,281 @@ describe('GameStore Network State Deserialization', () => {
       }
     }
     expect(hasMoves).toBe(true);
+  });
+});
+
+describe('GameStore Rematch Validation', () => {
+  it('should allow rematch in local game', () => {
+    store.leaveLocalGame();
+    store.startBotFastMatch();
+    expect(store.getRematchMode()).toBe('available');
+    expect(store.canRematch()).toBe(true);
+  });
+
+  it('should allow rematch when 1 human takes 2 seats and 2 are bots (1B1B)', () => {
+    store.setRoomState({
+      roomCode: 'TEST',
+      hostPlayerId: 'player1',
+      status: 'playing',
+      gameStarted: true,
+      autoCardPick: true,
+      isPublic: true,
+      turnTimeLimit: 30,
+      startingPlayerIds: ['player1'],
+      players: {
+        player1: {
+          playerId: 'player1',
+          name: 'Player 1',
+          seat: PlayerSeat.NORTH,
+          team: 'A',
+          isHost: true,
+          isReady: true,
+          isOnline: true
+        }
+      },
+      seats: {
+        [PlayerSeat.NORTH]: { playerId: 'player1', name: 'Player 1', isBot: false, isReady: true },
+        [PlayerSeat.EAST]: { playerId: null, name: null, isBot: true, isReady: true },
+        [PlayerSeat.SOUTH]: { playerId: 'player1', name: 'Player 1', isBot: false, isReady: true },
+        [PlayerSeat.WEST]: { playerId: null, name: null, isBot: true, isReady: true }
+      }
+    });
+
+    expect(store.getRematchMode()).toBe('available');
+    expect(store.canRematch()).toBe(true);
+  });
+
+  it('should allow instant rematch for 11BB (1 human on North & East, 2 bots on South & West)', () => {
+    store.setRoomState({
+      roomCode: 'TEST',
+      hostPlayerId: 'player1',
+      status: 'playing',
+      gameStarted: true,
+      autoCardPick: true,
+      isPublic: true,
+      turnTimeLimit: 30,
+      startingPlayerIds: ['player1'],
+      players: {
+        player1: {
+          playerId: 'player1',
+          name: 'Player 1',
+          seat: PlayerSeat.NORTH,
+          team: 'A',
+          isHost: true,
+          isReady: true,
+          isOnline: true
+        }
+      },
+      seats: {
+        [PlayerSeat.NORTH]: { playerId: 'player1', name: 'Player 1', isBot: false, isReady: true },
+        [PlayerSeat.EAST]: { playerId: 'player1', name: 'Player 1', isBot: false, isReady: true },
+        [PlayerSeat.SOUTH]: { playerId: null, name: null, isBot: true, isReady: true },
+        [PlayerSeat.WEST]: { playerId: null, name: null, isBot: true, isReady: true }
+      }
+    });
+
+    expect(store.getRematchMode()).toBe('available');
+    expect(store.canRematch()).toBe(true);
+  });
+
+  it('should allow instant rematch for 1B1B after resignation', () => {
+    store.setRoomState({
+      roomCode: 'TEST',
+      hostPlayerId: 'player1',
+      status: 'ended',
+      gameStarted: false,
+      autoCardPick: true,
+      isPublic: true,
+      turnTimeLimit: 30,
+      startingPlayerIds: ['player1'],
+      players: {
+        player1: {
+          playerId: 'player1',
+          name: 'Player 1',
+          seat: PlayerSeat.NORTH,
+          team: 'A',
+          isHost: true,
+          isReady: true,
+          isOnline: true
+        }
+      },
+      seats: {
+        [PlayerSeat.NORTH]: { playerId: 'player1', name: 'Player 1', isBot: false, isReady: true },
+        [PlayerSeat.EAST]: { playerId: null, name: null, isBot: true, isReady: true },
+        [PlayerSeat.SOUTH]: { playerId: 'player1', name: 'Player 1', isBot: false, isReady: true },
+        [PlayerSeat.WEST]: { playerId: null, name: null, isBot: true, isReady: true }
+      }
+    });
+
+    expect(store.getRematchMode()).toBe('available');
+    expect(store.canRematch()).toBe(true);
+  });
+
+  it('should allow instant rematch for B1B1 after resignation', () => {
+    store.setRoomState({
+      roomCode: 'TEST',
+      hostPlayerId: 'player1',
+      status: 'ended',
+      gameStarted: false,
+      autoCardPick: true,
+      isPublic: true,
+      turnTimeLimit: 30,
+      startingPlayerIds: ['player1'],
+      players: {
+        player1: {
+          playerId: 'player1',
+          name: 'Player 1',
+          seat: PlayerSeat.EAST,
+          team: 'B',
+          isHost: true,
+          isReady: true,
+          isOnline: true
+        }
+      },
+      seats: {
+        [PlayerSeat.NORTH]: { playerId: null, name: null, isBot: true, isReady: true },
+        [PlayerSeat.EAST]: { playerId: 'player1', name: 'Player 1', isBot: false, isReady: true },
+        [PlayerSeat.SOUTH]: { playerId: null, name: null, isBot: true, isReady: true },
+        [PlayerSeat.WEST]: { playerId: 'player1', name: 'Player 1', isBot: false, isReady: true }
+      }
+    });
+
+    expect(store.getRematchMode()).toBe('available');
+    expect(store.canRematch()).toBe(true);
+  });
+
+  it('should disable rematch when there was 1 other human (1B2B -> startingPlayerIds length 2) and they left', () => {
+    store.setRoomState({
+      roomCode: 'TEST',
+      hostPlayerId: 'player1',
+      status: 'playing',
+      gameStarted: true,
+      autoCardPick: true,
+      isPublic: true,
+      turnTimeLimit: 30,
+      startingPlayerIds: ['player1', 'player2'],
+      players: {
+        player1: {
+          playerId: 'player1',
+          name: 'Player 1',
+          seat: PlayerSeat.NORTH,
+          team: 'A',
+          isHost: true,
+          isReady: true,
+          isOnline: true
+        },
+        player2: {
+          playerId: 'player2',
+          name: 'Player 2',
+          seat: null,
+          team: null,
+          isHost: false,
+          isReady: false,
+          isOnline: false
+        }
+      },
+      seats: {
+        [PlayerSeat.NORTH]: { playerId: 'player1', name: 'Player 1', isBot: false, isReady: true },
+        [PlayerSeat.EAST]: { playerId: null, name: null, isBot: true, isReady: true },
+        [PlayerSeat.SOUTH]: { playerId: null, name: null, isBot: false, isReady: false },
+        [PlayerSeat.WEST]: { playerId: null, name: null, isBot: true, isReady: true }
+      }
+    });
+
+    expect(store.getRematchMode()).toBe('disabled');
+    expect(store.canRematch()).toBe(false);
+  });
+
+  it('should allow rematch when 2 humans (1B2B) both remain online', () => {
+    store.setRoomState({
+      roomCode: 'TEST',
+      hostPlayerId: 'player1',
+      status: 'playing',
+      gameStarted: true,
+      autoCardPick: true,
+      isPublic: true,
+      turnTimeLimit: 30,
+      startingPlayerIds: ['player1', 'player2'],
+      players: {
+        player1: {
+          playerId: 'player1',
+          name: 'Player 1',
+          seat: PlayerSeat.NORTH,
+          team: 'A',
+          isHost: true,
+          isReady: true,
+          isOnline: true
+        },
+        player2: {
+          playerId: 'player2',
+          name: 'Player 2',
+          seat: PlayerSeat.SOUTH,
+          team: 'A',
+          isHost: false,
+          isReady: true,
+          isOnline: true
+        }
+      },
+      seats: {
+        [PlayerSeat.NORTH]: { playerId: 'player1', name: 'Player 1', isBot: false, isReady: true },
+        [PlayerSeat.EAST]: { playerId: null, name: null, isBot: true, isReady: true },
+        [PlayerSeat.SOUTH]: { playerId: 'player2', name: 'Player 2', isBot: false, isReady: true },
+        [PlayerSeat.WEST]: { playerId: null, name: null, isBot: true, isReady: true }
+      }
+    });
+
+    expect(store.getRematchMode()).toBe('available');
+    expect(store.canRematch()).toBe(true);
+  });
+
+  it('should return to lobby when there were 3+ humans (123B or 1234) and anyone left', () => {
+    store.setRoomState({
+      roomCode: 'TEST',
+      hostPlayerId: 'player1',
+      status: 'playing',
+      gameStarted: true,
+      autoCardPick: true,
+      isPublic: true,
+      turnTimeLimit: 30,
+      startingPlayerIds: ['player1', 'player2', 'player3'],
+      players: {
+        player1: {
+          playerId: 'player1',
+          name: 'Player 1',
+          seat: PlayerSeat.NORTH,
+          team: 'A',
+          isHost: true,
+          isReady: true,
+          isOnline: true
+        },
+        player2: {
+          playerId: 'player2',
+          name: 'Player 2',
+          seat: PlayerSeat.SOUTH,
+          team: 'A',
+          isHost: false,
+          isReady: true,
+          isOnline: true
+        },
+        player3: {
+          playerId: 'player3',
+          name: 'Player 3',
+          seat: null,
+          team: null,
+          isHost: false,
+          isReady: false,
+          isOnline: false
+        }
+      },
+      seats: {
+        [PlayerSeat.NORTH]: { playerId: 'player1', name: 'Player 1', isBot: false, isReady: true },
+        [PlayerSeat.EAST]: { playerId: null, name: null, isBot: false, isReady: false },
+        [PlayerSeat.SOUTH]: { playerId: 'player2', name: 'Player 2', isBot: false, isReady: true },
+        [PlayerSeat.WEST]: { playerId: null, name: null, isBot: true, isReady: true }
+      }
+    });
+
+    expect(store.getRematchMode()).toBe('return_to_lobby');
+    expect(store.canRematch()).toBe(true);
   });
 });

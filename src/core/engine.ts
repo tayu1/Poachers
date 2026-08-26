@@ -47,7 +47,8 @@ import {
   Team,
   TurnTimeLimit,
   encodeAction,
-  getPieceType
+  getPieceType,
+  charToPiece
 } from './types';
 
 export { isSeatKingAlive };
@@ -805,6 +806,10 @@ export function completePostCombat(
   combat: CombatResult,
   options?: ApplyActionOptions
 ): void {
+  if (!(combat as any).isResolved) {
+    executeCombatResolution(state, combat, options);
+  }
+
   const reqType = getRequestType(options);
   if (reqType !== BotRequestType.FAST_CALC) {
     processPostCombat(state, combat);
@@ -814,6 +819,110 @@ export function completePostCombat(
 
   const existingLastMove = state.lastMove;
   finalizeTurn(state, combat.attackerSeat, existingLastMove!, options);
+}
+
+export function executeCombatResolution(
+  state: GameState,
+  combat: CombatResult,
+  options?: ApplyActionOptions
+): { logText: string; pokerText?: string; isGameOver: boolean; winnerTeam: Team | null } {
+  if ((combat as any).isResolved) {
+    return {
+      logText: '',
+      pokerText: formatPokerComparison(combat),
+      isGameOver: state.isGameOver,
+      winnerTeam: state.winnerTeam
+    };
+  }
+  (combat as any).isResolved = true;
+
+  const reqType = getRequestType(options);
+  const isFastOrHeadless = reqType === BotRequestType.FAST_CALC || reqType === BotRequestType.HEADLESS;
+
+  const { attackerSeat, defenderSeat, attackerPosIndex: fromIndex, defenderPosIndex: toIndex, isDefenderBunkered } = combat;
+  const piece = state.board[fromIndex] || (combat as any).attackerPiece || 0;
+  const rawCaptured = state.board[toIndex] !== 0 ? state.board[toIndex] : (combat.capturedPiece ?? 0);
+  const capturedPiece: number = typeof rawCaptured === 'number' ? rawCaptured : charToPiece(rawCaptured);
+  const pType = piece & 7;
+
+  // Reveal turn and river cards
+  state.isTurnRiverRevealed = true;
+
+  const resolved = resolveCombatInternal(state, attackerSeat, defenderSeat, fromIndex, toIndex, options);
+  if (combat.winnerSeat === null || combat.winnerSeat === undefined) {
+    combat.attackerHand = resolved.attackerHand;
+    combat.defenderHand = resolved.defenderHand;
+    combat.winnerSeat = resolved.winnerSeat;
+  }
+
+  let moveType: LastMoveType = 'move';
+  let text = '';
+  let pokerText: string | undefined;
+
+  if (!isFastOrHeadless) {
+    pokerText = formatPokerComparison(combat);
+  }
+
+  if (isDefenderBunkered) {
+    state.deadPoolCounts[piece & 15]++;
+    state.board[fromIndex] = 0;
+
+    if (combat.winnerSeat === attackerSeat) {
+      moveType = 'capture';
+      if (capturedPiece !== 0) {
+        state.deadPoolCounts[capturedPiece & 15]++;
+      }
+      state.board[toIndex] = 0;
+      if (!isFastOrHeadless) {
+        text = `${formatDirectTakeText(getPieceChar(piece), getPieceChar(capturedPiece || 0), fromIndex, toIndex)} (Attacker also destroyed by Bunker Defense)`;
+      }
+    } else {
+      moveType = 'failed_attack';
+      if (!isFastOrHeadless) {
+        text = `${formatFailedCombatText(getPieceChar(piece), toIndex, fromIndex, fromIndex)} (Attacker destroyed by Bunker Defense)`;
+      }
+    }
+    update_threatMap_by_move(state.board, state.threatMap, fromIndex, toIndex);
+  } else {
+    if (combat.winnerSeat === attackerSeat) {
+      moveType = 'capture';
+      if (capturedPiece !== 0) {
+        state.deadPoolCounts[capturedPiece & 15]++;
+      }
+      state.board[toIndex] = piece & ~16;
+      state.board[fromIndex] = 0;
+      if (!isFastOrHeadless) {
+        text = formatDirectTakeText(getPieceChar(piece), getPieceChar(capturedPiece || 0), fromIndex, toIndex);
+      }
+      update_threatMap_by_move(state.board, state.threatMap, fromIndex, toIndex);
+    } else {
+      moveType = 'failed_attack';
+      let destIndex = fromIndex;
+      if (pType === 4 || pType === 3) {
+        const slideIndex = getSlidingTargetIndex(fromIndex, toIndex);
+        if (slideIndex !== fromIndex && state.board[slideIndex] === 0) {
+          state.board[slideIndex] = piece & ~16;
+          state.board[fromIndex] = 0;
+          destIndex = slideIndex;
+        }
+      }
+      if (!isFastOrHeadless) {
+        text = formatFailedCombatText(getPieceChar(piece), toIndex, fromIndex, destIndex);
+      }
+      update_threatMap_by_move(state.board, state.threatMap, fromIndex, destIndex);
+    }
+  }
+
+  const moveInfo: LastMove = { fromIndex, toIndex, type: moveType, moveId: isFastOrHeadless ? undefined : generateMoveId() };
+  state.lastMove = moveInfo;
+  state.threatenedKings = getThreatenedKings(state.board, state.threatMap);
+
+  return {
+    logText: text,
+    pokerText,
+    isGameOver: state.isGameOver,
+    winnerTeam: state.winnerTeam
+  };
 }
 
 const PIECE_CHARS_TEAM_A: (PieceType | string)[] = ['', 'P', 'N', 'B', 'R', 'K'];
@@ -886,67 +995,31 @@ export function executeTurnAction(
     combatOccurred = true;
     const defenderSeat = getPieceOwnerSeat(capturedPiece, toIndex);
     const isDefenderBunkered = (capturedPiece & 16) !== 0;
-    const combat = resolveCombatInternal(state, currentSeat, defenderSeat, fromIndex, toIndex, options);
 
-    if (!isFastOrHeadless) {
-      pokerText = formatPokerComparison(combat);
-    }
+    const combat: CombatResult = {
+      attackerSeat: currentSeat,
+      defenderSeat,
+      attackerPosIndex: fromIndex,
+      defenderPosIndex: toIndex,
+      attackerHand: FAST_CALC_DUMMY_HAND,
+      defenderHand: FAST_CALC_DUMMY_HAND,
+      winnerSeat: null,
+      capturedPiece,
+      isDefenderBunkered
+    };
+    (combat as any).attackerPiece = piece;
 
-    if (isDefenderBunkered) {
-      state.deadPoolCounts[piece & 15]++;
-      state.board[fromIndex] = 0;
-
-      if (combat.winnerSeat === currentSeat) {
-        moveType = 'capture';
-        state.deadPoolCounts[capturedPiece & 15]++;
-        state.board[toIndex] = 0;
-        if (!isFastOrHeadless) {
-          text = `${formatDirectTakeText(getPieceChar(piece), getPieceChar(capturedPiece), fromIndex, toIndex)} (Attacker also destroyed by Bunker Defense)`;
-        }
-      } else {
-        moveType = 'failed_attack';
-        if (!isFastOrHeadless) {
-          text = `${formatFailedCombatText(getPieceChar(piece), toIndex, fromIndex, fromIndex)} (Attacker destroyed by Bunker Defense)`;
-        }
-      }
-      update_threatMap_by_move(state.board, state.threatMap, fromIndex, toIndex);
-    } else {
-      if (combat.winnerSeat === currentSeat) {
-        moveType = 'capture';
-        state.deadPoolCounts[capturedPiece & 15]++;
-        state.board[toIndex] = piece & ~16;
-        state.board[fromIndex] = 0;
-        if (!isFastOrHeadless) {
-          text = formatDirectTakeText(getPieceChar(piece), getPieceChar(capturedPiece), fromIndex, toIndex);
-        }
-        update_threatMap_by_move(state.board, state.threatMap, fromIndex, toIndex);
-      } else {
-        moveType = 'failed_attack';
-        let destIndex = fromIndex;
-        if (pType === 4 || pType === 3) {
-          const slideIndex = getSlidingTargetIndex(fromIndex, toIndex);
-          if (slideIndex !== fromIndex && state.board[slideIndex] === 0) {
-            state.board[slideIndex] = piece & ~16;
-            state.board[fromIndex] = 0;
-            destIndex = slideIndex;
-          }
-        }
-        if (!isFastOrHeadless) {
-          text = formatFailedCombatText(getPieceChar(piece), toIndex, fromIndex, destIndex);
-        }
-        update_threatMap_by_move(state.board, state.threatMap, fromIndex, destIndex);
-      }
-    }
-
-    const moveInfo: LastMove = { fromIndex, toIndex, type: moveType, moveId: isFastOrHeadless ? undefined : generateMoveId() };
     if (options?.deferPostCombat) {
+      state.isTurnRiverRevealed = false;
       pendingCombatResult = combat;
       state.pendingCombat = combat;
       state.isCombatDelaying = true;
       state.threatenedKings = getThreatenedKings(state.board, state.threatMap);
-      state.lastMove = moveInfo;
+      state.lastMove = { fromIndex, toIndex, type: 'move', moveId: isFastOrHeadless ? undefined : generateMoveId() };
     } else {
-      state.lastMove = moveInfo;
+      const combatOutcome = executeCombatResolution(state, combat, options);
+      text = combatOutcome.logText;
+      pokerText = combatOutcome.pokerText;
       completePostCombat(state, combat, options);
     }
   } else {

@@ -1,5 +1,6 @@
 import { Card, GameState, PlayerSeat } from '../../core/types';
 import { GameStore } from '../../store/store';
+import { getTrenchCardIndexForSquare } from '../../core/cards';
 
 export interface TRENCHContainers {
   north: HTMLElement;
@@ -75,6 +76,20 @@ export class TrenchCardsUI {
       return holder;
     };
 
+    const createDividerV = (leftPos: string): HTMLElement => {
+      const div = document.createElement('div');
+      div.className = 'trench-divider trench-divider-v';
+      div.style.left = leftPos;
+      return div;
+    };
+
+    const createDividerH = (topPos: string): HTMLElement => {
+      const div = document.createElement('div');
+      div.className = 'trench-divider trench-divider-h';
+      div.style.top = topPos;
+      return div;
+    };
+
     const horizontalCenters = ['81px', '216px', '351px'];
     const verticalCenters = ['81px', '216px', '351px'];
 
@@ -84,6 +99,8 @@ export class TrenchCardsUI {
     northContainer.style.position = 'relative';
     northContainer.style.width = '432px';
     northContainer.style.height = '58px';
+    northContainer.appendChild(createDividerV('162px'));
+    northContainer.appendChild(createDividerV('270px'));
     [0, 1, 2].forEach((slotIdx, idx) => {
       const h = createSlotHolder(slotIdx);
       h.cardEl.style.position = 'absolute';
@@ -99,6 +116,8 @@ export class TrenchCardsUI {
     eastContainer.style.position = 'relative';
     eastContainer.style.width = '50px';
     eastContainer.style.height = '432px';
+    eastContainer.appendChild(createDividerH('162px'));
+    eastContainer.appendChild(createDividerH('270px'));
     [3, 4, 5].forEach((slotIdx, idx) => {
       const h = createSlotHolder(slotIdx);
       h.cardEl.style.position = 'absolute';
@@ -114,6 +133,8 @@ export class TrenchCardsUI {
     southContainer.style.position = 'relative';
     southContainer.style.width = '432px';
     southContainer.style.height = '58px';
+    southContainer.appendChild(createDividerV('162px'));
+    southContainer.appendChild(createDividerV('270px'));
     [8, 7, 6].forEach((slotIdx, idx) => {
       const h = createSlotHolder(slotIdx);
       h.cardEl.style.position = 'absolute';
@@ -129,6 +150,8 @@ export class TrenchCardsUI {
     westContainer.style.position = 'relative';
     westContainer.style.width = '50px';
     westContainer.style.height = '432px';
+    westContainer.appendChild(createDividerH('162px'));
+    westContainer.appendChild(createDividerH('270px'));
     [11, 10, 9].forEach((slotIdx, idx) => {
       const h = createSlotHolder(slotIdx);
       h.cardEl.style.position = 'absolute';
@@ -161,16 +184,23 @@ export class TrenchCardsUI {
 
     const winningCardIds = new Set<string>();
     let winningTeamClass = '';
+    let teamACombatSlot = -1;
+    let teamBCombatSlot = -1;
 
     if (state.pendingCombat) {
       const combat = state.pendingCombat;
-      const winnerSeat = combat.winnerSeat ?? combat.attackerSeat;
-      const winnerTeam = state.players[winnerSeat]?.team ?? 'A';
-      winningTeamClass = winnerTeam === 'A' ? 'winning-team-a' : 'winning-team-b';
+      teamACombatSlot = getTrenchCardIndexForSquare(combat.defenderPosIndex, 'A');
+      teamBCombatSlot = getTrenchCardIndexForSquare(combat.defenderPosIndex, 'B');
 
-      const winningHand = winnerSeat === combat.attackerSeat ? combat.attackerHand : combat.defenderHand;
-      if (winningHand && winningHand.winningCards) {
-        winningHand.winningCards.forEach(c => winningCardIds.add(c.id));
+      if (state.isTurnRiverRevealed && combat.winnerSeat !== null && combat.winnerSeat !== undefined) {
+        const winnerSeat = combat.winnerSeat ?? combat.attackerSeat;
+        const winnerTeam = state.players[winnerSeat]?.team ?? 'A';
+        winningTeamClass = winnerTeam === 'A' ? 'winning-team-a' : 'winning-team-b';
+
+        const winningHand = winnerSeat === combat.attackerSeat ? combat.attackerHand : combat.defenderHand;
+        if (winningHand && winningHand.winningCards) {
+          winningHand.winningCards.forEach(c => winningCardIds.add(c.id));
+        }
       }
     }
 
@@ -199,6 +229,11 @@ export class TrenchCardsUI {
                             (isRefillStage && ref.seat === activeSeat && (ref.cardIndex === state.pendingRefills[0].slot || (isEmptySlot && isRefillTargetSlot)));
       const isMildSwap = isSwapAvailable && ref.seat === state.activePlayer;
 
+      const isCombatParticipant = Boolean(state.pendingCombat)
+        ? (player.team === 'A' ? ref.cardIndex === teamACombatSlot : ref.cardIndex === teamBCombatSlot)
+        : true;
+      const isDimmed = Boolean(state.pendingCombat) && !isCombatParticipant;
+
       let highlightClass = '';
       if (isWinning) {
         highlightClass = `winning-card-highlight ${winningTeamClass}`;
@@ -206,6 +241,10 @@ export class TrenchCardsUI {
         highlightClass = 'highlight-strong-green';
       } else if (isMildSwap && !isSelected) {
         highlightClass = 'highlight-mild-swap';
+      }
+
+      if (isDimmed) {
+        highlightClass = `${highlightClass} card-dimmed`.trim();
       }
 
       if (isEmptySlot) {
