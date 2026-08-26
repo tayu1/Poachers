@@ -20,9 +20,9 @@ A 4-player, 2-team (North-South vs. East-West) turn-based board game.
 
 ## Card System (Poker Mechanics)
 
-**Setup:** Each player receives 6 cards, and picks 3 to fill the Trench Cards (leaving 3 cards in their base deck).
+**Setup:** Each player receives 6 cards, and picks 3 to fill the *Trench Cards* ( Positional Cards, used for resolving combat ).
 
-**Pre-turn Swap:** Before your move, you may swap a trench card with another or with a card from your deck.
+**Pre-turn Swap:** Before your move, you may Swap a Trench card with another or with a card from your deck.
 
 **End-turn Refill:** After your turn ends, if you have a piece standing on your half of the Hill - you get 1 card to your deck.
 
@@ -40,29 +40,28 @@ A 4-player, 2-team (North-South vs. East-West) turn-based board game.
 
 ## Resolution
 
-**Attacker Wins:** Defender is captured, attacker takes his place.
+**Attacker Wins:** A Capture. Defender's card goes to attacker.
 
-**Attacker Loses:** Attacker blocked from moving (Rooks/Bishops slide to touch the defender).
+**Attacker Loses:** Attacker move is blocked (Rooks/Bishops slide to touch the defender).
 
-**Poker Hand Draw:** Attacker wins by default.
+**Poker Hand Draw:** Attacker wins by default..
 
-**Cleanup:** All 7 used cards are discarded. 3 new public cards are revealed. Players refill their empty trench slots from their base decks and turn passes.
+**Cleanup:** Used Cards are discarded. 3 new public cards are opened. Players refill their empty trench slots and turn passes.
 
 ## Special Mechanics
 
 ### Bunkers
 
-**Bunkered Pieces** - (shown as a circle over the piece) initially set the side pawns of each player.
+**Bunkered Pieces** - (shown as a circle over the piece) initially set to the side pawns of each player.
 
 Bunkered pieces cannot move or attack, until the bunker is released.
 
-**Combat:** when attacking bunkered pieces: combat is resolved normally as explained, but the *attacking piece is captured in any case.*
+**Combat:** when attacking bunkered pieces: combat is resolved normally as explained, but the *Attacking piece is captured in any case.*
 
-**How to Change the Bunkered pieces** (counts as a turn):
+**Changing Bunkered pieces** (counts as a turn):
 
-Click a Bunkered piece twice to enter "Set Bunker Mode".
-
-Click another piece in your control (but not on the Hill) to transfer the bunker mode to the new piece, click the bunkered piece a 3rd time to release it without transferring, or click off-board to cancel.
+Click a Bunkered piece *Twice* to enter "Set Bunker Mode":
+Click another piece in your control ( *but not on the Hill* ) to transfer the bunker mode / Click the bunkered piece a 3rd time to release it without transferring / Click outside to cancel.
 
 ### Pawn Promotion / Resurrect Captured pieces
 
