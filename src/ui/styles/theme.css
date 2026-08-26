@@ -13,8 +13,8 @@
   --font-body: 'Inter', sans-serif;
 
   /* Board & Square Colors */
-  --board-light: rgb(155, 81, 24);
-  --board-dark: rgb(117, 59, 9);
+  --board-light: rgb(168, 106, 52);
+  --board-dark: rgb(124, 71, 24);
   --hill-border-color: rgba(250, 223, 149, 0.793);
   --hill-border-width: 1.5px;
   --hill-border-style: dotted;
@@ -25,45 +25,79 @@
   --trench-border-width: 1.5px;
   --trench-border-style: dotted;
 
-  /* Piece Outline & Active Highlight Controls */
-  --active-piece-team-a-color: #ffe100;
-  --active-piece-team-b-color: #00d7fd;
-  --active-piece-shadow-radius: 6px;
+  /* Active Piece Rounded Square Controls */
+  --active-piece-team-a-color: #a1935f;
+  --active-piece-team-b-color: #83a0ae;
+  --active-piece-border-width: 2px;
+  --active-piece-border-radius: 6px;
+  --active-piece-inset: 3px;
+
+  /* Chosen Origin Square (Selected Cell) Controls */
+  --selected-origin-color: #ffffff;
+  --selected-origin-team-a-color: var(--selected-origin-color);
+  --selected-origin-team-b-color: var(--selected-origin-color);
+  --selected-origin-border-width: 2.5px;
+  --selected-origin-border-radius: 6px;
+  --selected-origin-inset: 3px;
+
+  /* Chosen Target Square (Drag Hover Target) Controls */
+  --drop-target-color: var(--accent-gold);
+  --drop-target-border-width: 2.5px;
+  --drop-target-border-radius: 6px;
+  --drop-target-inset: 3px;
 
   /* Bunkered Piece Circle Controls */
   --bunker-circle-size: 24px;
-  --bunker-circle-team-a-color: rgba(255, 0, 0, 0.2);
-  --bunker-circle-team-b-color: rgba(255, 0, 0, 0.2);
+  --bunker-circle-team-a-color: rgba(255, 170, 0, 0.2);
+  --bunker-circle-team-b-color: rgba(0, 140, 255, 0.2);
   --bunker-circle-team-a-outline-color: #ffffffc9;
   --bunker-circle-team-b-outline-color: var(--bunker-circle-team-a-outline-color);
   --bunker-circle-outline-width: 2.5px;
   --bunker-circle-outline-style: dotted;
 
-  --selected-piece-outline-color: #ff00eebf;
-  --selected-piece-outline-width: 3px;
+  /* Bunker Setting Candidate Square Controls */
+  --bunker-candidate-color: #ffffffd7;
+  --bunker-candidate-border-width: 2.5px;
+  --bunker-candidate-border-style: dashed;
+  --bunker-candidate-border-radius: 5px;
+  --bunker-candidate-inset: 5px;
 
-  --threatened-king-color: #ef4444;
-  --threatened-king-outline-width: 3px;
+  /* Threatened King Piece Highlight Controls */
+  --threatened-king-color: #ff0000;
+  --threatened-king-border-width: 3px;
+  --threatened-king-border-radius: 4px;
+  --threatened-king-border-inset: 3.5px;
 
   /* Active Player Board Edge Glow Line */
-  --board-glow-line-thickness: 2px;
+  --board-glow-line-thickness: 2.5px;
   --board-glow-line-shadow-small: 6px;
   --board-glow-line-shadow-large: 14px;
 
-  /* Move & Tactical Markers (Colors & Border Thicknesses) */
-  --legal-move-color: rgba(25, 171, 101, 0.625);
-  --attack-move-color: #ff0000a1;
+  /* Move & Tactical Markers (Colors, Sizes, Border Widths & Radii) */
+  --legal-move-color: #0a5430c0;
+  --legal-move-circle-size: 16px;
+
+  /* Capture / Attack Move Target Marker Controls (Unified with King Capture) */
+  --attack-move-color: #ff0000;
   --attack-move-border-width: 3px;
-  --king-capture-color: #ef4444;
-  --king-capture-border-width: 3px;
-  --promotion-target-color: #a855f7;
+  --attack-marker-border-radius: 6px;
+  --attack-marker-inset: 3px;
+  --king-capture-color: var(--attack-move-color);
+  --king-capture-border-width: var(--attack-move-border-width);
+  --king-capture-marker-border-radius: var(--attack-marker-border-radius);
+  --king-capture-marker-inset: var(--attack-marker-inset);
+
+  /* Promotion Target Marker Controls */
+  --promotion-target-color: #ae00ffbc;
   --promotion-target-border-width: 2px;
-  --promotion-available-color: rgba(237, 71, 255, 0.657);
+  --promotion-target-border-radius: 6px;
+  --promotion-target-inset: 3px;
+  --promotion-available-color: rgb(191, 0, 255);
 
   /* Card Colors, Sizing & Border Thicknesses */
   --color-card-black: #1e293b;
   --card-suit-red-color: #c50606;
-  --bg-card-face: rgb(244, 217, 148);
+  --bg-card-face: rgb(255, 229, 162);
   --card-val-font-size: 1.3rem;
   --card-suit-font-size: 1.3rem;
   --card-border-width: 2px;
@@ -83,12 +117,6 @@
   --arrow-failed-color: rgba(245, 158, 11, 0.75);
   --arrow-failed-width: 3;
   --arrow-failed-dash: 6, 4;
-
-  /* Promotion Square Overlay */
-  --promotion-square-color: rgba(255, 255, 255, 0.18);
-  --promotion-square-border-color: rgba(255, 255, 255, 0.75);
-  --promotion-square-inset: 4px;
-  --promotion-square-border-width: 3px;
 
   /* Deadpool UI Piece Spacing Controls */
   --gap-pieces: 0px;

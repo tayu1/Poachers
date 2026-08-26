@@ -20,7 +20,7 @@ A 4-player, 2-team (North-South vs. East-West) turn-based board game.
 
 ## Card System (Poker Mechanics)
 
-**Setup:** Each player receives 5 cards, and picks 3 to fill the Trench Cards.
+**Setup:** Each player receives 6 cards, and picks 3 to fill the Trench Cards (leaving 3 cards in their base deck).
 
 **Pre-turn Swap:** Before your move, you may swap a trench card with another or with a card from your deck.
 

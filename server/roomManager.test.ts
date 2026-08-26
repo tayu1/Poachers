@@ -7,6 +7,8 @@ import {
   clearPlayerSeats,
   createEmptySeats,
   ensureAllHumansSeated,
+  findRoom,
+  generateRoomCode,
   getPublicRoomsSummary,
   getSeatAssignmentCode,
   getSeatsForPlayer,
@@ -329,5 +331,22 @@ describe('Server RoomManager - Unified Seat Management', () => {
 
     expect(startingHumans).toEqual(['p1']);
     expect(startingHumans.length).toBe(1);
+  });
+
+  it('should generate valid 4-character room codes and find rooms case-insensitively', () => {
+    const code = generateRoomCode();
+    expect(typeof code).toBe('string');
+    expect(code).toHaveLength(4);
+    expect(code).toMatch(/^[A-Z0-9]{4}$/);
+
+    const { room } = createMockRoom();
+    room.roomCode = code;
+    rooms.set(code, room);
+
+    expect(findRoom(code)).toBe(room);
+    expect(findRoom(code.toUpperCase())).toBe(room);
+    expect(findRoom(`  ${code}  `)).toBe(room);
+
+    rooms.delete(code);
   });
 });

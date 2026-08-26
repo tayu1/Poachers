@@ -313,76 +313,67 @@ export class BoardUI {
     this.container.appendChild(this.boardFrame);
   }
 
-  private renderArrow(boardFrame: HTMLElement, boardGrid: HTMLElement, move: LastMove): void {
-    const oldOverlay = boardFrame.querySelector('.last-move-arrow, .last-promotion-marker');
+  private renderArrow(boardFrame: HTMLElement, _boardGrid: HTMLElement, move: LastMove): void {
+    const oldOverlay = boardFrame.querySelector('.last-move-arrow');
     if (oldOverlay) oldOverlay.remove();
 
-    if (move.type === 'promotion' && move.hillIndex !== undefined) {
-      const hillSq = boardGrid.children[move.hillIndex] as HTMLElement | undefined;
-      if (hillSq) {
-        const marker = document.createElement('div');
-        marker.className = 'last-promotion-marker';
-        hillSq.appendChild(marker);
-      }
-    } else {
-      const moveType = move.type || 'move';
-      const markerId = `arrowhead-${moveType}`;
+    const moveType = move.type || 'move';
+    const markerId = `arrowhead-${moveType}`;
 
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('class', 'last-move-arrow');
-      svg.setAttribute('viewBox', '0 0 432 432');
-      svg.style.position = 'absolute';
-      svg.style.top = '0';
-      svg.style.left = '0';
-      svg.style.width = '100%';
-      svg.style.height = '100%';
-      svg.style.pointerEvents = 'none';
-      svg.style.zIndex = '5';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'last-move-arrow');
+    svg.setAttribute('viewBox', '0 0 432 432');
+    svg.style.position = 'absolute';
+    svg.style.top = '0';
+    svg.style.left = '0';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.pointerEvents = 'none';
+    svg.style.zIndex = '5';
 
-      let lineClass = 'last-move-line';
-      let arrowheadClass = 'last-move-arrowhead';
+    let lineClass = 'last-move-line';
+    let arrowheadClass = 'last-move-arrowhead';
 
-      if (moveType === 'capture') {
-        lineClass += ' capture-line';
-        arrowheadClass += ' capture-arrowhead';
-      } else if (moveType === 'failed_attack') {
-        lineClass += ' failed-attack-line';
-        arrowheadClass += ' failed-attack-arrowhead';
-      }
-
-      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-      marker.setAttribute('id', markerId);
-      marker.setAttribute('markerWidth', '6');
-      marker.setAttribute('markerHeight', '6');
-      marker.setAttribute('refX', '5');
-      marker.setAttribute('refY', '3');
-      marker.setAttribute('orient', 'auto');
-
-      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-      polygon.setAttribute('points', '0 0, 6 3, 0 6');
-      polygon.setAttribute('class', arrowheadClass);
-      marker.appendChild(polygon);
-      defs.appendChild(marker);
-      svg.appendChild(defs);
-
-      const fromRow = getRow(move.fromIndex);
-      const fromCol = getCol(move.fromIndex);
-      const toRow = getRow(move.toIndex);
-      const toCol = getCol(move.toIndex);
-
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('class', lineClass);
-      line.setAttribute('x1', (fromCol * 54 + 27).toString());
-      line.setAttribute('y1', (fromRow * 54 + 27).toString());
-      line.setAttribute('x2', (toCol * 54 + 27).toString());
-      line.setAttribute('y2', (toRow * 54 + 27).toString());
-      line.setAttribute('stroke-linecap', 'round');
-      line.setAttribute('marker-end', `url(#${markerId})`);
-
-      svg.appendChild(line);
-      boardFrame.appendChild(svg);
+    if (moveType === 'capture') {
+      lineClass += ' capture-line';
+      arrowheadClass += ' capture-arrowhead';
+    } else if (moveType === 'failed_attack') {
+      lineClass += ' failed-attack-line';
+      arrowheadClass += ' failed-attack-arrowhead';
     }
+
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    marker.setAttribute('id', markerId);
+    marker.setAttribute('markerWidth', '6');
+    marker.setAttribute('markerHeight', '6');
+    marker.setAttribute('refX', '5');
+    marker.setAttribute('refY', '3');
+    marker.setAttribute('orient', 'auto');
+
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    polygon.setAttribute('points', '0 0, 6 3, 0 6');
+    polygon.setAttribute('class', arrowheadClass);
+    marker.appendChild(polygon);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    const fromRow = getRow(move.fromIndex);
+    const fromCol = getCol(move.fromIndex);
+    const toRow = getRow(move.toIndex);
+    const toCol = getCol(move.toIndex);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('class', lineClass);
+    line.setAttribute('x1', (fromCol * 54 + 27).toString());
+    line.setAttribute('y1', (fromRow * 54 + 27).toString());
+    line.setAttribute('x2', (toCol * 54 + 27).toString());
+    line.setAttribute('y2', (toRow * 54 + 27).toString());
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('marker-end', `url(#${markerId})`);
+
+    svg.appendChild(line);
+    boardFrame.appendChild(svg);
   }
 
   public render(state: GameState, store: GameStore): void {
@@ -397,26 +388,56 @@ export class BoardUI {
       if (this.arrowTimer) clearTimeout(this.arrowTimer);
       this.lastAnimatedMoveKey = null;
       this.displayedArrowMove = null;
-      const oldOverlay = this.boardFrame!.querySelector('.last-move-arrow, .last-promotion-marker');
+      const oldOverlay = this.boardFrame!.querySelector('.last-move-arrow');
       if (oldOverlay) oldOverlay.remove();
     }
+
+    const isUnresolvedCombat = Boolean(
+      state.pendingCombat &&
+      (!state.isTurnRiverRevealed || state.pendingCombat.winnerSeat === null || state.pendingCombat.winnerSeat === undefined)
+    );
 
     const currentMoveKey = state.lastMove
       ? `${state.lastMove.fromIndex}->${state.lastMove.toIndex}:${state.lastMove.type || 'move'}@${state.lastMove.moveId || store.historyLength}`
       : null;
 
-    let animatableMove: LastMove | null = null;
+    let animatableTargetIndex: number | null = null;
+    let animatableFromIndex: number | null = null;
+    let capturedPieceSrcForGhost: string | null = null;
+
     if (state.lastMove && currentMoveKey !== this.lastAnimatedMoveKey) {
       this.lastAnimatedMoveKey = currentMoveKey;
-      if (
-        state.lastMove.fromIndex !== undefined &&
-        state.lastMove.toIndex !== undefined &&
-        state.lastMove.fromIndex !== state.lastMove.toIndex &&
-        state.lastMove.type !== 'failed_attack' &&
-        state.lastMove.type !== 'promotion'
-      ) {
-        animatableMove = state.lastMove;
-      } else {
+
+      if (!store.isReplaying && !isUnresolvedCombat) {
+        const moveType = state.lastMove.type || 'move';
+        const fromIdx = state.lastMove.fromIndex;
+        const toIdx = state.lastMove.toIndex;
+
+        if (moveType === 'move') {
+          if (fromIdx !== undefined && toIdx !== undefined && fromIdx !== toIdx) {
+            animatableTargetIndex = toIdx;
+            animatableFromIndex = fromIdx;
+          }
+        } else if (moveType === 'capture') {
+          if (fromIdx !== undefined && toIdx !== undefined && fromIdx !== toIdx && state.board[toIdx] !== 0) {
+            animatableTargetIndex = toIdx;
+            animatableFromIndex = fromIdx;
+
+            const rawCap = state.pendingCombat?.capturedPiece ?? null;
+            if (rawCap) {
+              capturedPieceSrcForGhost = this.getPieceSVGFilename(rawCap);
+            }
+          }
+        } else if (moveType === 'failed_attack') {
+          const destIdx = state.lastMove.destIndex;
+          if (destIdx !== undefined && fromIdx !== undefined && destIdx !== fromIdx && state.board[destIdx] !== 0) {
+            animatableTargetIndex = destIdx;
+            animatableFromIndex = fromIdx;
+          }
+        }
+      }
+
+      if (animatableTargetIndex === null) {
         if (this.arrowTimer) clearTimeout(this.arrowTimer);
         this.displayedArrowMove = state.lastMove;
       }
@@ -493,12 +514,13 @@ export class BoardUI {
         img.alt = pieceChar;
         img.style.display = 'block';
 
-        if (animatableMove && index === animatableMove.toIndex) {
-          const fromRow = getRow(animatableMove.fromIndex);
-          const fromCol = getCol(animatableMove.fromIndex);
+        if (animatableTargetIndex !== null && animatableFromIndex !== null && index === animatableTargetIndex) {
+          const fromRow = getRow(animatableFromIndex);
+          const fromCol = getCol(animatableFromIndex);
           const deltaX = (fromCol - col) * 54;
           const deltaY = (fromRow - row) * 54;
 
+          img.style.transition = 'none';
           img.style.transform = `translate(${deltaX}px, ${deltaY}px) rotate(-${store.boardRotationAngle}deg)`;
           img.style.willChange = 'transform';
           img.style.zIndex = '20';
@@ -508,11 +530,12 @@ export class BoardUI {
           const targetAngle = store.boardRotationAngle;
           requestAnimationFrame(() => {
             if (!img.isConnected) return;
-            img.style.transition = 'transform 0.22s cubic-bezier(0.2, 0, 0.2, 1)';
-            img.style.transform = `rotate(-${targetAngle}deg)`;
+            img.style.transition = 'transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1)';
+            img.style.transform = `translate(0px, 0px) rotate(-${targetAngle}deg)`;
 
             const handleTransitionEnd = () => {
-              img.style.transition = '';
+              img.style.transition = 'none';
+              img.style.transform = `rotate(-${targetAngle}deg)`;
               img.style.willChange = '';
               img.style.zIndex = '';
               img.removeEventListener('transitionend', handleTransitionEnd);
@@ -520,15 +543,39 @@ export class BoardUI {
             img.addEventListener('transitionend', handleTransitionEnd);
           });
         } else {
+          img.style.transition = 'none';
           img.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
         }
       } else {
         img.style.display = 'none';
+        img.style.transition = 'none';
       }
 
       // Fast in-place marker removal without querySelectorAll overhead
       while (sq.childNodes.length > 1) {
         sq.removeChild(sq.lastChild!);
+      }
+
+      // If this square is the capture destination, display the captured piece ghost that collapses on impact
+      if (animatableTargetIndex === index && capturedPieceSrcForGhost) {
+        const ghost = document.createElement('img');
+        ghost.src = capturedPieceSrcForGhost;
+        ghost.className = 'captured-piece-ghost';
+        ghost.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
+        ghost.style.transition = 'opacity 0.26s ease-out, transform 0.26s ease-out';
+        sq.appendChild(ghost);
+
+        const targetAngle = store.boardRotationAngle;
+        requestAnimationFrame(() => {
+          if (!ghost.isConnected) return;
+          ghost.style.opacity = '0';
+          ghost.style.transform = `rotate(-${targetAngle}deg) scale(0.5)`;
+          setTimeout(() => {
+            if (ghost.parentElement) {
+              ghost.remove();
+            }
+          }, 280);
+        });
       }
 
       const isBunkered = (piece & 16) !== 0;
@@ -569,11 +616,7 @@ export class BoardUI {
           isKingCapture = Boolean((targetMove as Move).isKingCapture);
         }
 
-        if (isKingCapture) {
-          const marker = document.createElement('div');
-          marker.className = 'king-capture-marker';
-          sq.appendChild(marker);
-        } else if (isAttack) {
+        if (isKingCapture || isAttack) {
           const marker = document.createElement('div');
           marker.className = 'attack-marker';
           sq.appendChild(marker);
@@ -613,8 +656,12 @@ export class BoardUI {
       }
     }
 
-    if (animatableMove) {
+    if (animatableTargetIndex !== null) {
       if (this.arrowTimer) clearTimeout(this.arrowTimer);
+      this.displayedArrowMove = null;
+      const oldOverlay = this.boardFrame!.querySelector('.last-move-arrow');
+      if (oldOverlay) oldOverlay.remove();
+
       const newMoveForArrow = state.lastMove;
       this.arrowTimer = setTimeout(() => {
         this.displayedArrowMove = newMoveForArrow;
@@ -623,7 +670,7 @@ export class BoardUI {
             this.renderArrow(this.boardFrame, this.boardGrid, newMoveForArrow);
           }
         }
-      }, 220);
+      }, 280);
     }
 
     if (this.displayedArrowMove) {

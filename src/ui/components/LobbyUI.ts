@@ -1,4 +1,5 @@
 import { DEFAULT_TURN_TIME_LIMIT } from '../../config';
+import { generateLobbyName } from '../../core/lobbyNames';
 import { PlayerSeat } from '../../core/types';
 import { RoomState } from '../../net/events';
 import { socketClient } from '../../net/socketClient';
@@ -122,7 +123,12 @@ export class LobbyUI {
   }
 
   private renderAuthView(store: GameStore): void {
-    const defaultName = localStorage.getItem('poachers_player_name') || 'Tactician 1';
+    let savedName = localStorage.getItem('poachers_player_name');
+    if (!savedName) {
+      savedName = generateLobbyName();
+      localStorage.setItem('poachers_player_name', savedName);
+    }
+    const defaultName = savedName;
 
     this.container.innerHTML = `
       <div class="lobby-backdrop">
@@ -196,7 +202,7 @@ export class LobbyUI {
       codeInput.addEventListener('input', (e) => {
         const val = (e.target as HTMLInputElement).value.toUpperCase();
         this.roomCodeInputVal = val;
-        if (val === 'BOT') {
+        if (val.trim() === 'BOT') {
           store.startBotFastMatch();
         }
       });
@@ -219,7 +225,7 @@ export class LobbyUI {
       btn.addEventListener('click', async (e) => {
         const targetCode = (e.currentTarget as HTMLElement).getAttribute('data-code');
         if (targetCode) {
-          const name = nameInput?.value.trim() || 'Player';
+          const name = nameInput?.value.trim() || defaultName;
           localStorage.setItem('poachers_player_name', name);
           await socketClient.joinRoom(targetCode, name);
         }
@@ -229,7 +235,7 @@ export class LobbyUI {
     const btnCreate = this.container.querySelector('#btn-create-room');
     if (btnCreate) {
       btnCreate.addEventListener('click', async () => {
-        const name = nameInput?.value.trim() || 'Player';
+        const name = nameInput?.value.trim() || defaultName;
         const isPublic = chkPublic ? chkPublic.checked : true;
         localStorage.setItem('poachers_player_name', name);
         await socketClient.createRoom(name, isPublic);
@@ -239,13 +245,13 @@ export class LobbyUI {
     const btnJoin = this.container.querySelector('#btn-join-room');
     if (btnJoin) {
       btnJoin.addEventListener('click', async () => {
-        const name = nameInput?.value.trim() || 'Player';
+        const name = nameInput?.value.trim() || defaultName;
         const code = codeInput?.value.trim().toUpperCase();
         if (code === 'BOT') {
           store.startBotFastMatch();
           return;
         }
-        if (!code) {
+        if (!code || code.length !== 4) {
           store.setNetError('Please enter a valid 4-letter room code.');
           return;
         }

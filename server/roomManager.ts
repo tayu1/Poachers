@@ -5,7 +5,15 @@ import { PlayerSeat, Team } from '../src/core/types';
 import { ClientToServerEvents, PublicRoomSummary, RoomPlayerInfo, RoomSeatSlot, RoomState, ServerToClientEvents } from '../src/net/events';
 import { ServerPlayer, ServerRoom } from './types';
 
+import { generateLobbyName } from '../src/core/lobbyNames';
+
 export const rooms = new Map<string, ServerRoom>();
+
+export function findRoom(code: string): ServerRoom | undefined {
+  if (!code) return undefined;
+  const trimmed = code.trim();
+  return rooms.get(trimmed.toLowerCase()) || rooms.get(trimmed) || rooms.get(trimmed.toUpperCase());
+}
 
 export function getSeatTeam(seat: PlayerSeat): Team {
   return seat === PlayerSeat.NORTH || seat === PlayerSeat.SOUTH ? 'A' : 'B';

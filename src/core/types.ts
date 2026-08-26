@@ -250,6 +250,8 @@ export interface LastMove {
   type?: LastMoveType;
   /** Populated only when type === 'promotion' — the hill square index. */
   hillIndex?: number;
+  /** Populated when failed_attack results in sliding piece advancing to an intermediate square. */
+  destIndex?: number;
   moveId?: string;
 }
 

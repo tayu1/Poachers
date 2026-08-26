@@ -90,7 +90,7 @@ export function popBestPokerRefillCard(
 }
 
 export function dealInitialPlayerCards(deck: Card[]): { baseDeck: Card[]; trenchCards: [Card | null, Card | null, Card | null] } {
-  const baseDeck = deck.splice(0, 5);
+  const baseDeck = deck.splice(0, 6);
   const trenchCards: [Card | null, Card | null, Card | null] = [null, null, null];
   return { baseDeck, trenchCards };
 }

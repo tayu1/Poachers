@@ -856,6 +856,7 @@ export function executeCombatResolution(
   }
 
   let moveType: LastMoveType = 'move';
+  let failedAttackDestIndex: number | undefined = undefined;
   let text = '';
   let pokerText: string | undefined;
 
@@ -906,6 +907,9 @@ export function executeCombatResolution(
           destIndex = slideIndex;
         }
       }
+      if (destIndex !== fromIndex) {
+        failedAttackDestIndex = destIndex;
+      }
       if (!isFastOrHeadless) {
         text = formatFailedCombatText(getPieceChar(piece), toIndex, fromIndex, destIndex);
       }
@@ -913,7 +917,13 @@ export function executeCombatResolution(
     }
   }
 
-  const moveInfo: LastMove = { fromIndex, toIndex, type: moveType, moveId: isFastOrHeadless ? undefined : generateMoveId() };
+  const moveInfo: LastMove = {
+    fromIndex,
+    toIndex,
+    destIndex: failedAttackDestIndex,
+    type: moveType,
+    moveId: isFastOrHeadless ? undefined : generateMoveId()
+  };
   state.lastMove = moveInfo;
   state.threatenedKings = getThreatenedKings(state.board, state.threatMap);
 

@@ -65,12 +65,12 @@ export function buildPieceRow(
     if (idx > 0) {
       if (sameType) {
         if (pType === 1) {
-          wrapper.style.marginLeft = 'var(--gap-pawns, var(--gap_pawns, -18px))';
+          wrapper.style.marginLeft = 'var(--gap-pawns, -18px)';
         } else {
-          wrapper.style.marginLeft = 'var(--gap-similar-piece, var(--gap_similar_pice, -14px))';
+          wrapper.style.marginLeft = 'var(--gap-similar-piece, -14px)';
         }
       } else {
-        wrapper.style.marginLeft = 'var(--gap-pieces, var(--gap_pieces, 4px))';
+        wrapper.style.marginLeft = 'var(--gap-pieces, 0px)';
       }
     }
 

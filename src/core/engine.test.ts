@@ -27,9 +27,9 @@ describe('Core Engine & Combat Integration', () => {
       }
     });
     expect(state.setupState.inSetup).toBe(true);
-    expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(5);
+    expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(6);
 
-    // North selects 3 cards from the 5 base deck cards
+    // North selects 3 cards from the 6 base deck cards
     applyAction(state, {
       type: 'TRENCH_SELECT',
       input1: PlayerSeat.NORTH,
@@ -38,7 +38,7 @@ describe('Core Engine & Combat Integration', () => {
 
     expect(state.setupState.setupCompletedSeats).toContain(PlayerSeat.NORTH);
     expect(state.players[PlayerSeat.NORTH].trenchCards.every(c => c !== null)).toBe(true);
-    expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(2);
+    expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(3);
   });
 
   it('should correctly handle combat deferral and post-combat resolution', () => {
@@ -152,7 +152,7 @@ describe('Core Engine & Combat Integration', () => {
     it('should grant a hill card reward to active player on turn end when occupying hill', () => {
       const state = createInitialGameState({ skipSetup: true });
       expect(state.activePlayer).toBe(PlayerSeat.NORTH);
-      const initialNorthDeckCount = state.players[PlayerSeat.NORTH].baseDeck.length; // 2
+      const initialNorthDeckCount = state.players[PlayerSeat.NORTH].baseDeck.length; // 3
       const initialMainDeckCount = state.deck.length;
 
       // Place a piece on square 27 for North
@@ -362,7 +362,7 @@ describe('Core Engine & Combat Integration', () => {
       // North pawn on square 19
       state.board[19] = 1;
 
-      const initialNorthDeckCount = state.players[PlayerSeat.NORTH].baseDeck.length; // 2
+      const initialNorthDeckCount = state.players[PlayerSeat.NORTH].baseDeck.length; // 3
 
       // North attacks hill square 27 from square 19
       const result = applyAction(state, {

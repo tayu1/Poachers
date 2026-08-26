@@ -12,7 +12,7 @@ import { PlayerSeat } from '../src/core/types';
 import { ClientToServerEvents, ServerToClientEvents } from '../src/net/events';
 
 import { checkAndAutoStartMatch, clearTurnTimeout, startMatch, startTurnTimeout, triggerBotTurnIfNeeded } from './gameLoop';
-import { assignInitialHostSeats, assignSeat, autoAssignSeat, broadcastPublicRooms, clearPlayerSeats, createEmptySeats, emitGameStateToRoom, ensureAllHumansSeated, generateRoomCode, getPublicRoomsSummary, getSeatTeam, getSeatsForPlayer, rooms, sanitizeGameStateForClient, serializeRoomState, toggleBot } from './roomManager';
+import { assignInitialHostSeats, assignSeat, autoAssignSeat, broadcastPublicRooms, clearPlayerSeats, createEmptySeats, emitGameStateToRoom, ensureAllHumansSeated, findRoom, generateRoomCode, getPublicRoomsSummary, getSeatTeam, getSeatsForPlayer, rooms, sanitizeGameStateForClient, serializeRoomState, toggleBot } from './roomManager';
 
 import { ServerPlayer, ServerRoom } from './types';
 
@@ -116,13 +116,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join_room', ({ roomCode, playerName, playerId: existingId }, callback) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
 
     if (!room) {
       if (callback) callback({ success: false, error: 'Room not found' });
       return;
     }
+    const code = room.roomCode;
 
     let playerId = existingId;
     let player: ServerPlayer | undefined;
@@ -177,8 +177,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('reconnect_session', ({ roomCode, playerId }, callback) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
+    const code = room ? room.roomCode : (roomCode || '').trim();
 
     // Cancel any pending grace-period cleanup — player is back
     const pendingTimer = roomCleanupTimers.get(code);
@@ -218,12 +218,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('select_seat', ({ roomCode, playerId, seat }, callback) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (!room) {
       if (callback) callback({ success: false, error: 'Room not found' });
       return;
     }
+    const code = room.roomCode;
 
     const res = assignSeat(room, playerId, seat);
     if (!res.success) {
@@ -239,12 +239,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('toggle_bot_seat', ({ roomCode, playerId, seat }, callback) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (!room) {
       if (callback) callback({ success: false, error: 'Room not found' });
       return;
     }
+    const code = room.roomCode;
 
     const res = toggleBot(room, playerId, seat);
     if (!res.success) {
@@ -260,9 +260,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('toggle_public', ({ roomCode, playerId }) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (room && room.hostPlayerId === playerId) {
+      const code = room.roomCode;
       room.isPublic = !room.isPublic;
       io.to(code).emit('room_state_update', serializeRoomState(room));
       broadcastPublicRooms(io);
@@ -270,9 +270,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('toggle_turn_time_limit', ({ roomCode, playerId }) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (room && room.hostPlayerId === playerId && room.status === 'lobby') {
+      const code = room.roomCode;
       const currIdx = TURN_TIME_LIMIT_OPTIONS.indexOf((room.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT) as TurnTimeLimit);
       const nextIdx = currIdx === -1 ? 0 : (currIdx + 1) % TURN_TIME_LIMIT_OPTIONS.length;
       room.turnTimeLimit = TURN_TIME_LIMIT_OPTIONS[nextIdx];
@@ -281,21 +281,21 @@ io.on('connection', (socket) => {
   });
 
   socket.on('toggle_auto_card_pick', ({ roomCode }) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (room) {
+      const code = room.roomCode;
       room.autoCardPick = !room.autoCardPick;
       io.to(code).emit('room_state_update', serializeRoomState(room));
     }
   });
 
   socket.on('toggle_ready', ({ roomCode, playerId }, callback) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (!room) {
       if (callback) callback({ success: false, error: 'Room not found' });
       return;
     }
+    const code = room.roomCode;
 
     const player = room.players.get(playerId);
     if (!player) {
@@ -319,12 +319,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('start_game', ({ roomCode, playerId }, callback) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (!room) {
       if (callback) callback({ success: false, error: 'Room not found' });
       return;
     }
+    const code = room.roomCode;
 
     const player = room.players.get(playerId);
     if (!player || !player.isHost) {
@@ -367,9 +367,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('game_action', ({ roomCode, playerId, action }) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (!room || !room.gameState || room.status !== 'playing') return;
+    const code = room.roomCode;
 
     const player = room.players.get(playerId);
     if (!player) return;
@@ -521,9 +521,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('request_rematch', ({ roomCode, playerId }) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (!room) return;
+    const code = room.roomCode;
 
     const player = room.players.get(playerId);
     if (!player) return;
@@ -581,9 +581,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('accept_rematch', ({ roomCode, playerId }) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (!room || !room.rematchOffer) return;
+    const code = room.roomCode;
 
     const player = room.players.get(playerId);
     if (!player) return;
@@ -605,9 +605,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('reset_match', ({ roomCode, playerId }) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (!room) return;
+    const code = room.roomCode;
 
     const player = room.players.get(playerId);
     if (!player || !player.isHost) return;
@@ -639,9 +639,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('leave_room', ({ roomCode, playerId }) => {
-    const code = roomCode.toUpperCase();
-    const room = rooms.get(code);
+    const room = findRoom(roomCode);
     if (!room) return;
+    const code = room.roomCode;
 
     room.players.delete(playerId);
     clearPlayerSeats(room, playerId);
