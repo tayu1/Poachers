@@ -13,7 +13,7 @@ interface BaseCardElementHolder {
 export class BaseDeckUI {
   private container: HTMLElement;
   private onBaseCardClick: (index: number) => void;
-  private onPromoteClick: (piece: PieceType) => void;
+  private onPromoteClick: (piece: PieceType | number) => void;
 
   // Cached DOM elements
   private mainWrapper: HTMLElement | null = null;
@@ -27,7 +27,7 @@ export class BaseDeckUI {
   constructor(
     container: HTMLElement,
     onBaseCardClick: (index: number) => void,
-    onPromoteClick: (piece: PieceType) => void
+    onPromoteClick: (piece: PieceType | number) => void
   ) {
     this.container = container;
     this.onBaseCardClick = onBaseCardClick;
@@ -221,13 +221,13 @@ export class BaseDeckUI {
     }
 
     const validPromoOptions = getValidPromotionOptions(state, activePlayerSeat);
-    const uniquePromoPieces: number[] = [];
+    const uniquePromoPieces: (PieceType | number)[] = [];
     const seenPieces = new Set<number>();
     for (const opt of validPromoOptions) {
       const pType = getPieceType(opt.promotedPiece);
       if (pType !== 0 && !seenPieces.has(pType)) {
         seenPieces.add(pType);
-        uniquePromoPieces.push(pType);
+        uniquePromoPieces.push(opt.promotedPiece);
       }
     }
 
@@ -235,7 +235,7 @@ export class BaseDeckUI {
       this.promoWrapper.innerHTML = '';
       this.promoWrapper.style.display = 'flex';
 
-      const canPromoteSet = new Set(uniquePromoPieces);
+      const canPromoteSet = new Set(uniquePromoPieces.map(p => getPieceType(p)));
       const teamColor = activePlayerState.team === 'A' ? 'var(--accent-gold)' : 'var(--accent-cyan)';
 
       const pieceRow = buildPieceRow(
@@ -244,7 +244,8 @@ export class BaseDeckUI {
         (piece: any) => this.onPromoteClick(piece),
         store.selectedPromotionPiece,
         teamColor,
-        canPromoteSet
+        canPromoteSet,
+        activePlayerState.team
       );
       this.promoWrapper.appendChild(pieceRow);
     } else if (this.promoWrapper) {

@@ -179,4 +179,109 @@ describe('TurnManager State Machine', () => {
     // Turn deadline should remain null because game is idle in lobby
     expect(store.turnEndsAt).toBeNull();
   });
+
+  it('should record a frame and add "card swap" logbook entry for CARD_SWAP', () => {
+    const store = new GameStore();
+    const mockOverlays: any = {
+      showGameOver: vi.fn(),
+      hideAll: vi.fn()
+    };
+
+    const tm = new TurnManager(store, mockOverlays);
+    expect(store.historyLength).toBe(0);
+    expect(store.logs.length).toBe(0);
+
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+
+    // Swap North trench card 0 with base card 0 (slot 3)
+    tm.dispatchAction({ type: 'CARD_SWAP', input1: 0, input2: 3 });
+
+    expect(store.historyLength).toBe(1); // Frame 0 added
+    expect(store.logs.length).toBe(1); // 1 log entry added
+    expect(store.logs[0].text).toBe('card swap');
+    expect(store.logs[0].historyIndex).toBe(0);
+
+    // Now make a move
+    state.board[8] = 1; // North pawn
+    tm.dispatchAction({ type: 'MOVE', input1: 8, input2: 16 });
+
+    expect(store.historyLength).toBe(2); // Frame 1 added
+    expect(store.logs.length).toBe(2); // 2 log entries
+    expect(store.logs[1].historyIndex).toBe(1); // Associated with move frame
+  });
+
+  it('should associate combat log entry with the resolved combat frame and add "card refill" log entry for post-combat', () => {
+    vi.useFakeTimers();
+    const store = new GameStore();
+    const mockOverlays: any = {
+      showGameOver: vi.fn(),
+      hideAll: vi.fn()
+    };
+
+    const tm = new TurnManager(store, mockOverlays);
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+
+    // Set up attack move from 8 to 16
+    state.board[8] = 1; // North pawn
+    state.board[16] = 2; // East pawn
+
+    expect(store.historyLength).toBe(0);
+
+    tm.dispatchAction({ type: 'MOVE', input1: 8, input2: 16 }, { deferPostCombat: true });
+
+    // During river delay, no new log entry yet
+    expect(store.logs.length).toBe(0);
+
+    // Advance through TURN_RIVER_DELAY_MS (1200ms)
+    vi.advanceTimersByTime(1250);
+
+    // Resolved combat frame recorded & combat log added
+    expect(store.logs.length).toBe(1);
+    const combatLog = store.logs[0];
+    const resolvedFrameIdx = combatLog.historyIndex;
+    expect(resolvedFrameIdx).toBe(0); // Frame 0 is the resolved combat frame
+
+    // Scrubbing to combat log frame shows river revealed
+    store.scrubToHistoryIndex(resolvedFrameIdx);
+    const resolvedState = store.getState();
+    expect(resolvedState.isTurnRiverRevealed).toBe(true);
+    expect(resolvedState.lastMove).not.toBeNull();
+    expect(resolvedState.lastMove?.type).toBe('capture');
+
+    // Advance through POST_COMBAT_DELAY_MS (2800ms)
+    vi.advanceTimersByTime(2900);
+
+    // Post-combat frame & "card refill" log entry added
+    expect(store.historyLength).toBe(2); // Frame 1 is post-combat card refill
+    expect(store.logs.length).toBe(2); // 2 log entries: combat log + card refill
+    expect(store.logs[1].text).toBe('card refill');
+    expect(store.logs[1].historyIndex).toBe(1);
+
+    vi.useRealTimers();
+  });
+
+  it('should format timer up random moves with normal notation and (timer) suffix', () => {
+    const store = new GameStore();
+    const mockOverlays: any = {
+      showGameOver: vi.fn(),
+      hideAll: vi.fn()
+    };
+
+    const tm = new TurnManager(store, mockOverlays);
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.board[8] = 1; // North Pawn
+    state.board[16] = 0; // Empty target square
+
+    // Simulate timeout by dispatching with logSuffix: ' (timer)'
+    tm.dispatchAction({ type: 'MOVE', input1: 8, input2: 16 }, { logSuffix: ' (timer)' });
+
+    expect(store.logs.length).toBe(1);
+    expect(store.logs[0].text).toBe('P : a7 -> a6 (timer)');
+  });
 });

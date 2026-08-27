@@ -2,7 +2,7 @@ import { DEFAULT_BOT_PROFILE, getBestBotAction } from '../bot/bot';
 import { DEFAULT_TURN_TIME_LIMIT, POST_COMBAT_DELAY_MS, TURN_RIVER_DELAY_MS } from '../config';
 import { applyAction, completePostCombat, executeCombatResolution, getRandomLegalAction, executeTrenchSingleCardSelect, GameAction } from '../core/engine';
 import { getSeatCode } from '../core/notation';
-import { actionIntToGameAction, GameState, PlayerSeat, Team, TurnPhase } from '../core/types';
+import { actionIntToGameAction, ActionType, GameState, PlayerSeat, Team, TurnPhase } from '../core/types';
 import { socketClient } from '../net/socketClient';
 import { GameStore } from '../store/store';
 import { OverlaysUI } from '../ui/components/OverlaysUI';
@@ -51,7 +51,7 @@ export class TurnManager {
 
   public dispatchAction(
     action: GameAction | number,
-    opts?: { deferPostCombat?: boolean; logPrefix?: string; skipLog?: boolean; botStrategies?: any }
+    opts?: { deferPostCombat?: boolean; logPrefix?: string; logSuffix?: string; skipLog?: boolean; botStrategies?: any }
   ): void {
     const state = this.store.getState();
 
@@ -68,12 +68,29 @@ export class TurnManager {
     const seat = getSeatCode(state.activePlayer);
     const deferPostCombat = opts?.deferPostCombat ?? false;
 
+    const isCardSwap = typeof action === 'number'
+      ? (action >>> 20) === ActionType.CARD_SWAP
+      : action.type === 'CARD_SWAP' || action.type === ActionType.CARD_SWAP;
+
     const result = applyAction(state, action, {
       botSeats: this.store.botSeats,
       autoCardPick: this.store.autoCardPick,
       botStrategies: opts?.botStrategies,
       deferPostCombat
     });
+
+    if (isCardSwap) {
+      this.phase = TurnPhase.AWAITING_INPUT;
+      this.store.recordSnapshot();
+      this.store.addLogEntry({
+        turnNumber: turnNum,
+        seat,
+        text: 'card swap'
+      });
+      this.store.triggerUIUpdate();
+      this.syncTurn(this.store.getState());
+      return;
+    }
 
     if (result.combatOccurred && result.pendingCombat) {
       const combat = result.pendingCombat;
@@ -89,7 +106,6 @@ export class TurnManager {
         this.botTimer = null;
       }
 
-      this.store.recordSnapshot();
       this.store.triggerUIUpdate();
 
       // Step 1: Wait for turnriver_delay before opening Turn/River & resolving combat
@@ -101,16 +117,19 @@ export class TurnManager {
           autoCardPick: this.store.autoCardPick
         });
 
+        // Record the resolved combat snapshot (during post combat delay, before cards are cleared)
+        this.store.recordSnapshot();
+
         if (!opts?.skipLog) {
           const prefix = opts?.logPrefix ?? '';
+          const suffix = opts?.logSuffix ?? '';
           this.store.addLogEntry({
             turnNumber: turnNum,
             seat,
-            text: prefix + combatOutcome.logText,
+            text: prefix + combatOutcome.logText + suffix,
             pokerText: combatOutcome.pokerText
           });
         }
-        this.store.recordSnapshot();
         this.store.triggerUIUpdate();
 
         // Step 2: Wait for combat delay before completing post-combat
@@ -128,7 +147,13 @@ export class TurnManager {
             this.handleGameOver(freshState2.winnerTeam);
           }
 
+          // Frame and log entry for post-combat card refill
           this.store.recordSnapshot();
+          this.store.addLogEntry({
+            turnNumber: turnNum,
+            seat,
+            text: 'card refill'
+          });
           this.store.triggerUIUpdate();
           this.syncTurn(this.store.getState());
         });
@@ -146,10 +171,11 @@ export class TurnManager {
     if (!opts?.skipLog) {
       this.store.recordSnapshot();
       const prefix = opts?.logPrefix ?? '';
+      const suffix = opts?.logSuffix ?? '';
       this.store.addLogEntry({
         turnNumber: turnNum,
         seat,
-        text: prefix + result.logText,
+        text: prefix + result.logText + suffix,
         pokerText: result.pokerText
       });
     } else {
@@ -314,14 +340,15 @@ export class TurnManager {
       const currentSeat = this.store.timerActiveSeat;
 
       if (currentState.setupState?.inSetup) {
+        this.isExecutingTimeout = false;
         const player = currentState.players[currentSeat];
         if (player && player.baseDeck.length > 0) {
           executeTrenchSingleCardSelect(currentState, currentSeat, 0, this.store.botSeats);
-          this.store.recordSnapshot();
           this.store.triggerUIUpdate();
           this.syncTurn(this.store.getState());
         }
       } else if (currentState.pendingRefills.length > 0) {
+        this.isExecutingTimeout = false;
         const activeRefill = currentState.pendingRefills[0];
         const player = currentState.players[activeRefill.seat];
         if (player && player.baseDeck.length > 0) {
@@ -333,14 +360,12 @@ export class TurnManager {
         }
       } else {
         const randomAction = getRandomLegalAction(currentState, currentSeat);
+        this.isExecutingTimeout = false;
         this.dispatchAction(randomAction, {
           deferPostCombat: true,
-          logPrefix: '⏱️ Time Out: '
+          logSuffix: ' (timer)'
         });
       }
-
-      this.isExecutingTimeout = false;
-      this.syncTurn(this.store.getState());
     }
   }
 
@@ -394,12 +419,9 @@ export class TurnManager {
         [PlayerSeat.WEST]: DEFAULT_BOT_PROFILE.trenchStrategy
       };
 
-      const isLoggableAction = actionToDispatch.type === 'MOVE' || actionToDispatch.type === 'PROMOTION' || actionToDispatch.type === 'SKIP_TURN' || actionToDispatch.type === 'SET_BUNKER';
-
       this.dispatchAction(actionToDispatch, {
         deferPostCombat: true,
-        botStrategies,
-        skipLog: !isLoggableAction
+        botStrategies
       });
     }, this.store.botSpeedMs);
   }

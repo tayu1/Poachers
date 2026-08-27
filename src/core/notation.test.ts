@@ -44,25 +44,29 @@ describe('Log Book Notation Formatter', () => {
   });
 
   it('should format standard non-combat move', () => {
-    expect(formatStandardMoveText('P', 52, 36)).toBe('P : e2 -> e4.');
-    expect(formatStandardMoveText('n' as any, 1, 18)).toBe('N : b8 -> c6.');
+    expect(formatStandardMoveText('P', 52, 36)).toBe('P : e2 -> e4');
+    expect(formatStandardMoveText('n' as any, 1, 18)).toBe('N : b8 -> c6');
   });
 
   it('should format direct capture', () => {
-    expect(formatDirectTakeText('n' as any, 'P', 21, 28)).toBe('N : Takes(P) : f6 -> e5.');
-    expect(formatDirectTakeText('R', 'K', 0, 7)).toBe('R : Takes(K) : a8 -> h8.');
+    expect(formatDirectTakeText('n' as any, 'P', 21, 28)).toBe('N : Takes(P) : f6 -> e5');
+    expect(formatDirectTakeText('R', 'K', 0, 7)).toBe('R : Takes(K) : a8 -> h8');
+    expect(formatDirectTakeText('P', 'N', 52, 36, true)).toBe('P : Takes(N) : e2 -> e4(X)');
+    expect(formatDirectTakeText('P', 'N', 44, 36, true)).toBe('P : Takes(N) : e3 -> e4(X)');
   });
 
   it('should format failed combat attack for sliding and in-place pieces', () => {
     // Rook slide attack: a5 (24) -> c5 (26), defender at e5 (28)
-    expect(formatFailedCombatText('R', 28, 24, 26)).toBe('R : failed(e5) : a5 -> c5.');
+    expect(formatFailedCombatText('R', 28, 24, 26)).toBe('R : failed(e5) : a5 -> c5');
     // Pawn in-place attack: a5 (24) -> a5 (24), defender at e5 (28)
-    expect(formatFailedCombatText('P', 28, 24, 24)).toBe('P : failed(e5) : a5 -> a5.');
+    expect(formatFailedCombatText('P', 28, 24, 24)).toBe('P : failed(e5) : a5 -> a5');
+    // Attack against bunker destroyed: e3 (44) attacking defender at e4 (36)
+    expect(formatFailedCombatText('P', 36, 44, 44, true)).toBe('P : failed(e4) : e3 -> e3(X)');
   });
 
   it('should format pawn promotion', () => {
-    expect(formatPromotionText('R', 35)).toBe('R : Promotion -> d4.');
-    expect(formatPromotionText('N', 28)).toBe('N : Promotion -> e5.');
+    expect(formatPromotionText('R', 35)).toBe('R : Promotion -> d4');
+    expect(formatPromotionText('N', 28)).toBe('N : Promotion -> e5');
   });
 
   it('should format poker hand cards and comparison line', () => {

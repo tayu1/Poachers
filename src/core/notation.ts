@@ -208,59 +208,65 @@ export function formatPokerComparison(combat: CombatResult): string {
 }
 
 /**
- * Format: [Piece] : [OriginSquare] -> [TargetSquare].
- * Example: P : e2 -> e4.
+ * Format: [Piece] : [OriginSquare] -> [TargetSquare]
+ * Example: P : e2 -> e4
  */
 export function formatStandardMoveText(piece: PieceType, fromIndex: number, toIndex: number): string {
   const p = getPieceCode(piece);
   const from = indexToAlgebraic(fromIndex);
   const to = indexToAlgebraic(toIndex);
-  return `${p} : ${from} -> ${to}.`;
+  return `${p} : ${from} -> ${to}`;
 }
 
 /**
- * Format: [Piece] : Takes([CapturedPieceType]) : [OriginSquare] -> [TargetSquare].
- * Example: N : Takes(P) : f3 -> e5.
+ * Format: [Piece] : Takes([CapturedPieceType]) : [OriginSquare] -> [TargetSquare]
+ * Example: N : Takes(P) : f3 -> e5
+ * Example with Bunker: N : Takes(P) : f3 -> e5(X)
  */
 export function formatDirectTakeText(
   piece: PieceType,
   capturedPiece: PieceType,
   fromIndex: number,
-  toIndex: number
+  toIndex: number,
+  isBunkered?: boolean
 ): string {
   const p = getPieceCode(piece);
   const cap = getPieceCode(capturedPiece);
   const from = indexToAlgebraic(fromIndex);
   const to = indexToAlgebraic(toIndex);
-  return `${p} : Takes(${cap}) : ${from} -> ${to}.`;
+  const bunkerTag = isBunkered ? '(X)' : '';
+  return `${p} : Takes(${cap}) : ${from} -> ${to}${bunkerTag}`;
 }
 
 /**
- * Format: [Piece] : failed([DefendSquare]) : [OriginSquare] -> [SlideDestinationSquare/OriginSquare].
- * Example Slide: R : failed(e5) : a5 -> c5.
- * Example In-Place: P : failed(e5) : a5 -> a5.
+ * Format: [Piece] : failed([DefendSquare]) : [OriginSquare] -> [SlideDestinationSquare/OriginSquare]
+ * Example Slide: R : failed(e5) : a5 -> c5
+ * Example In-Place: P : failed(e5) : a5 -> a5
+ * Example with Bunker: P : failed(e5) : a5 -> a5(X)
  */
 export function formatFailedCombatText(
   piece: PieceType,
   defendIndex: number,
   fromIndex: number,
-  destIndex: number
+  destIndex: number,
+  isBunkered?: boolean
 ): string {
   const p = getPieceCode(piece);
   const def = indexToAlgebraic(defendIndex);
   const from = indexToAlgebraic(fromIndex);
   const dest = indexToAlgebraic(destIndex);
-  return `${p} : failed(${def}) : ${from} -> ${dest}.`;
+  const bunkerTag = isBunkered ? '(X)' : '';
+  return `${p} : failed(${def}) : ${from} -> ${dest}${bunkerTag}`;
 }
 
 /**
- * Format: [PromotedPieceType] : Promotion -> [HillSquare].
- * Example: R : Promotion -> d4.
+ * Format: [PromotedPieceType] : Promotion -> [HillSquare]
+ * Example: R : Promotion -> d4
  */
 export function formatPromotionText(promotedPiece: PieceType, hillIndex: number): string {
   const p = getPieceCode(promotedPiece);
   const hill = indexToAlgebraic(hillIndex);
-  return `${p} : Promotion -> ${hill}.`;
+  return `${p} : Promotion -> ${hill}`;
 }
 
 /**

@@ -497,3 +497,61 @@ describe('GameStore Rematch Validation', () => {
     expect(store.canRematch()).toBe(true);
   });
 });
+
+describe('GameStore History Replay and Indexing', () => {
+  it('should support stepping through logbook entries', () => {
+    store.resetGame(false, true); // initial state, history and logs empty
+    expect(store.historyLength).toBe(0);
+    expect(store.logs.length).toBe(0);
+
+    // Simulate 3 moves with snapshots and logs
+    store.recordSnapshot(); // history index 0 (Move 1)
+    store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'P : e2 -> e4' }); // log 0
+
+    store.recordSnapshot(); // history index 1 (Move 2)
+    store.addLogEntry({ turnNumber: 2, seat: 'E', text: 'N : c3 -> d5' }); // log 1
+
+    store.recordSnapshot(); // history index 2 (Move 2)
+    store.addLogEntry({ turnNumber: 3, seat: 'S', text: 'P : d7 -> d5' }); // log 2
+
+    expect(store.logs.length).toBe(3);
+    expect(store.historyLength).toBe(3);
+    expect(store.activeLogIndex).toBe(2); // Last log by default in live state
+    expect(store.isReplaying).toBe(false);
+
+    // Step back to Log 1
+    store.stepReplay('prev');
+    expect(store.isReplaying).toBe(true);
+    expect(store.activeLogIndex).toBe(1);
+    expect(store.historyIndex).toBe(1);
+
+    // Step back to Log 0 (first move)
+    store.stepReplay('prev');
+    expect(store.isReplaying).toBe(true);
+    expect(store.activeLogIndex).toBe(0);
+    expect(store.historyIndex).toBe(0);
+
+    // Cannot step back before Log 0
+    store.stepReplay('prev');
+    expect(store.activeLogIndex).toBe(0);
+
+    // Step forward to Log 1
+    store.stepReplay('next');
+    expect(store.activeLogIndex).toBe(1);
+    expect(store.isReplaying).toBe(true);
+
+    // Step forward to Log 2 (last log -> resumes live)
+    store.stepReplay('next');
+    expect(store.activeLogIndex).toBe(2);
+    expect(store.isReplaying).toBe(false);
+
+    // Direct scrub to Log 0 and live jump
+    store.scrubToHistoryIndex(store.logs[0].historyIndex);
+    expect(store.isReplaying).toBe(true);
+    expect(store.activeLogIndex).toBe(0);
+
+    store.stepReplay('live');
+    expect(store.isReplaying).toBe(false);
+    expect(store.activeLogIndex).toBe(2);
+  });
+});

@@ -90,42 +90,55 @@ export function popBestPokerRefillCard(
 }
 
 export function dealInitialPlayerCards(deck: Card[]): { baseDeck: Card[]; trenchCards: [Card | null, Card | null, Card | null] } {
-  const baseDeck = deck.splice(0, 6);
-  const trenchCards: [Card | null, Card | null, Card | null] = [null, null, null];
+  // Start with 3 random trench cards and 5 random base deck cards per player
+  const trench = deck.splice(0, 3);
+  const trenchCards: [Card | null, Card | null, Card | null] = [
+    trench[0] ?? null,
+    trench[1] ?? null,
+    trench[2] ?? null
+  ];
+  const baseDeck = deck.splice(0, 5);
   return { baseDeck, trenchCards };
 }
 
-export function autoPickBotTrenches(player: PlayerState, strategy: TrenchStrategy = 'ALWAYS_HIGHEST', publicFlop?: [Card | null, Card | null, Card | null]): void {
-  if (player.baseDeck.length < 3) return;
+/**
+ * Initial trench filling / bot trench auto-picker.
+ * Remarked out / retained for reference; players now start directly with 3 random trench cards.
+ * (Can be deleted completely later).
+ */
+export function autoPickBotTrenches(_player: PlayerState, _strategy: TrenchStrategy = 'ALWAYS_HIGHEST', _publicFlop?: [Card | null, Card | null, Card | null]): void {
+  /*
+  if (_player.baseDeck.length < 3) return;
   // Sort baseDeck descending by rank
-  player.baseDeck.sort((a: Card, b: Card) => b.rank - a.rank);
+  _player.baseDeck.sort((a: Card, b: Card) => b.rank - a.rank);
 
-  const communityCards: Card[] = publicFlop ? publicFlop.filter((c): c is Card => c !== null) : [];
+  const communityCards: Card[] = _publicFlop ? _publicFlop.filter((c): c is Card => c !== null) : [];
 
-  if (strategy === 'MEDIUM_RESERVE_ATTACK' && player.baseDeck.length >= 5) {
-    const trench = [player.baseDeck[1], player.baseDeck[2], player.baseDeck[3]];
-    player.baseDeck.splice(1, 3);
-    player.trenchCards = [trench[0], trench[1], trench[2]];
-  } else if (strategy === 'CENTER_HEAVY') {
-    const top3 = player.baseDeck.splice(0, 3);
-    player.trenchCards = [top3[1], top3[0], top3[2]];
-  } else if ((strategy === 'POKER_SYNERGY' || strategy === 'FLOP_PAIR_MATCH') && communityCards.length > 0) {
-    const c1 = popBestPokerRefillCard(player.baseDeck, communityCards);
-    const c2 = popBestPokerRefillCard(player.baseDeck, communityCards);
-    const c3 = popBestPokerRefillCard(player.baseDeck, communityCards);
-    player.trenchCards = [c2, c1, c3];
-  } else if (strategy === 'BOT_DEFAULT_DRAFT') {
-    const top3 = player.baseDeck.splice(0, 3);
+  if (_strategy === 'MEDIUM_RESERVE_ATTACK' && _player.baseDeck.length >= 5) {
+    const trench = [_player.baseDeck[1], _player.baseDeck[2], _player.baseDeck[3]];
+    _player.baseDeck.splice(1, 3);
+    _player.trenchCards = [trench[0], trench[1], trench[2]];
+  } else if (_strategy === 'CENTER_HEAVY') {
+    const top3 = _player.baseDeck.splice(0, 3);
+    _player.trenchCards = [top3[1], top3[0], top3[2]];
+  } else if ((_strategy === 'POKER_SYNERGY' || _strategy === 'FLOP_PAIR_MATCH') && communityCards.length > 0) {
+    const c1 = popBestPokerRefillCard(_player.baseDeck, communityCards);
+    const c2 = popBestPokerRefillCard(_player.baseDeck, communityCards);
+    const c3 = popBestPokerRefillCard(_player.baseDeck, communityCards);
+    _player.trenchCards = [c2, c1, c3];
+  } else if (_strategy === 'BOT_DEFAULT_DRAFT') {
+    const top3 = _player.baseDeck.splice(0, 3);
     const isLeft2nd = Math.random() < 0.5;
-    player.trenchCards = [
+    _player.trenchCards = [
       isLeft2nd ? top3[1] : top3[2],
       top3[0],
       isLeft2nd ? top3[2] : top3[1]
     ];
   } else {
-    const top3 = player.baseDeck.splice(0, 3);
-    player.trenchCards = [top3[0], top3[1], top3[2]];
+    const top3 = _player.baseDeck.splice(0, 3);
+    _player.trenchCards = [top3[0], top3[1], top3[2]];
   }
+  */
 }
 
 export function getTrenchCardIndexForSquare(targetIndex: number, team: Team): number {

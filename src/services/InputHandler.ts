@@ -183,7 +183,6 @@ export class InputHandler {
 
     if (state.setupState?.inSetup) {
       executeTrenchSingleCardSelect(state, activeSeat, index, this.store.botSeats);
-      this.store.recordSnapshot();
       this.store.triggerUIUpdate();
       this.turnManager.syncTurn(this.store.getState());
       return;
@@ -251,7 +250,7 @@ export class InputHandler {
     }
   }
 
-  public handlePromotePawn(piece: PieceType): void {
+  public handlePromotePawn(piece: PieceType | number): void {
     const state = this.store.getState();
     if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
 

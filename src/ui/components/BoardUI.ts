@@ -9,8 +9,10 @@ export class BoardUI {
   private onSquareClick: (index: number) => void;
   private onPieceDrop: (fromIndex: number, toIndex: number) => void;
   private lastAnimatedMoveKey: string | null = null;
+  private lastLiveAnimatedMoveId: string | null = null;
   private displayedArrowMove: LastMove | null = null;
   private arrowTimer: any = null;
+  private lastDroppedMove: { fromIndex: number; toIndex: number } | null = null;
 
   // Cached state references for active drag resolution
   private latestState: GameState | null = null;
@@ -59,6 +61,7 @@ export class BoardUI {
   }
 
   private handlePointerDown(e: PointerEvent, index: number): void {
+    this.lastDroppedMove = null;
     if (!e.isPrimary || e.button !== 0) return;
     if (!this.latestState || !this.latestStore) return;
 
@@ -131,9 +134,7 @@ export class BoardUI {
       }
       this.dragAvatar.src = this.activeDrag.pieceSrc;
       this.dragAvatar.style.display = 'block';
-
-      const rotationAngle = this.latestStore ? this.latestStore.boardRotationAngle : 0;
-      this.dragAvatar.style.transform = `translate(-50%, -50%) rotate(-${rotationAngle}deg)`;
+      this.dragAvatar.style.transform = 'translate(-50%, -50%)';
     }
 
     if (this.activeDrag.isDragging) {
@@ -195,6 +196,7 @@ export class BoardUI {
       this.cleanupDragVisuals(fromIndex);
 
       if (toIndex !== null && toIndex !== fromIndex) {
+        this.lastDroppedMove = { fromIndex, toIndex };
         this.onPieceDrop(fromIndex, toIndex);
       }
 
@@ -217,6 +219,7 @@ export class BoardUI {
     this.activeDrag = null;
     this.cleanupDragVisuals(fromIndex);
     this.suppressNextClick = false;
+    this.lastDroppedMove = null;
   };
 
   private cleanupDragVisuals(fromIndex: number): void {
@@ -233,6 +236,7 @@ export class BoardUI {
   }
 
   private handleClick(index: number): void {
+    this.lastDroppedMove = null;
     if (this.suppressNextClick) {
       return;
     }
@@ -384,9 +388,10 @@ export class BoardUI {
       this.initDOMStructure();
     }
 
-    if (!state.lastMove && state.turnCount <= 1 && (!state.setupState || !state.setupState.inSetup)) {
+    if (!state.lastMove) {
       if (this.arrowTimer) clearTimeout(this.arrowTimer);
       this.lastAnimatedMoveKey = null;
+      this.lastLiveAnimatedMoveId = null;
       this.displayedArrowMove = null;
       const oldOverlay = this.boardFrame!.querySelector('.last-move-arrow');
       if (oldOverlay) oldOverlay.remove();
@@ -397,24 +402,32 @@ export class BoardUI {
       (!state.isTurnRiverRevealed || state.pendingCombat.winnerSeat === null || state.pendingCombat.winnerSeat === undefined)
     );
 
-    const currentMoveKey = state.lastMove
-      ? `${state.lastMove.fromIndex}->${state.lastMove.toIndex}:${state.lastMove.type || 'move'}@${state.lastMove.moveId || store.historyLength}`
+    const moveId = state.lastMove
+      ? (state.lastMove.moveId || `${state.lastMove.fromIndex}->${state.lastMove.toIndex}:${state.lastMove.type || 'move'}`)
       : null;
 
     let animatableTargetIndex: number | null = null;
     let animatableFromIndex: number | null = null;
     let capturedPieceSrcForGhost: string | null = null;
 
-    if (state.lastMove && currentMoveKey !== this.lastAnimatedMoveKey) {
-      this.lastAnimatedMoveKey = currentMoveKey;
+    if (state.lastMove) {
+      const isDragMove =
+        this.lastDroppedMove !== null &&
+        this.lastDroppedMove.fromIndex === state.lastMove.fromIndex &&
+        this.lastDroppedMove.toIndex === state.lastMove.toIndex;
 
-      if (!store.isReplaying && !isUnresolvedCombat) {
+      this.lastDroppedMove = null;
+
+      const isNewLiveMove = !store.isReplaying && moveId !== null && moveId !== this.lastLiveAnimatedMoveId;
+
+      if (isNewLiveMove && !isUnresolvedCombat) {
+        this.lastLiveAnimatedMoveId = moveId;
         const moveType = state.lastMove.type || 'move';
         const fromIdx = state.lastMove.fromIndex;
         const toIdx = state.lastMove.toIndex;
 
         if (moveType === 'move') {
-          if (fromIdx !== undefined && toIdx !== undefined && fromIdx !== toIdx) {
+          if (!isDragMove && fromIdx !== undefined && toIdx !== undefined && fromIdx !== toIdx) {
             animatableTargetIndex = toIdx;
             animatableFromIndex = fromIdx;
           }

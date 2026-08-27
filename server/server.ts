@@ -480,6 +480,13 @@ io.on('connection', (socket) => {
             botSeats: room.gameState.botSeats,
             autoCardPick: room.autoCardPick ?? true
           });
+          const refillIdx = room.logs.length;
+          room.logs.push({
+            turnNumber: turnNum,
+            seat: seatCode,
+            text: 'card refill',
+            historyIndex: refillIdx
+          });
           if (room.gameState.isGameOver) {
             room.matchScore = { ...room.gameState.score };
             room.status = 'ended';
@@ -494,7 +501,15 @@ io.on('connection', (socket) => {
         }, POST_COMBAT_DELAY_MS);
       }, TURN_RIVER_DELAY_MS);
     } else {
-      if (action.type === 'MOVE' || action.type === 'PROMOTION' || action.type === 'SKIP_TURN' || action.type === 'SET_BUNKER') {
+      if (action.type === 'CARD_SWAP') {
+        const swapIdx = room.logs.length;
+        room.logs.push({
+          turnNumber: turnNum,
+          seat: seatCode,
+          text: 'card swap',
+          historyIndex: swapIdx
+        });
+      } else if (action.type === 'MOVE' || action.type === 'PROMOTION' || action.type === 'SKIP_TURN' || action.type === 'SET_BUNKER') {
         const historyIdx = room.logs.length;
         room.logs.push({
           turnNumber: turnNum,

@@ -13,6 +13,24 @@
   flex-direction: column;
   gap: 16px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--log-scrollbar-thumb-bg, rgba(255, 255, 255, 0.18)) transparent;
+}
+
+.left-sidebar::-webkit-scrollbar,
+.right-sidebar::-webkit-scrollbar {
+  width: var(--log-scrollbar-width, 4px);
+}
+
+.left-sidebar::-webkit-scrollbar-track,
+.right-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.left-sidebar::-webkit-scrollbar-thumb,
+.right-sidebar::-webkit-scrollbar-thumb {
+  background: var(--log-scrollbar-thumb-bg, rgba(255, 255, 255, 0.18));
+  border-radius: var(--log-scrollbar-thumb-radius, 4px);
 }
 
 .center-area {
@@ -119,6 +137,36 @@
   border: 1px solid var(--panel-border);
   border-radius: 8px;
   padding: 12px;
+}
+
+/* Custom Clean Dark Thin Scrollbar for Log Entries */
+.log-entries,
+#log-entries {
+  scrollbar-width: thin;
+  scrollbar-color: var(--log-scrollbar-thumb-bg, rgba(255, 255, 255, 0.18)) var(--log-scrollbar-track-bg, rgba(0, 0, 0, 0.25));
+}
+
+.log-entries::-webkit-scrollbar,
+#log-entries::-webkit-scrollbar {
+  width: var(--log-scrollbar-width, 4px);
+}
+
+.log-entries::-webkit-scrollbar-track,
+#log-entries::-webkit-scrollbar-track {
+  background: var(--log-scrollbar-track-bg, rgba(0, 0, 0, 0.25));
+  border-radius: var(--log-scrollbar-thumb-radius, 4px);
+}
+
+.log-entries::-webkit-scrollbar-thumb,
+#log-entries::-webkit-scrollbar-thumb {
+  background: var(--log-scrollbar-thumb-bg, rgba(255, 255, 255, 0.18));
+  border-radius: var(--log-scrollbar-thumb-radius, 4px);
+  transition: background 0.15s ease;
+}
+
+.log-entries::-webkit-scrollbar-thumb:hover,
+#log-entries::-webkit-scrollbar-thumb:hover {
+  background: var(--log-scrollbar-thumb-hover, rgba(255, 255, 255, 0.38));
 }
 
 /* Fixed-size message box to prevent layout jumping */
@@ -484,8 +532,8 @@
 /* TRENCH & Public Cards (Poachers v1 Style) */
 .trench-card,
 .public-card {
-  width: 42px;
-  height: 56px;
+  width: var(--card-width, 42px);
+  height: var(--card-height, 56px);
   background: var(--bg-card-face, rgb(244, 217, 148));
   border-radius: 4px;
   position: relative;
@@ -494,12 +542,6 @@
   font-weight: 700;
   transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.25s ease, filter 0.25s ease;
   box-sizing: border-box;
-}
-
-.trench-card:hover,
-.public-card:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
 }
 
 .card-val-top {
@@ -554,21 +596,23 @@
 }
 
 .trench-card.card-team-a {
-  border: var(--card-border-width, 2px) solid var(--team-a-color);
+  border: var(--card-border-width, 2px) solid var(--card-border-team-a-color, var(--team-a-color));
 }
 
 .trench-card.card-team-b {
-  border: var(--card-border-width, 2px) solid var(--team-b-color);
+  border: var(--card-border-width, 2px) solid var(--card-border-team-b-color, var(--team-b-color));
 }
 
 .trench-card {
   cursor: pointer;
 }
 
-.trench-card.selected {
-  border: var(--card-border-width, 2px) solid #ffffff !important;
-  outline: var(--card-border-width, 2px) solid var(--accent-cyan) !important;
+.trench-card.selected,
+.public-card.selected {
+  outline: var(--chosen-swap-card-border-width, 3.5px) solid var(--chosen-swap-card-border-color, #fff6c6) !important;
+  outline-offset: 0px;
   transform: scale(1.05);
+  z-index: 5;
 }
 
 .trench-card.highlight-strong-green {
@@ -576,15 +620,15 @@
 }
 
 .trench-card.highlight-mild-swap {
-  border-width: var(--swap-card-border-width, 3.5px) !important;
+  outline: calc(var(--swap-card-border-width, 3.5px) - var(--card-border-width, 2px)) solid var(--team-a-color);
 }
 
 .trench-card.card-team-a.highlight-mild-swap {
-  border: var(--swap-card-border-width, 3.5px) solid var(--team-a-color) !important;
+  outline: calc(var(--swap-card-border-width, 3.5px) - var(--card-border-width, 2px)) solid var(--team-a-color) !important;
 }
 
 .trench-card.card-team-b.highlight-mild-swap {
-  border: var(--swap-card-border-width, 3.5px) solid var(--team-b-color) !important;
+  outline: calc(var(--swap-card-border-width, 3.5px) - var(--card-border-width, 2px)) solid var(--team-b-color) !important;
 }
 
 .trench-card.winning-card-highlight,

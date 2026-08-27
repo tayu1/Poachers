@@ -166,16 +166,23 @@ export function fastCloneBotState(state: GameState): GameState {
   };
 }
 
+/**
+ * Initial trench filling / draft phase setup.
+ * Remarked out / retained for reference; players now start directly with 3 random trench cards.
+ * (Can be deleted completely later).
+ */
 export function initializeTrenchDraftPhase(
   state: GameState,
-  botSeats?: Record<PlayerSeat, boolean>,
+  _botSeats?: Record<PlayerSeat, boolean>,
   _autoCardPick: boolean = false,
-  botStrategies?: Partial<Record<PlayerSeat, TrenchStrategy>>
+  _botStrategies?: Partial<Record<PlayerSeat, TrenchStrategy>>
 ): void {
+  /*
   for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST]) {
-    const strat = botStrategies?.[seat] || 'BOT_DEFAULT_DRAFT';
+    const strat = _botStrategies?.[seat] || 'BOT_DEFAULT_DRAFT';
     autoPickBotTrenches(state.players[seat], strat, state.publicFlop);
   }
+  */
 
   state.setupState = {
     inSetup: false,
@@ -246,6 +253,8 @@ export function createInitialGameState(options?: CreateInitialGameStateOptions):
     seatActionCounts: { 0: 0, 1: 0, 2: 0, 3: 0 }
   };
 
+  /*
+  // Initial trench filling / setup phase (remarked out as players now start directly with 3 random trench cards & 5 base deck cards)
   if (options?.skipSetup) {
     for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]) {
       const strat = options?.botStrategies?.[seat] || 'ALWAYS_HIGHEST';
@@ -255,6 +264,7 @@ export function createInitialGameState(options?: CreateInitialGameStateOptions):
   } else {
     initializeTrenchDraftPhase(state, options?.botSeats, false, options?.botStrategies);
   }
+  */
 
   state.threatenedKings = getThreatenedKings(state.board, state.threatMap);
   state.regionOdds = computeRegionProbabilities(state);
@@ -875,12 +885,12 @@ export function executeCombatResolution(
       }
       state.board[toIndex] = 0;
       if (!isFastOrHeadless) {
-        text = `${formatDirectTakeText(getPieceChar(piece), getPieceChar(capturedPiece || 0), fromIndex, toIndex)} (Attacker also destroyed by Bunker Defense)`;
+        text = formatDirectTakeText(getPieceChar(piece), getPieceChar(capturedPiece || 0), fromIndex, toIndex, true);
       }
     } else {
       moveType = 'failed_attack';
       if (!isFastOrHeadless) {
-        text = `${formatFailedCombatText(getPieceChar(piece), toIndex, fromIndex, fromIndex)} (Attacker destroyed by Bunker Defense)`;
+        text = formatFailedCombatText(getPieceChar(piece), toIndex, fromIndex, fromIndex, true);
       }
     }
     update_threatMap_by_move(state.board, state.threatMap, fromIndex, toIndex);
@@ -988,7 +998,7 @@ export function executeTurnAction(
       state.board[toIndex] = 0;
       state.board[fromIndex] = 0;
       if (!isFastOrHeadless) {
-        text = `${formatDirectTakeText(getPieceChar(piece), getPieceChar(capturedPiece || (5 | ((piece & 8) ^ 8))), fromIndex, toIndex)} (Bunker)`;
+        text = formatDirectTakeText(getPieceChar(piece), getPieceChar(capturedPiece || (5 | ((piece & 8) ^ 8))), fromIndex, toIndex, true);
       }
     } else {
       if (!isFastOrHeadless) {

@@ -1,5 +1,5 @@
 import { getTeamCapturedPieces, getValidPromotionOptions } from '../../core/engine';
-import { GameState, PieceType, getPieceType } from '../../core/types';
+import { GameState, PieceType, Team, getPieceType } from '../../core/types';
 import { GameStore, store } from '../../store/store';
 
 // Sort order: King(5) → Rook(4) → Bishop(3) → Knight(2) → Pawn(1)
@@ -14,10 +14,21 @@ function sortDeadPool(pieces: (PieceType | number)[]): (PieceType | number)[] {
   });
 }
 
-function getPieceSVG(piece: PieceType | number): string {
+function getPieceSVG(piece: PieceType | number, team?: Team): string {
   const pType = getPieceType(piece);
   if (pType === 0) return '';
-  const isTeamA = typeof piece === 'number' ? (piece & 8) === 0 : true;
+  let isTeamA = true;
+  if (typeof piece === 'number') {
+    if (piece >= 8) {
+      isTeamA = false;
+    } else if (team !== undefined) {
+      isTeamA = team === 'A';
+    } else {
+      isTeamA = (piece & 8) === 0;
+    }
+  } else if (team !== undefined) {
+    isTeamA = team === 'A';
+  }
   const prefix = isTeamA ? 'w_' : 'b_';
   const name = SVG_NAMES[pType] || 'p';
   return `/assets/${prefix}${name}.svg`;
@@ -33,7 +44,8 @@ export function buildPieceRow(
   onClickPiece?: (piece: PieceType | number) => void,
   highlightedPiece?: PieceType | number | null,
   highlightColor?: string,
-  canPromoteSet?: Set<number>
+  canPromoteSet?: Set<number>,
+  team?: Team
 ): HTMLElement {
   const row = document.createElement('div');
   row.style.display = 'flex';
@@ -91,7 +103,7 @@ export function buildPieceRow(
     }
 
     const img = document.createElement('img');
-    img.src = getPieceSVG(piece);
+    img.src = getPieceSVG(piece, team);
     img.alt = String(piece);
     img.style.width = `${imgSize - 2}px`;
     img.style.height = `${imgSize - 2}px`;
@@ -194,7 +206,8 @@ export class CapturesUI {
           isCurrentActiveTeam ? (piece) => this.onSelectCapturedPiece(piece) : undefined,
           isCurrentActiveTeam ? storeInstance.selectedPromotionPiece : null,
           color,
-          isCurrentActiveTeam ? canPromoteSet : undefined
+          isCurrentActiveTeam ? canPromoteSet : undefined,
+          team
         );
         groupDiv.appendChild(iconsRow);
       }

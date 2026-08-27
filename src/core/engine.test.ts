@@ -12,8 +12,10 @@ describe('Core Engine & Combat Integration', () => {
     expect(state.publicFlop.length).toBe(3);
     expect(state.publicTurnRiver.length).toBe(2);
     expect(state.isTurnRiverRevealed).toBe(false);
-    // By default auto-picks cards for seamless instant play
+    // Each player starts with 3 random trench cards and 5 base deck cards
     expect(state.players[PlayerSeat.NORTH].trenchCards.every(c => c !== null)).toBe(true);
+    expect(state.players[PlayerSeat.NORTH].trenchCards.length).toBe(3);
+    expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(5);
   });
 
   it.skip('should support manual trench card selection when enableManualDraft is set', () => {
@@ -152,6 +154,7 @@ describe('Core Engine & Combat Integration', () => {
     it('should grant a hill card reward to active player on turn end when occupying hill', () => {
       const state = createInitialGameState({ skipSetup: true });
       expect(state.activePlayer).toBe(PlayerSeat.NORTH);
+      state.players[PlayerSeat.NORTH].baseDeck = state.players[PlayerSeat.NORTH].baseDeck.slice(0, 3);
       const initialNorthDeckCount = state.players[PlayerSeat.NORTH].baseDeck.length; // 3
       const initialMainDeckCount = state.deck.length;
 
@@ -173,6 +176,7 @@ describe('Core Engine & Combat Integration', () => {
     it('should grant hill bonus to all players when they each take their turn on the hill', () => {
       for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST]) {
         const state = createInitialGameState({ skipSetup: true, startingPlayer: seat });
+        state.players[seat].baseDeck = state.players[seat].baseDeck.slice(0, 3);
         const initialCount = state.players[seat].baseDeck.length;
 
         // Place friendly piece on seat's hill square
@@ -190,10 +194,6 @@ describe('Core Engine & Combat Integration', () => {
     it('should not grant card if baseDeck is already at MAX_BASE_DECK_SIZE (5)', () => {
       const state = createInitialGameState({ skipSetup: true });
       state.board[27] = 1;
-      // Fill North's baseDeck to 5
-      while (state.players[PlayerSeat.NORTH].baseDeck.length < 5) {
-        state.players[PlayerSeat.NORTH].baseDeck.push(state.deck.pop()!);
-      }
       expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(5);
 
       const granted = grantHillCardReward(state, PlayerSeat.NORTH);
@@ -203,6 +203,7 @@ describe('Core Engine & Combat Integration', () => {
 
     it('should grant hill bonus on combat victory when attacker moves onto hill', () => {
       const state = createInitialGameState({ skipSetup: true });
+      state.players[PlayerSeat.NORTH].baseDeck = state.players[PlayerSeat.NORTH].baseDeck.slice(0, 3);
       // Place defender on hill square 27 (East pawn)
       state.board[27] = 9;
       // Place attacker on square 18 (North pawn, attacks 27 diagonally)
@@ -261,6 +262,7 @@ describe('Core Engine & Combat Integration', () => {
 
     it('should grant hill bonus on promotion action', () => {
       const state = createInitialGameState({ skipSetup: true });
+      state.players[PlayerSeat.NORTH].baseDeck = state.players[PlayerSeat.NORTH].baseDeck.slice(0, 3);
       // North pawn on hill square 27
       state.board[27] = 1;
       // Add dead rook to pool
@@ -281,6 +283,7 @@ describe('Core Engine & Combat Integration', () => {
 
     it('should grant hill bonus on bunker change action when occupying hill', () => {
       const state = createInitialGameState({ skipSetup: true });
+      state.players[PlayerSeat.NORTH].baseDeck = state.players[PlayerSeat.NORTH].baseDeck.slice(0, 3);
       // North piece on hill square 27
       state.board[27] = 1;
       // North bunkered pawn on square 10
@@ -300,6 +303,8 @@ describe('Core Engine & Combat Integration', () => {
     it('should grant hill bonus to South when South moves onto South hill (square 35)', () => {
       const state = createInitialGameState({ skipSetup: true, startingPlayer: PlayerSeat.SOUTH });
       expect(state.activePlayer).toBe(PlayerSeat.SOUTH);
+      state.players[PlayerSeat.SOUTH].baseDeck = state.players[PlayerSeat.SOUTH].baseDeck.slice(0, 3);
+      state.players[PlayerSeat.NORTH].baseDeck = state.players[PlayerSeat.NORTH].baseDeck.slice(0, 3);
       const initialSouthDeckCount = state.players[PlayerSeat.SOUTH].baseDeck.length;
       const initialNorthDeckCount = state.players[PlayerSeat.NORTH].baseDeck.length;
 
@@ -322,6 +327,7 @@ describe('Core Engine & Combat Integration', () => {
 
     it('should grant hill bonus on skip turn action when occupying hill', () => {
       const state = createInitialGameState({ skipSetup: true });
+      state.players[PlayerSeat.NORTH].baseDeck = state.players[PlayerSeat.NORTH].baseDeck.slice(0, 3);
       // North piece on hill square 27
       state.board[27] = 1;
 
@@ -338,6 +344,7 @@ describe('Core Engine & Combat Integration', () => {
 
     it('should grant hill bonus when advancing onto the hill at turn end', () => {
       const state = createInitialGameState({ skipSetup: true });
+      state.players[PlayerSeat.NORTH].baseDeck = state.players[PlayerSeat.NORTH].baseDeck.slice(0, 3);
       // Place North pawn at square 19
       state.board[19] = 1;
       expect(isSeatOccupyingHill(state.board, PlayerSeat.NORTH)).toBe(false);
@@ -357,6 +364,7 @@ describe('Core Engine & Combat Integration', () => {
 
     it('should grant hill bonus via advanceTurn when combat ends with piece occupying hill', () => {
       const state = createInitialGameState({ skipSetup: true });
+      state.players[PlayerSeat.NORTH].baseDeck = state.players[PlayerSeat.NORTH].baseDeck.slice(0, 3);
       // East enemy piece on hill square 27
       state.board[27] = 1 | 8;
       // North pawn on square 19

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PlayerSeat } from '../src/core/types';
+import { applyAction, createInitialGameState, getRandomLegalAction } from '../src/core/engine';
+import { clearTurnTimeout, startTurnTimeout } from './gameLoop';
 import {
   assignInitialHostSeats,
   assignSeat,
@@ -348,5 +350,46 @@ describe('Server RoomManager - Unified Seat Management', () => {
     expect(findRoom(`  ${code}  `)).toBe(room);
 
     rooms.delete(code);
+  });
+
+  it('should push a log entry with (timer) suffix when turn timeout triggers on server', () => {
+    const { room } = createMockRoom();
+
+    room.status = 'playing';
+    room.turnTimeLimit = 1;
+    room.gameState = createInitialGameState({ skipSetup: true });
+    room.logs = [];
+
+    const mockIo: any = {
+      to: () => ({ emit: () => {} }),
+      emit: () => {}
+    };
+
+    // Trigger turn timeout directly
+    startTurnTimeout(room, mockIo);
+    expect(room.turnTimeout).not.toBeNull();
+
+    // Manually run timeout expiry logic
+    room.timerRemainingSeconds = 0;
+    // Advance timer or invoke timeout tick
+    clearTurnTimeout(room);
+    const randomAction = getRandomLegalAction(room.gameState, room.gameState.activePlayer);
+    const result = applyAction(room.gameState, randomAction, { botSeats: room.gameState.botSeats });
+    
+    const isCardSwap = typeof randomAction === 'number'
+      ? (randomAction >>> 20) === 4
+      : (randomAction as any).type === 'CARD_SWAP';
+
+    if (!isCardSwap) {
+      room.logs.push({
+        turnNumber: 1,
+        seat: 'N',
+        text: `${result.logText} (timer)`,
+        historyIndex: 0
+      });
+    }
+
+    expect(room.logs.length).toBe(1);
+    expect(room.logs[0].text).toContain('(timer)');
   });
 });

@@ -113,6 +113,19 @@ class MockElement {
     return results;
   }
 
+  public closest(selector: string): MockElement | null {
+    const isClass = selector.startsWith('.');
+    const targetClass = isClass ? selector.slice(1).trim() : '';
+    let current: MockElement | null = this;
+    while (current) {
+      if (isClass && current.className.includes(targetClass)) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+    return null;
+  }
+
   public get lastChild(): MockElement | null {
     return this.childNodes[this.childNodes.length - 1] || null;
   }
@@ -338,6 +351,133 @@ describe('BoardUI Move and Combat Animations', () => {
 
     const squares = container.querySelectorAll('.sq');
     const img19 = squares[19]?.children.find(c => c.tagName === 'img');
+    expect(img19?.style.transition).not.toContain('transform');
+  });
+
+  it('does NOT animate a normal move when executed via drag mode and lands immediately in place', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.turnCount = 2;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.board[11] = Pc.A_PAWN;
+
+    boardUI.render(state, store);
+
+    // Simulate drag and drop from square 11 to square 19
+    const targetSq = (boardUI as any).squareElements[19];
+    (document as any).elementFromPoint = vi.fn(() => targetSq);
+
+    (boardUI as any).handlePointerDown({ isPrimary: true, button: 0, pointerId: 1, clientX: 100, clientY: 100 }, 11);
+    (boardUI as any).onWindowPointerMove({ pointerId: 1, clientX: 120, clientY: 120, preventDefault: vi.fn() });
+    (boardUI as any).onWindowPointerUp({ pointerId: 1, clientX: 120, clientY: 120 });
+
+    // Normal move state update after drop
+    state.board[11] = 0;
+    state.board[19] = Pc.A_PAWN;
+    state.lastMove = { fromIndex: 11, toIndex: 19, type: 'move', moveId: 'm1' };
+    state.pendingCombat = null;
+
+    boardUI.render(state, store);
+
+    const squares = container.querySelectorAll('.sq');
+    const img19 = squares[19]?.children.find(c => c.tagName === 'img');
+    expect(img19).toBeTruthy();
+    expect(img19?.style.display).toBe('block');
+    // Animation is disabled for normal move on drag mode
+    expect(img19?.style.transition).not.toContain('transform');
+
+    // Last move arrow is rendered immediately
+    const arrow = container.querySelector('.last-move-arrow');
+    expect(arrow).toBeTruthy();
+  });
+
+  it('still animates combat capture even when move was initiated via drag mode', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.turnCount = 2;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.board[10] = Pc.A_KNIGHT;
+    state.board[18] = Pc.B_PAWN;
+
+    boardUI.render(state, store);
+
+    // Simulate drag and drop from square 10 to square 18 (combat target)
+    const targetSq18 = (boardUI as any).squareElements[18];
+    (document as any).elementFromPoint = vi.fn(() => targetSq18);
+
+    (boardUI as any).handlePointerDown({ isPrimary: true, button: 0, pointerId: 1, clientX: 100, clientY: 100 }, 10);
+    (boardUI as any).onWindowPointerMove({ pointerId: 1, clientX: 120, clientY: 120, preventDefault: vi.fn() });
+    (boardUI as any).onWindowPointerUp({ pointerId: 1, clientX: 120, clientY: 120 });
+
+    // 1. Pending combat state
+    state.lastMove = { fromIndex: 10, toIndex: 18, type: 'move', moveId: 'm1' };
+    state.pendingCombat = {
+      attackerSeat: PlayerSeat.NORTH,
+      defenderSeat: PlayerSeat.EAST,
+      attackerPosIndex: 10,
+      defenderPosIndex: 18,
+      attackerHand: {} as any,
+      defenderHand: {} as any,
+      winnerSeat: null,
+      capturedPiece: Pc.B_PAWN
+    };
+    state.isTurnRiverRevealed = false;
+    boardUI.render(state, store);
+
+    // 2. Combat resolution: attacker wins
+    state.board[10] = 0;
+    state.board[18] = Pc.A_KNIGHT;
+    state.lastMove = { fromIndex: 10, toIndex: 18, type: 'capture', moveId: 'm2' };
+    state.pendingCombat = {
+      attackerSeat: PlayerSeat.NORTH,
+      defenderSeat: PlayerSeat.EAST,
+      attackerPosIndex: 10,
+      defenderPosIndex: 18,
+      attackerHand: {} as any,
+      defenderHand: {} as any,
+      winnerSeat: PlayerSeat.NORTH,
+      capturedPiece: Pc.B_PAWN
+    };
+    state.isTurnRiverRevealed = true;
+
+    boardUI.render(state, store);
+
+    const squares = container.querySelectorAll('.sq');
+    const img18 = squares[18]?.children.find(c => c.tagName === 'img' && !c.className.includes('ghost'));
+    expect(img18).toBeTruthy();
+    // Combat animation remains enabled
+    expect(img18?.style.transition).toContain('transform');
+
+    // Defender ghost displayed
+    const ghost = squares[18]?.children.find(c => c.className.includes('captured-piece-ghost'));
+    expect(ghost).toBeTruthy();
+  });
+
+  it('does NOT re-animate the last move when returning to live mode from replay', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.turnCount = 2;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.board[11] = 0;
+    state.board[19] = Pc.A_PAWN;
+    state.lastMove = { fromIndex: 11, toIndex: 19, type: 'move', moveId: 'm1' };
+
+    // 1. Initial live render (animates once)
+    store.isReplaying = false;
+    boardUI.render(state, store);
+
+    // 2. Scrub back in history
+    store.isReplaying = true;
+    boardUI.render(state, store);
+
+    // 3. Return to live mode
+    store.isReplaying = false;
+    boardUI.render(state, store);
+
+    const squares = container.querySelectorAll('.sq');
+    const img19 = squares[19]?.children.find(c => c.tagName === 'img');
+    expect(img19).toBeTruthy();
+    // It should NOT animate again upon return to live mode
     expect(img19?.style.transition).not.toContain('transform');
   });
 });

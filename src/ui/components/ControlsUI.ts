@@ -44,18 +44,6 @@ export class ControlsUI {
     scoreboard.innerHTML = `Team A <span style="color:var(--accent-gold)">${state.score.teamA}</span> : <span style="color:var(--accent-cyan)">${state.score.teamB}</span> Team B`;
     panel.appendChild(scoreboard);
 
-    if (store.isReplaying) {
-      const reviewBadge = document.createElement('div');
-      reviewBadge.style.textAlign = 'center';
-      reviewBadge.style.padding = '4px 8px';
-      reviewBadge.style.background = '#0d9488';
-      reviewBadge.style.color = '#fff';
-      reviewBadge.style.borderRadius = '4px';
-      reviewBadge.style.fontSize = '12px';
-      reviewBadge.style.fontWeight = '600';
-      reviewBadge.innerText = '🔍 REVIEW / REPLAY MODE';
-      panel.appendChild(reviewBadge);
-    }
 
     // Buttons
     const btnRow = document.createElement('div');

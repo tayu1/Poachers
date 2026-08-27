@@ -107,7 +107,7 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
           room.logs.push({
             turnNumber: turnNum,
             seat: seatCode,
-            text: `⏱️ Time Out: ${combatOutcome.logText}`,
+            text: `${combatOutcome.logText} (timer)`,
             pokerText: combatOutcome.pokerText,
             historyIndex: historyIdx
           });
@@ -120,6 +120,13 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
             completePostCombat(room.gameState, combat, {
               botSeats: room.gameState.botSeats,
               autoCardPick: room.autoCardPick ?? true
+            });
+            const refillIdx = room.logs.length;
+            room.logs.push({
+              turnNumber: turnNum,
+              seat: seatCode,
+              text: 'card refill',
+              historyIndex: refillIdx
             });
             if (room.gameState.isGameOver) {
               room.matchScore = { ...room.gameState.score };
@@ -135,12 +142,24 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
           }, POST_COMBAT_DELAY_MS);
         }, TURN_RIVER_DELAY_MS);
       } else {
-        if (randomAction.type === 'MOVE' || randomAction.type === 'PROMOTION' || randomAction.type === 'SKIP_TURN' || randomAction.type === 'SET_BUNKER') {
+        const isCardSwap = typeof randomAction === 'number'
+          ? (randomAction >>> 20) === 4
+          : (randomAction as any).type === 'CARD_SWAP';
+
+        if (isCardSwap) {
+          const swapIdx = room.logs.length;
+          room.logs.push({
+            turnNumber: turnNum,
+            seat: seatCode,
+            text: 'card swap',
+            historyIndex: swapIdx
+          });
+        } else {
           const historyIdx = room.logs.length;
           room.logs.push({
             turnNumber: turnNum,
             seat: seatCode,
-            text: `⏱️ Time Out: ${result.logText}`,
+            text: `${result.logText} (timer)`,
             pokerText: result.pokerText,
             historyIndex: historyIdx
           });
@@ -152,7 +171,7 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
         }
         emitGameStateToRoom(io, room);
 
-        if (!room.gameState.isGameOver && randomAction.type !== 'CARD_SWAP') {
+        if (!room.gameState.isGameOver && !isCardSwap) {
           startTurnTimeout(room, io);
         }
         triggerBotTurnIfNeeded(room, io);
@@ -181,8 +200,11 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
     if (!room.gameState || room.gameState.isGameOver || room.status !== 'playing') return;
 
     const currentState = room.gameState;
-    const currentBotSeat = currentState.pendingRefills.length > 0 ? currentState.pendingRefills[0].seat : currentState.activePlayer;
-    if (!currentState.botSeats[currentBotSeat]) return;
+    const activePlayerSeat = currentState.pendingRefills.length > 0
+      ? currentState.pendingRefills[0].seat
+      : currentState.activePlayer;
+
+    if (!currentState.botSeats[activePlayerSeat]) return;
 
     if (currentState.pendingRefills.length > 0) {
       const activeRefill = currentState.pendingRefills[0];
@@ -230,7 +252,7 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
     if (!botCandidate) return;
 
     const turnNum = currentState.turnCount;
-    const seatCode = getSeatCode(currentBotSeat) as 'N' | 'E' | 'S' | 'W';
+    const seatCode = getSeatCode(activePlayerSeat) as 'N' | 'E' | 'S' | 'W';
 
     const botStrategies = {
       [PlayerSeat.NORTH]: DEFAULT_BOT_PROFILE.trenchStrategy,
@@ -280,6 +302,13 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
             botStrategies,
             autoCardPick: room.autoCardPick ?? true
           });
+          const refillIdx = room.logs.length;
+          room.logs.push({
+            turnNumber: turnNum,
+            seat: seatCode,
+            text: 'card refill',
+            historyIndex: refillIdx
+          });
           if (room.gameState.isGameOver) {
             room.matchScore = { ...room.gameState.score };
             room.status = 'ended';
@@ -293,7 +322,19 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
         }, POST_COMBAT_DELAY_MS);
       }, TURN_RIVER_DELAY_MS);
     } else {
-      if (botCandidate.action.type === 'MOVE' || botCandidate.action.type === 'PROMOTION' || botCandidate.action.type === 'SKIP_TURN' || botCandidate.action.type === 'SET_BUNKER') {
+      const isCardSwap = typeof botCandidate.action === 'number'
+        ? (botCandidate.action >>> 20) === 4
+        : (botCandidate.action as any).type === 'CARD_SWAP';
+
+      if (isCardSwap) {
+        const swapIdx = room.logs.length;
+        room.logs.push({
+          turnNumber: turnNum,
+          seat: seatCode,
+          text: 'card swap',
+          historyIndex: swapIdx
+        });
+      } else {
         const historyIdx = room.logs.length;
         room.logs.push({
           turnNumber: turnNum,
@@ -311,7 +352,7 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
         if (room.botTimer) { clearTimeout(room.botTimer); room.botTimer = null; }
       }
       emitGameStateToRoom(io, room);
-      if (!room.gameState.isGameOver && botCandidate.action.type !== 'CARD_SWAP') {
+      if (!room.gameState.isGameOver && !isCardSwap) {
         startTurnTimeout(room, io);
       }
       triggerBotTurnIfNeeded(room, io);

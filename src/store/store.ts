@@ -41,7 +41,7 @@ export class GameStore {
   public legalMoves: (ActionInt | Move)[] = [];
   public selectedBaseCardIndex: number | null = null;
   public selectedTrenchCardIndex: number | null = null;
-  public selectedPromotionPiece: PieceType | null = null;
+  public selectedPromotionPiece: PieceType | number | null = null;
   public selectedDraftIndices: number[] = [];
   public isSettingBunker: boolean = false;
   public sourceBunkerIndex: number | null = null;
@@ -91,7 +91,6 @@ export class GameStore {
       turnTimeLimit: this.turnTimeLimit,
       startingPlayer: this.startingSeatIndex as PlayerSeat
     });
-    this.recordSnapshot();
   }
 
   public get timerRemainingSeconds(): number {
@@ -221,13 +220,15 @@ export class GameStore {
       pokerText: l.pokerText,
       historyIndex: l.historyIndex
     }));
+    while (this.history.length < this.logs.length) {
+      this.history.push(fastCloneState(this.state));
+    }
     this.isReplaying = false;
     this.selectedSquare = null;
     this.legalMoves = [];
     this.selectedBaseCardIndex = null;
     this.selectedTrenchCardIndex = null;
     this.selectedPromotionPiece = null;
-    this.recordSnapshot();
     this.notify();
   }
 
@@ -315,8 +316,7 @@ export class GameStore {
   }
 
   public getState(): GameState {
-    const minIndex = this.history.length > 1 ? 1 : 0;
-    return this.isReplaying && this.historyIndex >= minIndex && this.historyIndex < this.history.length
+    return this.isReplaying && this.historyIndex >= 0 && this.historyIndex < this.history.length
       ? this.history[this.historyIndex]
       : this.state;
   }
@@ -435,41 +435,50 @@ export class GameStore {
     this.notify();
   }
 
-  public selectPromotionPiece(piece: PieceType | null): void {
+  public selectPromotionPiece(piece: PieceType | number | null): void {
     this.selectedPromotionPiece = piece;
     this.notify();
   }
 
+  public get activeLogIndex(): number {
+    if (this.logs.length === 0) return -1;
+    if (!this.isReplaying) return this.logs.length - 1;
+    if (this.historyIndex >= 0 && this.historyIndex < this.logs.length) {
+      return this.historyIndex;
+    }
+    const exactIdx = this.logs.findIndex(e => e.historyIndex === this.historyIndex);
+    if (exactIdx !== -1) return exactIdx;
+    for (let i = this.logs.length - 1; i >= 0; i--) {
+      if (this.historyIndex >= this.logs[i].historyIndex) return i;
+    }
+    return 0;
+  }
+
   public scrubToHistoryIndex(historyIndex: number): void {
-    if (this.combatTimer) {
-      clearTimeout(this.combatTimer);
-      this.combatTimer = null;
-    }
-    this._isCombatDelaying = false;
-    const minIndex = this.history.length > 1 ? 1 : 0;
-    const target = Math.max(minIndex, Math.min(historyIndex, this.history.length - 1));
-    if (target >= 0 && target < this.history.length) {
-      this.historyIndex = target;
-      this.isReplaying = target < this.history.length - 1;
-      this.notify();
-    }
+    if (this.history.length === 0) return;
+    const target = Math.max(0, Math.min(historyIndex, this.history.length - 1));
+    this.historyIndex = target;
+    this.isReplaying = target < this.history.length - 1;
+    this.notify();
   }
 
   public stepReplay(direction: 'prev' | 'next' | 'live'): void {
-    const minIndex = this.history.length > 1 ? 1 : 0;
     if (direction === 'live') {
       this.isReplaying = false;
-      this.historyIndex = this.history.length - 1;
-    } else if (direction === 'prev' && this.historyIndex > minIndex) {
-      this.isReplaying = true;
-      this.historyIndex--;
-    } else if (direction === 'next' && this.historyIndex < this.history.length - 1) {
-      this.historyIndex++;
-      if (this.historyIndex === this.history.length - 1) {
-        this.isReplaying = false;
-      }
+      this.historyIndex = Math.max(0, this.history.length - 1);
+      this.notify();
+      return;
     }
-    this.notify();
+
+    if (this.logs.length === 0 || this.history.length === 0) return;
+
+    const currentIdx = this.activeLogIndex;
+
+    if (direction === 'prev' && currentIdx > 0) {
+      this.scrubToHistoryIndex(currentIdx - 1);
+    } else if (direction === 'next' && currentIdx < this.logs.length - 1) {
+      this.scrubToHistoryIndex(currentIdx + 1);
+    }
   }
 
   public reviewGame(): void {
@@ -493,12 +502,12 @@ export class GameStore {
       input1: resigningSeat,
       input2: 0
     });
+    this.recordSnapshot();
     this.addLogEntry({
       turnNumber: this.state.turnCount,
       seat: getSeatCode(resigningSeat) as 'N' | 'E' | 'S' | 'W',
       text: result.logText
     });
-    this.recordSnapshot();
     this.notify();
     return { winnerTeam: result.winnerTeam!, logText: result.logText };
   }
@@ -535,7 +544,6 @@ export class GameStore {
     this.selectedTrenchCardIndex = null;
     this.selectedPromotionPiece = null;
     this.isReplaying = false;
-    this.recordSnapshot();
     this.notify();
   }
 }

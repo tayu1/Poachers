@@ -32,7 +32,7 @@ export class LogUI {
     panel.style.flexDirection = 'column';
 
     panel.addEventListener('wheel', (e: WheelEvent) => {
-      if (store.historyLength <= 1) return;
+      if (store.logs.length <= 1) return;
       e.preventDefault();
       const now = Date.now();
       if (now - this.lastWheelTime < 80) return;
@@ -51,16 +51,16 @@ export class LogUI {
     header.style.gap = '6px';
     header.style.marginBottom = '8px';
 
-    const minIndex = store.historyLength > 1 ? 1 : 0;
-    const maxIndex = store.historyLength - 1;
-    const canPrev = store.historyIndex > minIndex;
-    const canNext = store.historyIndex >= 0 && store.historyIndex < maxIndex;
-    const canLive = store.isReplaying || (store.historyIndex >= 0 && store.historyIndex < maxIndex);
+    const currentLogIdx = store.activeLogIndex;
+    const canPrev = currentLogIdx > 0;
+    const canNext = currentLogIdx >= 0 && currentLogIdx < store.logs.length - 1;
+    const canLive = store.isReplaying;
 
     const createBtn = (label: string, titleText: string, disabled: boolean, onClick: () => void) => {
       const btn = document.createElement('button');
       btn.innerText = label;
       btn.title = titleText;
+      btn.disabled = disabled;
       btn.style.padding = '3px 10px';
       btn.style.fontSize = '12px';
       btn.style.fontWeight = 'bold';
@@ -82,6 +82,7 @@ export class LogUI {
           btn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
         });
         btn.addEventListener('click', (e) => {
+          e.preventDefault();
           e.stopPropagation();
           onClick();
         });
@@ -106,10 +107,11 @@ export class LogUI {
     logList.style.display = 'flex';
     logList.style.flexDirection = 'column';
     logList.style.gap = '4px';
+    logList.style.paddingRight = '4px';
 
     let selectedElement: HTMLElement | null = null;
 
-    store.logs.forEach((entry: LogEntry) => {
+    store.logs.forEach((entry: LogEntry, idx: number) => {
       const entryContainer = document.createElement('div');
       entryContainer.style.padding = '4px 6px';
       entryContainer.style.borderRadius = '4px';
@@ -118,7 +120,7 @@ export class LogUI {
       entryContainer.style.background = 'rgba(255, 255, 255, 0.02)';
       entryContainer.style.transition = 'all 0.15s ease';
 
-      const isSelected = store.historyIndex === entry.historyIndex;
+      const isSelected = currentLogIdx === idx;
       if (isSelected) {
         entryContainer.style.background = 'rgba(6, 182, 212, 0.15)';
         entryContainer.style.borderLeft = '3px solid var(--accent-cyan)';
@@ -139,7 +141,25 @@ export class LogUI {
       const line1 = document.createElement('div');
       line1.style.fontWeight = '600';
       line1.style.color = '#e2e8f0';
-      line1.innerText = `${entry.turnNumber}. ${entry.seat}] ${entry.text}`;
+
+      const isUnnumbered = entry.text === 'card swap' ||
+                           entry.text === '---card swap' ||
+                           entry.text === 'card refill' ||
+                           entry.text === '---card refill' ||
+                           entry.text.startsWith('---');
+
+      if (isUnnumbered) {
+        line1.style.color = '#888888';
+        if (entry.text === 'card swap' || entry.text === '---card swap') {
+          line1.innerText = '---card swap';
+        } else if (entry.text === 'card refill' || entry.text === '---card refill') {
+          line1.innerText = '---card refill';
+        } else {
+          line1.innerText = entry.text;
+        }
+      } else {
+        line1.innerText = `${entry.turnNumber}. ${entry.seat}] ${entry.text}`;
+      }
       entryContainer.appendChild(line1);
 
       if (entry.pokerText) {
@@ -152,8 +172,11 @@ export class LogUI {
         entryContainer.appendChild(line2);
       }
 
-      entryContainer.addEventListener('click', () => {
-        this.onScrubClick(entry.historyIndex);
+      entryContainer.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.prevHistoryIndex = null;
+        store.scrubToHistoryIndex(idx);
       });
 
       logList.appendChild(entryContainer);
@@ -163,7 +186,7 @@ export class LogUI {
     this.container.appendChild(panel);
 
     if (selectedElement && (historyIndexChanged || logCountChanged || savedScrollTop === null)) {
-      (selectedElement as HTMLElement).scrollIntoView({ block: 'nearest', behavior: 'auto' });
+      (selectedElement as HTMLElement).scrollIntoView({ block: 'center', behavior: 'auto' });
     } else if (savedScrollTop !== null && !historyIndexChanged && !logCountChanged) {
       logList.scrollTop = savedScrollTop;
     } else if (!store.isReplaying) {

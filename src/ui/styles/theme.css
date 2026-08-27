@@ -15,10 +15,10 @@
   /* Board & Square Colors */
   --board-light: rgb(168, 106, 52);
   --board-dark: rgb(124, 71, 24);
-  --hill-border-color: rgba(250, 223, 149, 0.793);
+  --hill-border-color: rgb(255, 227, 149);
   --hill-border-width: 1.5px;
   --hill-border-style: dotted;
-  --midline-border-width: 0.3px;
+  --midline-border-width: 0.4px;
   --midline-border-style: dotted;
   --trench_border_color: rgba(255, 255, 255, 0.25);
   --trench-border-color: var(--trench_border_color);
@@ -95,14 +95,24 @@
   --promotion-available-color: rgb(191, 0, 255);
 
   /* Card Colors, Sizing & Border Thicknesses */
+  --card-width: 39px;
+  --card-height: 48px;
   --color-card-black: #1e293b;
   --card-suit-red-color: #c50606;
   --bg-card-face: rgb(255, 229, 162);
   --card-val-font-size: 1.3rem;
-  --card-suit-font-size: 1.3rem;
+  --card-suit-font-size: 1.35rem;
   --card-border-width: 2px;
-  --swap-card-border-width: 3.5px;
+  --card-border-team-a-color: var(--team-a-color);
+  --card-border-team-b-color: var(--team-b-color);
   --combat-dimmed-opacity: 0.75;
+
+  /* Chosen Card for Swapping Controls */
+  --chosen-swap-card-border-color: #fff6c6;
+  --chosen-swap-card-border-width: 3.5px;
+
+  /* Available Cards for Swapping Highlight Controls */
+  --swap-card-border-width: 3.5px;
 
   /* Winning Card Highlight Controls */
   --winning-card-border-team-a: #fccc54;
@@ -122,6 +132,13 @@
   --gap-pieces: 0px;
   --gap-similar-piece: -14px;
   --gap-pawns: -18px;
+
+  /* Log Box Scrollbar Controls */
+  --log-scrollbar-width: 4px;
+  --log-scrollbar-track-bg: rgba(0, 0, 0, 0.25);
+  --log-scrollbar-thumb-bg: rgba(255, 255, 255, 0.18);
+  --log-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
+  --log-scrollbar-thumb-radius: 4px;
 
   /* Aliases supporting snake_case variable names */
   --gap_pieces: var(--gap-pieces);
