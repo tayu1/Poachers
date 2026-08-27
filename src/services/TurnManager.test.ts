@@ -205,11 +205,18 @@ describe('TurnManager State Machine', () => {
 
     // Now make a move
     state.board[8] = 1; // North pawn
+    state.board[16] = 0;
     tm.dispatchAction({ type: 'MOVE', input1: 8, input2: 16 });
 
     expect(store.historyLength).toBe(2); // Frame 1 added
     expect(store.logs.length).toBe(2); // 2 log entries
     expect(store.logs[1].historyIndex).toBe(1); // Associated with move frame
+    expect(store.getState().lastMove).toEqual(expect.objectContaining({ fromIndex: 8, toIndex: 16, type: 'move' }));
+
+    // Next player (East) swaps card: lastMove from North's move must be preserved
+    expect(store.getState().activePlayer).toBe(PlayerSeat.EAST);
+    tm.dispatchAction({ type: 'CARD_SWAP', input1: 0, input2: 3 });
+    expect(store.getState().lastMove).toEqual(expect.objectContaining({ fromIndex: 8, toIndex: 16, type: 'move' }));
   });
 
   it('should associate combat log entry with the resolved combat frame and add "card refill" log entry for post-combat', () => {

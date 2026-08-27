@@ -480,4 +480,104 @@ describe('BoardUI Move and Combat Animations', () => {
     // It should NOT animate again upon return to live mode
     expect(img19?.style.transition).not.toContain('transform');
   });
+
+  it('does NOT animate normal move when browser triggers trailing click event after drag-drop', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.turnCount = 2;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.board[11] = Pc.A_PAWN;
+
+    boardUI.render(state, store);
+
+    // Simulate drag and drop from square 11 to square 19
+    const targetSq = (boardUI as any).squareElements[19];
+    (document as any).elementFromPoint = vi.fn(() => targetSq);
+
+    (boardUI as any).handlePointerDown({ isPrimary: true, button: 0, pointerId: 1, clientX: 100, clientY: 100 }, 11);
+    (boardUI as any).onWindowPointerMove({ pointerId: 1, clientX: 120, clientY: 120, preventDefault: vi.fn() });
+    (boardUI as any).onWindowPointerUp({ pointerId: 1, clientX: 120, clientY: 120 });
+
+    // Browser fires trailing click on destination square right after pointerup
+    (boardUI as any).handleClick(19);
+
+    // Normal move state update after drop
+    state.board[11] = 0;
+    state.board[19] = Pc.A_PAWN;
+    state.lastMove = { fromIndex: 11, toIndex: 19, type: 'move', moveId: 'm1_drag_click' };
+    state.pendingCombat = null;
+
+    boardUI.render(state, store);
+
+    const squares = container.querySelectorAll('.sq');
+    const img19 = squares[19]?.children.find(c => c.tagName === 'img');
+    expect(img19).toBeTruthy();
+    expect(img19?.style.display).toBe('block');
+    // Animation must be suppressed even when trailing click occurred
+    expect(img19?.style.transition).not.toContain('transform');
+  });
+
+  it('does NOT animate normal move when state update arrives with simulated network/render delay', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.turnCount = 2;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.board[11] = Pc.A_PAWN;
+
+    boardUI.render(state, store);
+
+    // Simulate drag and drop from square 11 to square 19
+    const targetSq = (boardUI as any).squareElements[19];
+    (document as any).elementFromPoint = vi.fn(() => targetSq);
+
+    (boardUI as any).handlePointerDown({ isPrimary: true, button: 0, pointerId: 1, clientX: 100, clientY: 100 }, 11);
+    (boardUI as any).onWindowPointerMove({ pointerId: 1, clientX: 120, clientY: 120, preventDefault: vi.fn() });
+    (boardUI as any).onWindowPointerUp({ pointerId: 1, clientX: 120, clientY: 120 });
+
+    // Simulate intermediate store notification (e.g. unselect square)
+    boardUI.render(state, store);
+
+    // Now state update arrives for the dropped move
+    state.board[11] = 0;
+    state.board[19] = Pc.A_PAWN;
+    state.lastMove = { fromIndex: 11, toIndex: 19, type: 'move', moveId: 'm1_delayed' };
+    state.pendingCombat = null;
+
+    boardUI.render(state, store);
+
+    const squares = container.querySelectorAll('.sq');
+    const img19 = squares[19]?.children.find(c => c.tagName === 'img');
+    expect(img19).toBeTruthy();
+    expect(img19?.style.display).toBe('block');
+    // Drag move within timestamp window should NOT animate
+    expect(img19?.style.transition).not.toContain('transform');
+  });
+
+  it('keeps last movement arrow on the board when card swaps occur', () => {
+    vi.useFakeTimers();
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.turnCount = 2;
+    state.activePlayer = PlayerSeat.EAST;
+    state.board[11] = 0;
+    state.board[19] = Pc.A_PAWN;
+    state.lastMove = { fromIndex: 11, toIndex: 19, type: 'move', moveId: 'm1' };
+
+    boardUI.render(state, store);
+    vi.advanceTimersByTime(300);
+
+    // Initial arrow is rendered on board
+    let arrow = container.querySelector('.last-move-arrow');
+    expect(arrow).toBeTruthy();
+
+    // Now East performs a card swap
+    state.hasSwappedThisTurn = true;
+    // lastMove remains { fromIndex: 11, toIndex: 19, ... }
+    boardUI.render(state, store);
+
+    // Arrow is still rendered on the board after the card swap
+    arrow = container.querySelector('.last-move-arrow');
+    expect(arrow).toBeTruthy();
+    vi.useRealTimers();
+  });
 });

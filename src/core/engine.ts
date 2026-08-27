@@ -1135,7 +1135,6 @@ export function executeCardSwapAction(
     state.threatMap = generateFullThreatMap(state.board);
   }
   state.threatenedKings = getThreatenedKings(state.board, state.threatMap);
-  state.lastMove = null;
 
   const seatCode = getSeatCode(state.activePlayer);
   return {

@@ -12,7 +12,7 @@ export class BoardUI {
   private lastLiveAnimatedMoveId: string | null = null;
   private displayedArrowMove: LastMove | null = null;
   private arrowTimer: any = null;
-  private lastDroppedMove: { fromIndex: number; toIndex: number } | null = null;
+  private lastDroppedMove: { fromIndex: number; toIndex: number; timestamp: number } | null = null;
 
   // Cached state references for active drag resolution
   private latestState: GameState | null = null;
@@ -61,7 +61,6 @@ export class BoardUI {
   }
 
   private handlePointerDown(e: PointerEvent, index: number): void {
-    this.lastDroppedMove = null;
     if (!e.isPrimary || e.button !== 0) return;
     if (!this.latestState || !this.latestStore) return;
 
@@ -196,7 +195,7 @@ export class BoardUI {
       this.cleanupDragVisuals(fromIndex);
 
       if (toIndex !== null && toIndex !== fromIndex) {
-        this.lastDroppedMove = { fromIndex, toIndex };
+        this.lastDroppedMove = { fromIndex, toIndex, timestamp: Date.now() };
         this.onPieceDrop(fromIndex, toIndex);
       }
 
@@ -219,7 +218,6 @@ export class BoardUI {
     this.activeDrag = null;
     this.cleanupDragVisuals(fromIndex);
     this.suppressNextClick = false;
-    this.lastDroppedMove = null;
   };
 
   private cleanupDragVisuals(fromIndex: number): void {
@@ -236,10 +234,10 @@ export class BoardUI {
   }
 
   private handleClick(index: number): void {
-    this.lastDroppedMove = null;
     if (this.suppressNextClick) {
       return;
     }
+    this.lastDroppedMove = null;
     this.onSquareClick(index);
   }
 
@@ -414,14 +412,16 @@ export class BoardUI {
       const isDragMove =
         this.lastDroppedMove !== null &&
         this.lastDroppedMove.fromIndex === state.lastMove.fromIndex &&
-        this.lastDroppedMove.toIndex === state.lastMove.toIndex;
-
-      this.lastDroppedMove = null;
+        this.lastDroppedMove.toIndex === state.lastMove.toIndex &&
+        Date.now() - this.lastDroppedMove.timestamp < 3000;
 
       const isNewLiveMove = !store.isReplaying && moveId !== null && moveId !== this.lastLiveAnimatedMoveId;
 
       if (isNewLiveMove && !isUnresolvedCombat) {
         this.lastLiveAnimatedMoveId = moveId;
+        if (isDragMove) {
+          this.lastDroppedMove = null;
+        }
         const moveType = state.lastMove.type || 'move';
         const fromIdx = state.lastMove.fromIndex;
         const toIdx = state.lastMove.toIndex;
