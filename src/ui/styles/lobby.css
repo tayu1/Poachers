@@ -188,8 +188,13 @@
   align-items: center;
 }
 
-.team-a .team-header { color: #f59e0b; }
-.team-b .team-header { color: #06b6d4; }
+.team-a .team-header {
+  color: #f59e0b;
+}
+
+.team-b .team-header {
+  color: #06b6d4;
+}
 
 .seat-card {
   background: #1e293b;
@@ -214,10 +219,6 @@
   color: #f59e0b;
 }
 
-.team-a .seat-occupant.empty-seat-text {
-  color: #f59e0b;
-}
-
 .team-a .seat-card.my-seat {
   border-color: #f59e0b;
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
@@ -230,10 +231,6 @@
 }
 
 .team-b .seat-name {
-  color: #06b6d4;
-}
-
-.team-b .seat-occupant.empty-seat-text {
   color: #06b6d4;
 }
 
@@ -360,10 +357,11 @@
   word-break: break-word;
 }
 
-.seat-occupant.empty-seat-text {
+.seat-occupant.empty-seat-text,
+.seat-occupant.empty-seat-text .seat-occupant-name {
   justify-content: center;
-  color: #38bdf8;
-  font-weight: 700;
+  color: #94a3b8;
+  font-weight: 600;
   letter-spacing: 0.5px;
 }
 
@@ -394,6 +392,7 @@
 .btn-seat-action.sit {
   background: #2563eb;
 }
+
 .btn-seat-action.sit:hover {
   background: #1d4ed8;
 }
@@ -401,6 +400,7 @@
 .btn-seat-action.leave {
   background: #991b1b;
 }
+
 .btn-seat-action.leave:hover {
   background: #b91c1c;
 }
@@ -448,6 +448,7 @@
 .btn-ready.is-ready {
   background: #854d0e;
 }
+
 .btn-ready.is-ready:hover {
   background: #a16207;
 }
@@ -596,7 +597,7 @@
   height: 85vh;
   padding: 32px;
   border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -659,14 +660,17 @@
 .rules-content::-webkit-scrollbar {
   width: 10px;
 }
+
 .rules-content::-webkit-scrollbar-track {
   background: #0f172a;
   border-radius: 6px;
 }
+
 .rules-content::-webkit-scrollbar-thumb {
   background: #334155;
   border-radius: 6px;
 }
+
 .rules-content::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }

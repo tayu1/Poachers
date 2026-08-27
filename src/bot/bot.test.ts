@@ -403,5 +403,27 @@ describe('Next-Gen Bot Search & Evaluation Engine', () => {
     expect(botAction?.logSummary).toContain('Candidates:');
     expect(botAction?.logSummary).toContain('Chosen:');
   });
+
+  it('should apply a penalty of 30 (P[23]) when a King is bunkered', () => {
+    const stateUnbunkered = createInitialGameState({ skipSetup: true });
+    stateUnbunkered.board.fill(0);
+    stateUnbunkered.board[2] = 5; // North King (unbunkered)
+    stateUnbunkered.threatMap = generateFullThreatMap(stateUnbunkered.board);
+
+    const stateBunkered = createInitialGameState({ skipSetup: true });
+    stateBunkered.board.fill(0);
+    stateBunkered.board[2] = 5 | 16; // North King (bunkered)
+    stateBunkered.threatMap = generateFullThreatMap(stateBunkered.board);
+
+    const scoreUnbunkered = evaluateState(stateUnbunkered, PlayerSeat.NORTH);
+    const scoreBunkered = evaluateState(stateBunkered, PlayerSeat.NORTH);
+
+    expect(scoreUnbunkered - scoreBunkered).toBe(30);
+
+    // Enemy bunkered king increases friendly relative score by 30
+    const scoreEnemyUnbunkered = evaluateState(stateUnbunkered, PlayerSeat.EAST);
+    const scoreEnemyBunkered = evaluateState(stateBunkered, PlayerSeat.EAST);
+    expect(scoreEnemyBunkered - scoreEnemyUnbunkered).toBe(30);
+  });
 });
 

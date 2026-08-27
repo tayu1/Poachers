@@ -18,7 +18,7 @@
   --hill-border-color: rgb(255, 227, 149);
   --hill-border-width: 1.5px;
   --hill-border-style: dotted;
-  --midline-border-width: 2px;
+  --midline-border-width: 1.2px;
   --midline-border-style: dotted;
   --trench_border_color: rgba(255, 255, 255, 0.25);
   --trench-border-color: var(--trench_border_color);

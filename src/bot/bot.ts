@@ -424,7 +424,10 @@ export function evaluateState(
           retentionMultiplier = pvals[4];
         }
       }
-      const kingScore = kingBaseVal * retentionMultiplier;
+      let kingScore = kingBaseVal * retentionMultiplier;
+      if (isBunkered) {
+        kingScore -= (pvals[23] ?? DEFAULT_PVALS[23] ?? 30);
+      }
       score += isFriendly ? kingScore : -kingScore;
     } else {
       // Regular piece material value (P[9..13]) and threat retention (P[14..19])

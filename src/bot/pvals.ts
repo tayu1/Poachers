@@ -21,5 +21,6 @@ export const DEFAULT_PVALS: number[] = [
   /* 19: PIECE_BUNKERED_BY_KING (*)           */ 0.99,
   /* 20: GAP1_ROOT_TOP4                       */ 10000,
   /* 21: GAP2_ROOT_TOP8                       */ 3000,
-  /* 22: GAP_DEEP_PLIES                       */ 3000
+  /* 22: GAP_DEEP_PLIES                       */ 3000,
+  /* 23: KING_BUNKERED_PENALTY (-)            */ 30
 ];
