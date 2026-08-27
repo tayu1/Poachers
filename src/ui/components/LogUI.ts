@@ -102,6 +102,7 @@ export class LogUI {
     logList.className = 'log-entries';
     logList.style.flex = '1';
     logList.style.overflowY = 'auto';
+    logList.style.position = 'relative';
     logList.style.fontSize = '12px';
     logList.style.fontFamily = 'monospace';
     logList.style.display = 'flex';
@@ -186,7 +187,18 @@ export class LogUI {
     this.container.appendChild(panel);
 
     if (selectedElement && (historyIndexChanged || logCountChanged || savedScrollTop === null)) {
-      (selectedElement as HTMLElement).scrollIntoView({ block: 'center', behavior: 'auto' });
+      if (store.isReplaying) {
+        const elementTop = (selectedElement as HTMLElement).offsetTop;
+        const elementHeight = (selectedElement as HTMLElement).offsetHeight || (selectedElement as HTMLElement).clientHeight || 0;
+        const containerHeight = logList.offsetHeight || logList.clientHeight || 0;
+        if (containerHeight > 0) {
+          logList.scrollTop = Math.max(0, elementTop - (containerHeight / 2) + (elementHeight / 2));
+        } else {
+          logList.scrollTop = elementTop;
+        }
+      } else {
+        logList.scrollTop = logList.scrollHeight;
+      }
     } else if (savedScrollTop !== null && !historyIndexChanged && !logCountChanged) {
       logList.scrollTop = savedScrollTop;
     } else if (!store.isReplaying) {

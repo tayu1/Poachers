@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PlayerSeat } from '../core/types';
 import { store } from './store';
+import { BOT_SPEED_MS } from '../config';
 
 describe('GameStore Fast Bot Mode', () => {
   it('should initialize fast bot mode when startBotFastMatch is called', () => {
@@ -19,7 +20,7 @@ describe('GameStore Fast Bot Mode', () => {
     store.leaveLocalGame();
 
     expect(store.isLocalGame).toBe(false);
-    expect(store.botSpeedMs).toBe(1500);
+    expect(store.botSpeedMs).toBe(BOT_SPEED_MS);
     expect(store.botSeats[PlayerSeat.NORTH]).toBe(false);
     expect(store.botSeats[PlayerSeat.EAST]).toBe(true);
     expect(store.botSeats[PlayerSeat.SOUTH]).toBe(false);

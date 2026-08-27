@@ -15,6 +15,9 @@ class MockElement {
   public innerHTML: string = '';
   public scrollTop: number = 0;
   public scrollHeight: number = 100;
+  public clientHeight: number = 100;
+  public offsetHeight: number = 100;
+  public offsetTop: number = 0;
   private listeners: Record<string, ((e: any) => void)[]> = {};
 
   constructor(tagName: string) {
@@ -172,7 +175,7 @@ describe('LogUI and ControlsUI requirements', () => {
     expect(bannerChild).toBeUndefined();
   });
 
-  it('should center the selected log entry in the view with block: center', () => {
+  it('should scroll log container internally on new moves without calling scrollIntoView on window/ancestors', () => {
     const container = new MockElement('div') as unknown as HTMLElement;
     const logUI = new LogUI(container, () => {});
 
@@ -187,8 +190,41 @@ describe('LogUI and ControlsUI requirements', () => {
     expect(logEntries.className).toBe('log-entries');
     expect(logEntries.style.paddingRight).toBe('4px');
 
-    // The active element (last one by default in live state) should have been centered
-    const lastElement = logEntries.children[2];
-    expect(lastElement.lastScrollIntoViewOptions).toEqual({ block: 'center', behavior: 'auto' });
+    // Make sure scrollIntoView was NOT called on any child, which prevents mobile window jumping
+    for (const child of logEntries.children) {
+      expect(child.lastScrollIntoViewOptions).toBeNull();
+    }
+    // Make sure logList.scrollTop was set to scrollHeight in live mode
+    expect(logEntries.scrollTop).toBe(logEntries.scrollHeight);
+  });
+
+  it('should center selected entry within logList container during replay scrubbing without calling scrollIntoView', () => {
+    const container = new MockElement('div') as unknown as HTMLElement;
+    const logUI = new LogUI(container, () => {});
+
+    store.recordSnapshot();
+    store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'P : e2 -> e4' });
+    store.recordSnapshot();
+    store.addLogEntry({ turnNumber: 2, seat: 'E', text: 'P : e7 -> e5' });
+    store.recordSnapshot();
+    store.addLogEntry({ turnNumber: 3, seat: 'S', text: 'N : g1 -> f3' });
+
+    // Scrub to history entry 1
+    store.scrubToHistoryIndex(1);
+    expect(store.isReplaying).toBe(true);
+
+    logUI.render(store.getState(), store);
+
+    const logEntries = (container as any).querySelector('#log-entries');
+    expect(logEntries).not.toBeNull();
+
+    // Verify scrollIntoView was never invoked
+    for (const child of logEntries.children) {
+      expect(child.lastScrollIntoViewOptions).toBeNull();
+    }
+
+    // Selected entry (index 1) has offsetTop 0, containerHeight 100, elementHeight 100
+    // Math.max(0, 0 - 50 + 50) = 0
+    expect(logEntries.scrollTop).toBe(0);
   });
 });
