@@ -694,3 +694,17 @@
 .rules-close-btn:hover {
   background: #b91c1c;
 }
+
+.btn-show-rules {
+  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.btn-show-rules:hover {
+  background: #059669 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-show-rules:active {
+  transform: translateY(0);
+}

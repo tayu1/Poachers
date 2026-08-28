@@ -1,6 +1,7 @@
 import { GameState } from '../../core/types';
 import { socketClient } from '../../net/socketClient';
 import { GameStore } from '../../store/store';
+import { toggleRulesModal } from './RulesModal';
 
 export class ControlsUI {
   private container: HTMLElement;
@@ -26,6 +27,12 @@ export class ControlsUI {
     panel.style.flexDirection = 'column';
     panel.style.gap = '10px';
 
+    // Header row: POACHERS title with Rules button on the same line
+    const headerRow = document.createElement('div');
+    headerRow.style.display = 'flex';
+    headerRow.style.justifyContent = 'space-between';
+    headerRow.style.alignItems = 'center';
+
     const header = document.createElement('div');
     header.style.fontSize = '20px';
     header.style.fontFamily = 'var(--font-heading)';
@@ -34,7 +41,30 @@ export class ControlsUI {
     header.style.webkitBackgroundClip = 'text';
     header.style.webkitTextFillColor = 'transparent';
     header.innerText = 'POACHERS';
-    panel.appendChild(header);
+    headerRow.appendChild(header);
+
+    const rulesBtn = document.createElement('button');
+    rulesBtn.id = 'btn-rules-controls';
+    rulesBtn.className = 'btn-show-rules';
+    rulesBtn.style.background = '#10b981';
+    rulesBtn.style.color = '#fff';
+    rulesBtn.style.padding = '4px 10px';
+    rulesBtn.style.fontSize = '12px';
+    rulesBtn.style.fontWeight = 'bold';
+    rulesBtn.style.border = 'none';
+    rulesBtn.style.borderRadius = '4px';
+    rulesBtn.style.cursor = 'pointer';
+    rulesBtn.style.display = 'inline-flex';
+    rulesBtn.style.alignItems = 'center';
+    rulesBtn.style.gap = '4px';
+    rulesBtn.innerText = '📜 RULES';
+    rulesBtn.title = 'View Game Rules';
+    rulesBtn.addEventListener('click', () => {
+      toggleRulesModal();
+    });
+    headerRow.appendChild(rulesBtn);
+
+    panel.appendChild(headerRow);
 
     // Scoreboard
     const scoreboard = document.createElement('div');

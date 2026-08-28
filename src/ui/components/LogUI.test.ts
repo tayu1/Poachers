@@ -18,6 +18,21 @@ class MockElement {
   public clientHeight: number = 100;
   public offsetHeight: number = 100;
   public offsetTop: number = 0;
+  public classList = {
+    classes: new Set<string>(),
+    add: (...tokens: string[]) => tokens.forEach(t => this.classList.classes.add(t)),
+    remove: (...tokens: string[]) => tokens.forEach(t => this.classList.classes.delete(t)),
+    contains: (token: string) => this.classList.classes.has(token),
+    toggle: (token: string) => {
+      if (this.classList.classes.has(token)) {
+        this.classList.classes.delete(token);
+        return false;
+      } else {
+        this.classList.classes.add(token);
+        return true;
+      }
+    }
+  };
   private listeners: Record<string, ((e: any) => void)[]> = {};
 
   constructor(tagName: string) {
@@ -57,7 +72,11 @@ class MockElement {
 
 // Setup global document mock
 (globalThis as any).document = {
-  createElement: (tag: string) => new MockElement(tag)
+  createElement: (tag: string) => new MockElement(tag),
+  getElementById: (_id: string) => null,
+  body: new MockElement('body'),
+  head: new MockElement('head'),
+  addEventListener: () => {}
 };
 
 describe('LogUI and ControlsUI requirements', () => {
@@ -173,6 +192,27 @@ describe('LogUI and ControlsUI requirements', () => {
 
     const bannerChild = panel.children.find(c => c.innerText && (c.innerText.includes('REVIEW') || c.innerText.includes('REPLAY')));
     expect(bannerChild).toBeUndefined();
+  });
+
+  it('should render POACHERS title and Rules button on the same line in ControlsUI', () => {
+    const container = new MockElement('div') as unknown as HTMLElement;
+    const controlsUI = new ControlsUI(container, () => {}, () => {});
+
+    controlsUI.render(store.getState(), store);
+
+    const panel = (container as any).children[0] as MockElement;
+    expect(panel).not.toBeUndefined();
+
+    const headerRow = panel.children[0];
+    expect(headerRow.style.display).toBe('flex');
+    expect(headerRow.children.length).toBe(2);
+
+    const titleEl = headerRow.children[0];
+    expect(titleEl.innerText).toBe('POACHERS');
+
+    const rulesBtn = headerRow.children[1];
+    expect(rulesBtn.innerText).toContain('RULES');
+    expect(rulesBtn.className).toContain('btn-show-rules');
   });
 
   it('should scroll log container internally on new moves without calling scrollIntoView on window/ancestors', () => {
