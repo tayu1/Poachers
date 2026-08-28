@@ -30,7 +30,9 @@ export class ControlsUI {
     header.style.fontSize = '20px';
     header.style.fontFamily = 'var(--font-heading)';
     header.style.fontWeight = 'bold';
-    header.style.color = 'var(--accent-gold)';
+    header.style.background = 'linear-gradient(135deg, #f59e0b 0%, #06b6d4 100%)';
+    header.style.webkitBackgroundClip = 'text';
+    header.style.webkitTextFillColor = 'transparent';
     header.innerText = 'POACHERS';
     panel.appendChild(header);
 
@@ -41,7 +43,7 @@ export class ControlsUI {
     scoreboard.style.background = '#1e293b';
     scoreboard.style.borderRadius = '4px';
     scoreboard.style.fontWeight = 'bold';
-    scoreboard.innerHTML = `Team A <span style="color:var(--accent-gold)">${state.score.teamA}</span> : <span style="color:var(--accent-cyan)">${state.score.teamB}</span> Team B`;
+    scoreboard.innerHTML = `<span style="color:var(--accent-gold)">Team A ${state.score.teamA}</span> : <span style="color:var(--accent-cyan)">${state.score.teamB} Team B</span>`;
     panel.appendChild(scoreboard);
 
 

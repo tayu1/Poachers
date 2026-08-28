@@ -20,33 +20,33 @@ A 4-player, 2-team (North-South vs. East-West) turn-based board game.
 
 ## Card System (Poker Mechanics)
 
-**Setup:** Each player receives 6 cards, and picks 3 to fill the *Trench Cards* ( Positional Cards, used for resolving combat ).
+**Setup:** Each player start with 3 Position-Cards, used for resolving Attacks, And additional 5 cards For Changing or refilling.
 
-**Pre-turn Swap:** Before your move, you may Swap a Trench card with another or with a card from your deck.
+**Pre-turn Swap:** Before your move, you may Swap a Trench card Position-Cards with another, or with a card from your deck.
 
-**End-turn Refill:** After your turn ends, if you have a piece standing on your half of the Hill - you get 1 card to your deck.
+**End-turn Hill Bonus:** After your turn ends, *if you have a piece standing on your half of the Hill* - you get 1 card.
 
-## Combat
+## Resolving Attacks
 
 **Attack on King or by King:** result in immidiate capture without Cards involved.
 
 **Other piece on piece attacks:** Resolved via a Poker hand:
 
-**The Cards:** Best 5-card poker hand wins. The pool consists of:
+**Poker Hand:** Best 5-card poker hand wins. The pool consists of:
 
-**5 Public Cards:** 3 are always face-up; 2 more are revealed during combat.
+**5 Public Cards:** 3 are always face-up; 2 more are revealed for Attack resolution.
 
-**Trench Cards:** Each team uses their 2 trench cards corresponding to the Attacked Square coordinates (row and column).
+**Trench Cards:** Each team uses their 2 Position-Cards corresponding to the Attacked Square coordinates (row and column).
 
 ## Resolution
 
-**Attacker Wins:** A Capture. Defender's card goes to attacker.
+**Attacker Wins Hand:** A Capture. and Defender's card goes to attacker.
 
-**Attacker Loses:** Attacker move is blocked (Rooks/Bishops slide to touch the defender).
+**Attacker Loses Hand:** Attacker move is blocked (Rooks/Bishops slide to touch the defender).
 
-**Poker Hand Draw:** Attacker wins by default..
+**Poker Hand Draw:** Attacker wins by default.
 
-**Cleanup:** Used Cards are discarded. 3 new public cards are opened. Players refill their empty trench slots and turn passes.
+**Cleanup and Refill:** Used Cards are discarded. 3 new public cards are opened. Players refill their empty Position-Cards slots and turn passes.
 
 ## Special Mechanics
 
@@ -56,7 +56,7 @@ A 4-player, 2-team (North-South vs. East-West) turn-based board game.
 
 Bunkered pieces cannot move or attack, until the bunker is released.
 
-**Combat:** when attacking bunkered pieces: combat is resolved normally as explained, but the *Attacking piece is captured in any case.*
+**Combat:** when attacking bunkered pieces: Attack is resolved normally as explained, but the *Attacking piece is Captured in any case.*
 
 **Changing Bunkered pieces** (counts as a turn):
 
@@ -65,7 +65,7 @@ Click another piece in your control ( *but not on the Hill* ) to transfer the bu
 
 ### Pawn Promotion / Resurrect Captured pieces
 
-Possible when you have a Pawn on your half of the Hill.
+Possible when you have a Pawn on *your half of the Center Hill.*
 
 Resurrect your Captured pieces by clicking them, and then clicking on the Hill Pawn (this counts as a turn).
 

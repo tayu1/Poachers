@@ -106,8 +106,8 @@ describe('LogUI and ControlsUI requirements', () => {
     expect(logEntries.children[0].children[0].innerText).toBe('1. N] P : e2 -> e4');
     expect(logEntries.children[0].children[0].style.color).toBe('#e2e8f0');
 
-    // Entry 1: ---card swap (no numbering like 2. E], grey color)
-    expect(logEntries.children[1].children[0].innerText).toBe('---card swap');
+    // Entry 1: ---card change (no numbering like 2. E], grey color)
+    expect(logEntries.children[1].children[0].innerText).toBe('---card change');
     expect(logEntries.children[1].children[0].style.color).toBe('#888888');
 
     // Entry 2: 3. S] P : Takes(N) : e3 -> e4(X)
@@ -138,7 +138,7 @@ describe('LogUI and ControlsUI requirements', () => {
     logUI.render(store.getState(), store);
 
     const logEntries = (container as any).querySelector('#log-entries');
-    expect(logEntries.children[0].children[0].innerText).toBe('---card swap');
+    expect(logEntries.children[0].children[0].innerText).toBe('---card change');
     expect(logEntries.children[0].children[0].style.color).toBe('#888888');
     expect(logEntries.children[1].children[0].innerText).toBe('---card refill');
     expect(logEntries.children[1].children[0].style.color).toBe('#888888');

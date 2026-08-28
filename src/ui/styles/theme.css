@@ -3,10 +3,10 @@
   --bg-color: #0b0f19;
   --panel-bg: rgba(18, 26, 43, 0.85);
   --panel-border: rgba(255, 255, 255, 0.1);
-  --accent-gold: #ffc800;
+  --accent-gold: #ffea00;
   --accent-cyan: #00d9ff;
-  --team-a-color: #ffd000;
-  --team-b-color: #00d9ff;
+  --team-a-color: var(--accent-gold);
+  --team-b-color: var(--accent-cyan);
 
   /* Typography */
   --font-heading: 'Outfit', sans-serif;
@@ -15,20 +15,20 @@
   /* Board & Square Colors */
   --board-light: rgb(168, 106, 52);
   --board-dark: rgb(124, 71, 24);
-  --hill-border-color: rgb(255, 227, 149);
-  --hill-border-width: 1.5px;
+  --hill-border-color: rgb(255, 255, 255);
+  --hill-border-width: 2px;
   --hill-border-style: dotted;
-  --midline-border-width: 1.2px;
+  --midline-border-width: 2px;
   --midline-border-style: dotted;
   --trench_border_color: rgba(255, 255, 255, 0.25);
   --trench-border-color: var(--trench_border_color);
-  --trench-border-width: 1.5px;
+  --trench-border-width: 2px;
   --trench-border-style: dotted;
 
   /* Active Piece Rounded Square Controls */
   --active-piece-team-a-color: #fbee60;
   --active-piece-team-b-color: #7cd3ff;
-  --active-piece-border-width: 1.2px;
+  --active-piece-border-width: 1px;
   --active-piece-border-radius: 6px;
   --active-piece-inset: 3px;
 

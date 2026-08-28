@@ -7,31 +7,56 @@ export class LogUI {
   private lastWheelTime: number = 0;
   private prevHistoryIndex: number | null = null;
   private prevLogCount: number = 0;
+  private firstLogRef: LogEntry | null = null;
+  private initialized: boolean = false;
+
+  private panel!: HTMLElement;
+  private header!: HTMLElement;
+  private logList!: HTMLElement;
+  private btnPrev!: HTMLButtonElement;
+  private btnNext!: HTMLButtonElement;
+  private btnLive!: HTMLButtonElement;
+  private entryElements: HTMLElement[] = [];
 
   constructor(container: HTMLElement, onScrubClick: (historyIndex: number) => void) {
     this.container = container;
     this.onScrubClick = onScrubClick;
+    this.injectStyles();
   }
 
-  public render(_state: GameState, store: GameStore): void {
-    const existingLogList = this.container.querySelector('#log-entries') as HTMLElement | null;
-    const savedScrollTop = existingLogList ? existingLogList.scrollTop : null;
+  private injectStyles() {
+    if (!document.getElementById('log-ui-styles')) {
+      const style = document.createElement('style');
+      style.id = 'log-ui-styles';
+      style.textContent = `
+        .log-ui-btn { padding: 3px 10px; font-size: 12px; font-weight: bold; font-family: monospace; border-radius: 4px; transition: all 0.15s ease; background: rgba(255, 255, 255, 0.08); color: var(--accent-gold); border: 1px solid rgba(255, 255, 255, 0.15); cursor: pointer; }
+        .log-ui-btn:hover:not(:disabled) { background: rgba(245, 158, 11, 0.2); border-color: var(--accent-gold); }
+        .log-ui-btn:disabled { background: rgba(255, 255, 255, 0.03); color: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.05); cursor: not-allowed; }
+        .log-ui-entry { padding: 4px 6px; border-radius: 4px; cursor: pointer; border-left: 3px solid transparent; background: rgba(255, 255, 255, 0.02); transition: all 0.15s ease; }
+        .log-ui-entry:hover:not(.log-ui-entry-selected) { background: rgba(255, 255, 255, 0.08); }
+        .log-ui-entry-selected { background: rgba(6, 182, 212, 0.15) !important; border-left: 3px solid var(--accent-cyan) !important; }
+      `;
+      document.head.appendChild(style);
+    }
+  }
 
-    const historyIndexChanged = this.prevHistoryIndex !== store.historyIndex;
-    const logCountChanged = this.prevLogCount !== store.logs.length;
-
-    this.prevHistoryIndex = store.historyIndex;
-    this.prevLogCount = store.logs.length;
-
+  private initElements(store: GameStore) {
     this.container.innerHTML = '';
 
-    const panel = document.createElement('div');
-    panel.className = 'panel';
-    panel.style.height = '240px';
-    panel.style.display = 'flex';
-    panel.style.flexDirection = 'column';
+    this.panel = document.createElement('div');
+    this.panel.className = 'panel';
+    this.panel.style.height = '240px';
+    this.panel.style.display = 'flex';
+    this.panel.style.flexDirection = 'column';
 
-    panel.addEventListener('wheel', (e: WheelEvent) => {
+    this.header = document.createElement('div');
+    this.header.style.display = 'flex';
+    this.header.style.alignItems = 'center';
+    this.header.style.gap = '6px';
+    this.header.style.marginBottom = '8px';
+
+    // Scrubbing via wheel on header
+    this.header.addEventListener('wheel', (e: WheelEvent) => {
       if (store.logs.length <= 1) return;
       e.preventDefault();
       const now = Date.now();
@@ -45,114 +70,107 @@ export class LogUI {
       }
     }, { passive: false });
 
-    const header = document.createElement('div');
-    header.style.display = 'flex';
-    header.style.alignItems = 'center';
-    header.style.gap = '6px';
-    header.style.marginBottom = '8px';
+    const createBtn = (label: string, titleText: string, onClick: () => void) => {
+      const btn = document.createElement('button');
+      btn.className = 'log-ui-btn';
+      btn.innerText = label;
+      btn.title = titleText;
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!btn.disabled) onClick();
+      });
+      return btn;
+    };
+
+    this.btnPrev = createBtn('<', 'Back', () => store.stepReplay('prev'));
+    this.btnNext = createBtn('>', 'Forward', () => store.stepReplay('next'));
+    this.btnLive = createBtn('>>', 'Last / Resume Live', () => store.stepReplay('live'));
+
+    this.header.appendChild(this.btnPrev);
+    this.header.appendChild(this.btnNext);
+    this.header.appendChild(this.btnLive);
+
+    this.panel.appendChild(this.header);
+
+    this.logList = document.createElement('div');
+    this.logList.id = 'log-entries';
+    this.logList.className = 'log-entries';
+    this.logList.style.flex = '1';
+    this.logList.style.overflowY = 'auto';
+    this.logList.style.position = 'relative';
+    this.logList.style.fontSize = '12px';
+    this.logList.style.fontFamily = 'monospace';
+    this.logList.style.display = 'flex';
+    this.logList.style.flexDirection = 'column';
+    this.logList.style.gap = '4px';
+    this.logList.style.paddingRight = '4px';
+
+    this.panel.appendChild(this.logList);
+    this.container.appendChild(this.panel);
+
+    this.initialized = true;
+  }
+
+  public render(_state: GameState, store: GameStore): void {
+    if (!this.initialized) {
+      this.initElements(store);
+    }
 
     const currentLogIdx = store.activeLogIndex;
     const canPrev = currentLogIdx > 0;
     const canNext = currentLogIdx >= 0 && currentLogIdx < store.logs.length - 1;
     const canLive = store.isReplaying;
 
-    const createBtn = (label: string, titleText: string, disabled: boolean, onClick: () => void) => {
-      const btn = document.createElement('button');
-      btn.innerText = label;
-      btn.title = titleText;
-      btn.disabled = disabled;
-      btn.style.padding = '3px 10px';
-      btn.style.fontSize = '12px';
-      btn.style.fontWeight = 'bold';
-      btn.style.fontFamily = 'monospace';
-      btn.style.background = disabled ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.08)';
-      btn.style.color = disabled ? 'rgba(255, 255, 255, 0.25)' : 'var(--accent-gold)';
-      btn.style.border = '1px solid ' + (disabled ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.15)');
-      btn.style.borderRadius = '4px';
-      btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
-      btn.style.transition = 'all 0.15s ease';
+    this.btnPrev.disabled = !canPrev;
+    this.btnNext.disabled = !canNext;
+    this.btnLive.disabled = !canLive;
 
-      if (!disabled) {
-        btn.addEventListener('mouseenter', () => {
-          btn.style.background = 'rgba(245, 158, 11, 0.2)';
-          btn.style.borderColor = 'var(--accent-gold)';
-        });
-        btn.addEventListener('mouseleave', () => {
-          btn.style.background = 'rgba(255, 255, 255, 0.08)';
-          btn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-        });
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onClick();
-        });
-      }
+    const historyIndexChanged = this.prevHistoryIndex !== store.historyIndex;
+    const logCountChanged = this.prevLogCount !== store.logs.length;
+    const isNewLogSequence = store.logs.length > 0 && store.logs[0] !== this.firstLogRef;
 
-      return btn;
-    };
+    // Fast path: just update styles if only history index changed
+    if (!logCountChanged && !isNewLogSequence && historyIndexChanged && this.entryElements.length === store.logs.length) {
+      this.updateSelection(currentLogIdx, store.isReplaying);
+      this.prevHistoryIndex = store.historyIndex;
+      return;
+    }
 
-    header.appendChild(createBtn('<', 'Back', !canPrev, () => store.stepReplay('prev')));
-    header.appendChild(createBtn('>', 'Forward', !canNext, () => store.stepReplay('next')));
-    header.appendChild(createBtn('>>', 'Last / Resume Live', !canLive, () => store.stepReplay('live')));
+    // Capture whether user is currently at the bottom (sticky scroll) before adding nodes
+    const wasAtBottom = this.logList.scrollHeight - this.logList.scrollTop - this.logList.clientHeight < 10;
 
-    panel.appendChild(header);
+    // If log count shrank or logs were entirely replaced, clear everything
+    if (store.logs.length < this.prevLogCount || isNewLogSequence) {
+      this.logList.innerHTML = '';
+      this.entryElements = [];
+      this.firstLogRef = store.logs.length > 0 ? store.logs[0] : null;
+    } else if (store.logs.length > 0 && !this.firstLogRef) {
+      this.firstLogRef = store.logs[0];
+    } else if (store.logs.length === 0) {
+      this.firstLogRef = null;
+    }
 
-    const logList = document.createElement('div');
-    logList.id = 'log-entries';
-    logList.className = 'log-entries';
-    logList.style.flex = '1';
-    logList.style.overflowY = 'auto';
-    logList.style.position = 'relative';
-    logList.style.fontSize = '12px';
-    logList.style.fontFamily = 'monospace';
-    logList.style.display = 'flex';
-    logList.style.flexDirection = 'column';
-    logList.style.gap = '4px';
-    logList.style.paddingRight = '4px';
-
-    let selectedElement: HTMLElement | null = null;
-
-    store.logs.forEach((entry: LogEntry, idx: number) => {
+    // Append new logs
+    for (let idx = this.entryElements.length; idx < store.logs.length; idx++) {
+      const entry = store.logs[idx];
       const entryContainer = document.createElement('div');
-      entryContainer.style.padding = '4px 6px';
-      entryContainer.style.borderRadius = '4px';
-      entryContainer.style.cursor = 'pointer';
-      entryContainer.style.borderLeft = '3px solid transparent';
-      entryContainer.style.background = 'rgba(255, 255, 255, 0.02)';
-      entryContainer.style.transition = 'all 0.15s ease';
-
-      const isSelected = currentLogIdx === idx;
-      if (isSelected) {
-        entryContainer.style.background = 'rgba(6, 182, 212, 0.15)';
-        entryContainer.style.borderLeft = '3px solid var(--accent-cyan)';
-        selectedElement = entryContainer;
-      }
-
-      entryContainer.addEventListener('mouseenter', () => {
-        if (!isSelected) {
-          entryContainer.style.background = 'rgba(255, 255, 255, 0.08)';
-        }
-      });
-      entryContainer.addEventListener('mouseleave', () => {
-        if (!isSelected) {
-          entryContainer.style.background = 'rgba(255, 255, 255, 0.02)';
-        }
-      });
+      entryContainer.className = 'log-ui-entry';
 
       const line1 = document.createElement('div');
       line1.style.fontWeight = '600';
       line1.style.color = '#e2e8f0';
 
       const isUnnumbered = entry.text === 'card swap' ||
-                           entry.text === '---card swap' ||
-                           entry.text === 'card refill' ||
-                           entry.text === '---card refill' ||
-                           entry.text.startsWith('---');
+        entry.text === '---card swap' ||
+        entry.text === 'card refill' ||
+        entry.text === '---card refill' ||
+        entry.text.startsWith('---');
 
       if (isUnnumbered) {
         line1.style.color = '#888888';
         if (entry.text === 'card swap' || entry.text === '---card swap') {
-          line1.innerText = '---card swap';
+          line1.innerText = '---card change';
         } else if (entry.text === 'card refill' || entry.text === '---card refill') {
           line1.innerText = '---card refill';
         } else {
@@ -177,32 +195,46 @@ export class LogUI {
         e.preventDefault();
         e.stopPropagation();
         this.prevHistoryIndex = null;
-        store.scrubToHistoryIndex(idx);
+        store.scrubToHistoryIndex(entry.historyIndex);
       });
 
-      logList.appendChild(entryContainer);
-    });
+      this.logList.appendChild(entryContainer);
+      this.entryElements.push(entryContainer);
+    }
 
-    panel.appendChild(logList);
-    this.container.appendChild(panel);
+    this.updateSelection(currentLogIdx, store.isReplaying, wasAtBottom, logCountChanged);
 
-    if (selectedElement && (historyIndexChanged || logCountChanged || savedScrollTop === null)) {
-      if (store.isReplaying) {
-        const elementTop = (selectedElement as HTMLElement).offsetTop;
-        const elementHeight = (selectedElement as HTMLElement).offsetHeight || (selectedElement as HTMLElement).clientHeight || 0;
-        const containerHeight = logList.offsetHeight || logList.clientHeight || 0;
-        if (containerHeight > 0) {
-          logList.scrollTop = Math.max(0, elementTop - (containerHeight / 2) + (elementHeight / 2));
-        } else {
-          logList.scrollTop = elementTop;
-        }
+    this.prevHistoryIndex = store.historyIndex;
+    this.prevLogCount = store.logs.length;
+  }
+
+  private updateSelection(currentLogIdx: number, isReplaying: boolean, wasAtBottom: boolean = false, logsAdded: boolean = false) {
+    let selectedElement: HTMLElement | null = null;
+
+    for (let i = 0; i < this.entryElements.length; i++) {
+      const el = this.entryElements[i];
+      if (i === currentLogIdx) {
+        el.classList.add('log-ui-entry-selected');
+        selectedElement = el;
       } else {
-        logList.scrollTop = logList.scrollHeight;
+        el.classList.remove('log-ui-entry-selected');
       }
-    } else if (savedScrollTop !== null && !historyIndexChanged && !logCountChanged) {
-      logList.scrollTop = savedScrollTop;
-    } else if (!store.isReplaying) {
-      logList.scrollTop = logList.scrollHeight;
+    }
+
+    if (selectedElement) {
+      if (isReplaying) {
+        const elementTop = selectedElement.offsetTop;
+        const elementHeight = selectedElement.offsetHeight || selectedElement.clientHeight || 0;
+        const containerHeight = this.logList.offsetHeight || this.logList.clientHeight || 0;
+        if (containerHeight > 0) {
+          this.logList.scrollTop = Math.max(0, elementTop - (containerHeight / 2) + (elementHeight / 2));
+        } else {
+          this.logList.scrollTop = elementTop;
+        }
+      } else if (logsAdded && wasAtBottom) {
+        // Sticky scroll: Only force scroll to bottom if new logs were added, we aren't replaying, and they were already at the bottom
+        this.logList.scrollTop = this.logList.scrollHeight;
+      }
     }
   }
 }
