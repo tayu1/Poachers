@@ -47,6 +47,9 @@ export class TurnManager {
     this.lastSeat = null;
     this.lastTurnCount = null;
     this.lastStage = null;
+    // Reset execution flag — if a timer was mid-execution when cancelled,
+    // this prevents it from permanently blocking all future timer handling.
+    this.isExecutingTimeout = false;
   }
 
   public dispatchAction(
@@ -237,6 +240,7 @@ export class TurnManager {
 
     if (!player || player.baseDeck.length === 0) {
       state.pendingRefills.shift();
+      this.store.triggerUIUpdate();
       return;
     }
 
@@ -554,6 +558,7 @@ export class TurnManager {
       this.overlaysUI.hideAll();
       this.cancelAllTimers();
       this.phase = TurnPhase.AWAITING_INPUT;
+      this.isGameOverShown = false;
       this.store.resetGame(true);
       this.syncTurn(this.store.getState());
     }

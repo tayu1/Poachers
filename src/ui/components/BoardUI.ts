@@ -386,11 +386,18 @@ export class BoardUI {
       this.initDOMStructure();
     }
 
+    // Clear ALL animation state on game reset (fresh game = no lastMove + turn 1)
+    // This prevents stale animation IDs, arrows, and timers from a previous game
+    // from interfering with the first render of the new game.
     if (!state.lastMove) {
-      if (this.arrowTimer) clearTimeout(this.arrowTimer);
+      if (this.arrowTimer) {
+        clearTimeout(this.arrowTimer);
+        this.arrowTimer = null;
+      }
       this.lastAnimatedMoveKey = null;
       this.lastLiveAnimatedMoveId = null;
       this.displayedArrowMove = null;
+      this.lastDroppedMove = null;
       const oldOverlay = this.boardFrame!.querySelector('.last-move-arrow');
       if (oldOverlay) oldOverlay.remove();
     }

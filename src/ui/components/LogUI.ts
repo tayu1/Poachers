@@ -145,6 +145,7 @@ export class LogUI {
       this.logList.innerHTML = '';
       this.entryElements = [];
       this.firstLogRef = store.logs.length > 0 ? store.logs[0] : null;
+      this.prevHistoryIndex = null;
     } else if (store.logs.length > 0 && !this.firstLogRef) {
       this.firstLogRef = store.logs[0];
     } else if (store.logs.length === 0) {

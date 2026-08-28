@@ -88,9 +88,8 @@ store.subscribe((state: GameState, storeInstance) => {
   turnManager.syncTurn(state);
 });
 
-// Trigger initial render & turn sync
+// Trigger initial render (subscription callback already calls syncTurn)
 store.triggerUIUpdate();
-turnManager.syncTurn(store.getState());
 
 // 5. Responsive Layout Scaling & Window Resize
 function updateBoardScale(): void {

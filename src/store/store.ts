@@ -1,4 +1,4 @@
-import { applyAction, createInitialGameState, fastCloneState, toUint8Array } from '../core/engine';
+import { applyAction, createInitialGameState, fastCloneState, resetGlobalMoveSeq, toUint8Array } from '../core/engine';
 import { getSeatCode } from '../core/notation';
 import { generateFullThreatMap, INITIAL_THREAT_MAP } from '../core/moves';
 
@@ -513,11 +513,9 @@ export class GameStore {
   }
 
   public resetGame(isRematch: boolean = false, skipSetup: boolean = false): void {
-    if (this.combatTimer) {
-      clearTimeout(this.combatTimer);
-      this.combatTimer = null;
-    }
-    this._isCombatDelaying = false;
+    // Cancel ALL combat-related timers (turnRiverTimer + combatTimer) to prevent
+    // stale callbacks from previous game firing on the new game's state.
+    this.cancelCombatTimers();
 
     if (isRematch) {
       this.matchScore = { ...this.state.score };
@@ -543,7 +541,9 @@ export class GameStore {
     this.selectedBaseCardIndex = null;
     this.selectedTrenchCardIndex = null;
     this.selectedPromotionPiece = null;
+    this.selectedDraftIndices = [];
     this.isReplaying = false;
+    resetGlobalMoveSeq();
     this.notify();
   }
 }

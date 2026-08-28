@@ -70,6 +70,11 @@ export function generateMoveId(): string {
   return globalMoveSeq.toString(36);
 }
 
+/** Reset move ID counter between games to prevent unbounded growth */
+export function resetGlobalMoveSeq(): void {
+  globalMoveSeq = 0;
+}
+
 export function removeBunkerIfPresent(state: GameState, _seat: PlayerSeat, squareIndex: number): void {
   const piece = state.board[squareIndex];
   if (piece !== 0 && (piece & 16) !== 0) {

@@ -135,7 +135,7 @@ export class LobbyUI {
         <div class="lobby-modal">
           <div class="lobby-header" style="position: relative;">
             <button class="btn-show-rules copy-btn" style="position: absolute; right: 0; top: 0; background: #10b981; color: #fff; padding: 6px 12px; font-weight: bold; border-radius: 6px;">📜 RULES</button>
-            <h1 class="lobby-title">POACHERS LOBBY</h1>
+            <h1 class="lobby-title">POACHERS - LOBBY</h1>
             <p class="lobby-subtitle">Create a room or select an open room to join</p>
           </div>
 
@@ -286,7 +286,7 @@ export class LobbyUI {
           <div class="lobby-header" style="position: relative;">
             <button class="btn-show-rules copy-btn" style="position: absolute; right: 0; top: 0; background: #10b981; color: #fff; padding: 6px 12px; font-weight: bold; border-radius: 6px;">📜 RULES</button>
             <h1 class="lobby-title">GAME ROOM</h1>
-            <p class="lobby-subtitle" style="font-size: 13px; color: #94a3b8; margin-top: 2px;">Pick seats, click READY, or add bots to start match</p>
+            <p class="lobby-subtitle" style="font-size: 13px; color: #94a3b8; margin-top: 2px;">Pick seats and click READY to start match</p>
             <div class="lobby-room-code-badge" style="margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 8px;">
               <span style="display: inline-flex; align-items: center; gap: 4px;">
                 ROOM: ${roomState.roomCode}
