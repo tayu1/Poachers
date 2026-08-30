@@ -255,5 +255,68 @@ describe('Drag-and-Drop & Click Piece Movement', () => {
     expect(avatar).not.toBeNull();
     expect(avatar.style.transform).toBe('translate(-50%, -50%)');
   });
+
+  it('should not allow selecting pieces or seeing legal moves during a bot turn', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    store.botSeats[PlayerSeat.EAST] = true;
+    state.activePlayer = PlayerSeat.EAST;
+
+    // East piece exists at some index (e.g. index with East piece)
+    inputHandler.handleSquareClick(20);
+    expect(store.selectedSquare).toBeNull();
+    expect(store.legalMoves).toEqual([]);
+
+    const dropResult = inputHandler.handlePieceDrop(20, 28);
+    expect(dropResult).toBe(false);
+  });
+
+  it('should not allow selecting pieces or seeing legal moves during opponent turn in multiplayer', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    store.isMultiplayer = true;
+    store.mySeats = [PlayerSeat.SOUTH];
+    state.activePlayer = PlayerSeat.NORTH;
+
+    // North pawn at 11
+    inputHandler.handleSquareClick(11);
+    expect(store.selectedSquare).toBeNull();
+    expect(store.legalMoves).toEqual([]);
+
+    const dropResult = inputHandler.handlePieceDrop(11, 19);
+    expect(dropResult).toBe(false);
+  });
+
+  it('should not allow selecting opponent or uncontrollable pieces even on user turn', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    store.isMultiplayer = false;
+    store.botSeats[PlayerSeat.NORTH] = false;
+    state.activePlayer = PlayerSeat.NORTH;
+
+    // South pawn at 51 is not controllable by North
+    inputHandler.handleSquareClick(51);
+    expect(store.selectedSquare).toBeNull();
+    expect(store.legalMoves).toEqual([]);
+  });
+
+  it('should not allow starting a drag during opponent or bot turn in BoardUI', () => {
+    const onDrop = vi.fn();
+    const onClick = vi.fn();
+    const mockContainer: any = { innerHTML: '', appendChild: vi.fn(), contains: vi.fn(() => true) };
+    const boardUI = new BoardUI(mockContainer, onClick, onDrop);
+
+    store.isMultiplayer = true;
+    store.mySeats = [PlayerSeat.SOUTH];
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+
+    boardUI.render(state, store);
+
+    (boardUI as any).handlePointerDown({ isPrimary: true, button: 0, pointerId: 1, clientX: 100, clientY: 100 }, 11);
+    expect((boardUI as any).activeDrag).toBeNull();
+  });
 });
+
 

@@ -15,9 +15,38 @@ export class InputHandler {
     this.turnManager = turnManager;
   }
 
+  private isMyTurn(seat: PlayerSeat = this.store.getState().activePlayer): boolean {
+    if (this.store.botSeats[seat]) {
+      return false;
+    }
+    if (this.store.isMultiplayer) {
+      if (this.store.mySeats && this.store.mySeats.length > 0) {
+        return this.store.mySeats.includes(seat);
+      }
+      if (this.store.mySeat !== null) {
+        return this.store.mySeat === seat;
+      }
+      return false;
+    }
+    if (this.store.mySeats && this.store.mySeats.length > 0) {
+      return this.store.mySeats.includes(seat);
+    }
+    return true;
+  }
+
   public handleSquareClick(index: number): void {
     const state = this.store.getState();
     if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) {
+      return;
+    }
+
+    if (!this.isMyTurn(state.activePlayer)) {
+      if (this.store.selectedSquare !== null || this.store.legalMoves.length > 0) {
+        this.store.selectSquare(null, []);
+      }
+      if (this.store.isSettingBunker) {
+        this.store.setSettingBunker(false);
+      }
       return;
     }
 
@@ -99,14 +128,12 @@ export class InputHandler {
       }
     }
 
-    // 5. Select square if friendly piece
-    if (piece) {
+    // 5. Select square if friendly piece controllable by player
+    if (piece && isPieceControllable(piece, state.activePlayer, index)) {
       const legalMoves = getLegalMoves1D(state.board, index, state.activePlayer, state.threatMap);
-      if (legalMoves.length > 0 || isPieceControllable(piece, state.activePlayer, index)) {
-        this.store.setSettingBunker(false);
-        this.store.selectSquare(index, legalMoves as any);
-        return;
-      }
+      this.store.setSettingBunker(false);
+      this.store.selectSquare(index, legalMoves as any);
+      return;
     }
 
     this.store.setSettingBunker(false);
@@ -116,6 +143,10 @@ export class InputHandler {
   public handlePieceDrop(fromIndex: number, toIndex: number): boolean {
     const state = this.store.getState();
     if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) {
+      return false;
+    }
+
+    if (!this.isMyTurn(state.activePlayer)) {
       return false;
     }
 
@@ -146,6 +177,7 @@ export class InputHandler {
   public executeMove(fromIndex: number, toIndex: number): void {
     const state = this.store.getState();
     if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
+    if (!this.isMyTurn(state.activePlayer)) return;
 
     this.turnManager.dispatchAction(
       { type: 'MOVE', input1: fromIndex, input2: toIndex },
@@ -156,6 +188,7 @@ export class InputHandler {
   public executeSetBunker(originIndex: number, endIndex: number | null = 0): void {
     const state = this.store.getState();
     if (state.setupState?.inSetup || state.pendingRefills.length > 0 || this.store.isCombatDelaying) return;
+    if (!this.isMyTurn(state.activePlayer)) return;
 
     this.turnManager.dispatchAction({ type: 'SET_BUNKER', input1: originIndex, input2: endIndex ?? 0 });
   }
@@ -174,7 +207,7 @@ export class InputHandler {
             )
           : state.activePlayer);
 
-    const isMyTurn = !this.store.isMultiplayer || (this.store.mySeat !== null && this.store.mySeat === activeSeat) || (this.store.mySeats && this.store.mySeats.includes(activeSeat));
+    const isMyTurn = this.isMyTurn(activeSeat);
     if (!isMyTurn) return;
 
     const activePlayerState = state.players[activeSeat];
@@ -218,7 +251,7 @@ export class InputHandler {
     if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
     if (seat !== state.activePlayer) return;
 
-    const isMyTurn = !this.store.isMultiplayer || (this.store.mySeat !== null && this.store.mySeat === seat) || (this.store.mySeats && this.store.mySeats.includes(seat));
+    const isMyTurn = this.isMyTurn(seat);
     if (!isMyTurn) return;
 
     const playerState = state.players[seat];
@@ -254,7 +287,7 @@ export class InputHandler {
     const state = this.store.getState();
     if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
 
-    const isMyTurn = !this.store.isMultiplayer || (this.store.mySeat !== null && this.store.mySeat === state.activePlayer) || (this.store.mySeats && this.store.mySeats.includes(state.activePlayer));
+    const isMyTurn = this.isMyTurn(state.activePlayer);
     if (!isMyTurn) return;
 
     if (this.store.selectedPromotionPiece === piece) {

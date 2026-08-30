@@ -628,6 +628,23 @@
   -webkit-text-fill-color: transparent;
 }
 
+.rules-image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto 24px auto;
+  width: 100%;
+}
+
+.rules-pic {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  display: block;
+}
+
 .rules-content h2 {
   font-family: 'Outfit', sans-serif;
   font-size: 22px;

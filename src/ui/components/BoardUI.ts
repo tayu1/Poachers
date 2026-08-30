@@ -83,6 +83,17 @@ export class BoardUI {
       return;
     }
 
+    // Check if it's currently the user's turn
+    const isBot = Boolean(store.botSeats[state.activePlayer]);
+    const isMyTurn = !isBot && (
+      !store.isMultiplayer
+        ? (!store.mySeats?.length || store.mySeats.includes(state.activePlayer))
+        : (store.mySeats?.includes(state.activePlayer) || store.mySeat === state.activePlayer)
+    );
+    if (!isMyTurn) {
+      return;
+    }
+
     const piece = state.board[index];
     const isControllable = piece !== 0 && isPieceControllable(piece, state.activePlayer, index);
 
@@ -389,7 +400,7 @@ export class BoardUI {
     // Clear ALL animation state on game reset (fresh game = no lastMove + turn 1)
     // This prevents stale animation IDs, arrows, and timers from a previous game
     // from interfering with the first render of the new game.
-    if (!state.lastMove) {
+    if (!state.lastMove && (!this.lastDroppedMove || Date.now() - this.lastDroppedMove.timestamp >= 3000)) {
       if (this.arrowTimer) {
         clearTimeout(this.arrowTimer);
         this.arrowTimer = null;
@@ -474,7 +485,12 @@ export class BoardUI {
     }
 
     const isRefillOrSetupStage = Boolean(state.setupState?.inSetup) || state.pendingRefills.length > 0;
-    const promoOptions = !isRefillOrSetupStage ? getValidPromotionOptions(state, state.activePlayer) : [];
+    const isUserTurn = !store.botSeats[state.activePlayer] && (
+      !store.isMultiplayer
+        ? (!store.mySeats?.length || store.mySeats.includes(state.activePlayer))
+        : (store.mySeats?.includes(state.activePlayer) || store.mySeat === state.activePlayer)
+    );
+    const promoOptions = !isRefillOrSetupStage && isUserTurn ? getValidPromotionOptions(state, state.activePlayer) : [];
 
     for (let index = 0; index < 64; index++) {
       const row = getRow(index);
@@ -487,25 +503,25 @@ export class BoardUI {
       let sqClasses = `sq ${isLight ? 'light-sq' : 'dark-sq'} ${isHill ? 'hill-sq' : ''}`;
 
       const piece = state.board[index];
-      const isCurrentTurnPlayerPiece = !isRefillOrSetupStage && piece !== 0 && isPieceControllable(piece, state.activePlayer, index);
+      const isCurrentTurnPlayerPiece = !isRefillOrSetupStage && isUserTurn && piece !== 0 && isPieceControllable(piece, state.activePlayer, index);
 
       if (isCurrentTurnPlayerPiece) {
         const pieceTeamClass = (piece & 8) === 0 ? 'active-team-a' : 'active-team-b';
         sqClasses += ` active-piece-sq ${pieceTeamClass}`;
       }
 
-      if (store.selectedSquare === index && !isRefillOrSetupStage) {
+      if (store.selectedSquare === index && !isRefillOrSetupStage && isUserTurn) {
         sqClasses += ' selected-sq';
       }
 
 
-      if (store.selectedPromotionPiece) {
+      if (store.selectedPromotionPiece && isUserTurn) {
         const selectedType = getPieceType(store.selectedPromotionPiece);
         const isPromoValid = promoOptions.some(o => o.hillIndex === index && getPieceType(o.promotedPiece) === selectedType);
         if (isPromoValid) {
           sqClasses += ' promotion-target';
         }
-      } else if (promoOptions.some(o => o.hillIndex === index)) {
+      } else if (promoOptions.some(o => o.hillIndex === index) && isUserTurn) {
         sqClasses += ' promotion-available';
         sq.title = 'Hill pawn can be promoted! Select a lost piece from pool.';
       } else {
@@ -606,7 +622,7 @@ export class BoardUI {
         sq.appendChild(badge);
       }
 
-      if (store.isSettingBunker && !isRefillOrSetupStage) {
+      if (store.isSettingBunker && !isRefillOrSetupStage && isUserTurn) {
         const p = state.board[index];
         if (p && isPieceControllable(p, state.activePlayer, index) && !HILL_SQUARE_INDICES.includes(index)) {
           const candidateMarker = document.createElement('div');
@@ -615,7 +631,7 @@ export class BoardUI {
         }
       }
 
-      const targetMove = !isRefillOrSetupStage
+      const targetMove = !isRefillOrSetupStage && isUserTurn
         ? store.legalMoves.find((m: any) => (typeof m === 'number' ? decEnd(m) === index : m.toIndex === index))
         : undefined;
 

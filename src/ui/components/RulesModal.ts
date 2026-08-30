@@ -9,10 +9,11 @@ export function toggleRulesModal(): void {
 
     const parseMarkdown = (md: string) => {
       return md
-        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-        .replace(/^(?!<h)(?!$)(.*)$/gim, '<p>$1</p>')
+        .replace(/^\s*!\[(.*?)\]\((.*?)\)/gim, '<div class="rules-image-container"><img src="$2" alt="$1" class="rules-pic" /></div>')
+        .replace(/^\s*### (.*$)/gim, '<h3>$1</h3>')
+        .replace(/^\s*## (.*$)/gim, '<h2>$1</h2>')
+        .replace(/^\s*# (.*$)/gim, '<h1>$1</h1>')
+        .replace(/^(?!<h|<!|<div)(?!$)(.*)$/gim, '<p>$1</p>')
         .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/gim, '<em>$1</em>')
         .replace(/\n/g, '');

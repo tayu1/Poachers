@@ -1,5 +1,7 @@
 # Poachers - Game Rules
 
+![Poachers Rules Overview](/assets/rules_pic.webp)
+
 A 4-player, 2-team (North-South vs. East-West) turn-based board game.
 
 **Objective:** Win by capturing both of the opposing team's Kings.
@@ -31,14 +33,11 @@ A 4-player, 2-team (North-South vs. East-West) turn-based board game.
 **Attack on King or by King:** result in immidiate capture without Cards involved.
 
 **Other piece on piece attacks:** Resolved via a Poker hand:
+Best 5-card poker hand wins. The pool consists of:
 
-**Poker Hand:** Best 5-card poker hand wins. The pool consists of:
+**5 Public Cards:** 3 are always face-up (Flop), 2 more are revealed for Attack resolution.
 
-**5 Public Cards:** 3 are always face-up; 2 more are revealed for Attack resolution.
-
-**Trench Cards:** Each team uses their 2 Position-Cards corresponding to the Attacked Square coordinates (row and column).
-
-## Resolution
+**Position Cards:** Each team uses their 2 Position-Cards corresponding to the Attacked Square coordinates (row and column).
 
 **Attacker Wins Hand:** A Capture. and Defender's card goes to attacker.
 
