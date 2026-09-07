@@ -480,18 +480,28 @@ io.on('connection', (socket) => {
             botSeats: room.gameState.botSeats,
             autoCardPick: room.autoCardPick ?? true
           });
-          const refillIdx = room.logs.length;
-          room.logs.push({
-            turnNumber: turnNum,
-            seat: seatCode,
-            text: 'card refill',
-            historyIndex: refillIdx
-          });
           if (room.gameState.isGameOver) {
+            if (room.gameState.winnerTeam) {
+              const winIdx = room.logs.length;
+              room.logs.push({
+                turnNumber: turnNum,
+                seat: seatCode,
+                text: `🏆 Team ${room.gameState.winnerTeam} Victorious! (King Captured)`,
+                historyIndex: winIdx
+              });
+            }
             room.matchScore = { ...room.gameState.score };
             room.status = 'ended';
             io.to(code).emit('room_state_update', serializeRoomState(room));
             broadcastPublicRooms(io);
+          } else {
+            const refillIdx = room.logs.length;
+            room.logs.push({
+              turnNumber: turnNum,
+              seat: seatCode,
+              text: 'card refill',
+              historyIndex: refillIdx
+            });
           }
           if (!room.gameState.isGameOver) {
             startTurnTimeout(room, io);
@@ -521,6 +531,15 @@ io.on('connection', (socket) => {
       }
 
       if (room.gameState.isGameOver) {
+        if (room.gameState.winnerTeam) {
+          const winIdx = room.logs.length;
+          room.logs.push({
+            turnNumber: turnNum,
+            seat: seatCode,
+            text: `🏆 Team ${room.gameState.winnerTeam} Victorious!`,
+            historyIndex: winIdx
+          });
+        }
         room.matchScore = { ...room.gameState.score };
         room.status = 'ended';
         io.to(code).emit('room_state_update', serializeRoomState(room));

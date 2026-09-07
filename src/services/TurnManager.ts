@@ -146,8 +146,19 @@ export class TurnManager {
 
           this.phase = freshState2.isGameOver ? TurnPhase.GAME_OVER : TurnPhase.AWAITING_INPUT;
 
-          if (freshState2.isGameOver && freshState2.winnerTeam) {
-            this.handleGameOver(freshState2.winnerTeam);
+          if (freshState2.isGameOver) {
+            this.handleGameOver(freshState2.winnerTeam || null);
+            this.store.recordSnapshot();
+            this.store.addLogEntry({
+              turnNumber: turnNum,
+              seat,
+              text: freshState2.winnerTeam
+                ? `🏆 Team ${freshState2.winnerTeam} Victorious! (King Captured)`
+                : 'Game Over: Draw!'
+            });
+            this.store.triggerUIUpdate();
+            this.syncTurn(this.store.getState());
+            return;
           }
 
           // Frame and log entry for post-combat card refill
@@ -181,6 +192,17 @@ export class TurnManager {
         text: prefix + result.logText + suffix,
         pokerText: result.pokerText
       });
+
+      if (result.isGameOver) {
+        this.store.recordSnapshot();
+        this.store.addLogEntry({
+          turnNumber: turnNum,
+          seat,
+          text: result.winnerTeam
+            ? `🏆 Team ${result.winnerTeam} Victorious!`
+            : 'Game Over: Draw!'
+        });
+      }
     } else {
       this.store.triggerUIUpdate();
     }

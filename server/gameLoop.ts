@@ -121,18 +121,28 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
               botSeats: room.gameState.botSeats,
               autoCardPick: room.autoCardPick ?? true
             });
-            const refillIdx = room.logs.length;
-            room.logs.push({
-              turnNumber: turnNum,
-              seat: seatCode,
-              text: 'card refill',
-              historyIndex: refillIdx
-            });
             if (room.gameState.isGameOver) {
+              if (room.gameState.winnerTeam) {
+                const winIdx = room.logs.length;
+                room.logs.push({
+                  turnNumber: turnNum,
+                  seat: seatCode,
+                  text: `🏆 Team ${room.gameState.winnerTeam} Victorious! (King Captured)`,
+                  historyIndex: winIdx
+                });
+              }
               room.matchScore = { ...room.gameState.score };
               room.status = 'ended';
               clearTurnTimeout(room);
               if (room.botTimer) { clearTimeout(room.botTimer); room.botTimer = null; }
+            } else {
+              const refillIdx = room.logs.length;
+              room.logs.push({
+                turnNumber: turnNum,
+                seat: seatCode,
+                text: 'card refill',
+                historyIndex: refillIdx
+              });
             }
             emitGameStateToRoom(io, room);
             if (!room.gameState.isGameOver) {
@@ -166,6 +176,15 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
         }
 
         if (room.gameState.isGameOver) {
+          if (room.gameState.winnerTeam) {
+            const winIdx = room.logs.length;
+            room.logs.push({
+              turnNumber: turnNum,
+              seat: seatCode,
+              text: `🏆 Team ${room.gameState.winnerTeam} Victorious!`,
+              historyIndex: winIdx
+            });
+          }
           room.matchScore = { ...room.gameState.score };
           room.status = 'ended';
         }
@@ -302,16 +321,26 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
             botStrategies,
             autoCardPick: room.autoCardPick ?? true
           });
-          const refillIdx = room.logs.length;
-          room.logs.push({
-            turnNumber: turnNum,
-            seat: seatCode,
-            text: 'card refill',
-            historyIndex: refillIdx
-          });
           if (room.gameState.isGameOver) {
+            if (room.gameState.winnerTeam) {
+              const winIdx = room.logs.length;
+              room.logs.push({
+                turnNumber: turnNum,
+                seat: seatCode,
+                text: `🏆 Team ${room.gameState.winnerTeam} Victorious! (King Captured)`,
+                historyIndex: winIdx
+              });
+            }
             room.matchScore = { ...room.gameState.score };
             room.status = 'ended';
+          } else {
+            const refillIdx = room.logs.length;
+            room.logs.push({
+              turnNumber: turnNum,
+              seat: seatCode,
+              text: 'card refill',
+              historyIndex: refillIdx
+            });
           }
           emitGameStateToRoom(io, room);
 
@@ -346,6 +375,15 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
       }
 
       if (room.gameState.isGameOver) {
+        if (room.gameState.winnerTeam) {
+          const winIdx = room.logs.length;
+          room.logs.push({
+            turnNumber: turnNum,
+            seat: seatCode,
+            text: `🏆 Team ${room.gameState.winnerTeam} Victorious!`,
+            historyIndex: winIdx
+          });
+        }
         room.matchScore = { ...room.gameState.score };
         room.status = 'ended';
         clearTurnTimeout(room);

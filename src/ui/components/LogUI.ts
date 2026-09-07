@@ -85,7 +85,10 @@ export class LogUI {
 
     this.btnPrev = createBtn('<', 'Back', () => store.stepReplay('prev'));
     this.btnNext = createBtn('>', 'Forward', () => store.stepReplay('next'));
-    this.btnLive = createBtn('>>', 'Last / Resume Live', () => store.stepReplay('live'));
+    this.btnLive = createBtn('>>', 'Last / Resume Live', () => {
+      store.stepReplay('live');
+      this.logList.scrollTop = this.logList.scrollHeight;
+    });
 
     this.header.appendChild(this.btnPrev);
     this.header.appendChild(this.btnNext);
@@ -138,7 +141,7 @@ export class LogUI {
     }
 
     // Capture whether user is currently at the bottom (sticky scroll) before adding nodes
-    const wasAtBottom = this.logList.scrollHeight - this.logList.scrollTop - this.logList.clientHeight < 10;
+    const wasAtBottom = this.entryElements.length === 0 || (this.logList.scrollHeight - this.logList.scrollTop - this.logList.clientHeight <= 40);
 
     // If log count shrank or logs were entirely replaced, clear everything
     if (store.logs.length < this.prevLogCount || isNewLogSequence) {
@@ -162,13 +165,20 @@ export class LogUI {
       line1.style.fontWeight = '600';
       line1.style.color = '#e2e8f0';
 
-      const isUnnumbered = entry.text === 'card swap' ||
+      const isVictory = entry.text.includes('Victorious') || entry.text.includes('Game Over');
+      const isUnnumbered = !isVictory && (
+        entry.text === 'card swap' ||
         entry.text === '---card swap' ||
         entry.text === 'card refill' ||
         entry.text === '---card refill' ||
-        entry.text.startsWith('---');
+        entry.text.startsWith('---')
+      );
 
-      if (isUnnumbered) {
+      if (isVictory) {
+        line1.style.color = 'var(--accent-gold)';
+        line1.style.fontWeight = 'bold';
+        line1.innerText = entry.text.startsWith('🏆') ? entry.text : `🏆 ${entry.text}`;
+      } else if (isUnnumbered) {
         line1.style.color = '#888888';
         if (entry.text === 'card swap' || entry.text === '---card swap') {
           line1.innerText = '---card change';
@@ -232,8 +242,8 @@ export class LogUI {
         } else {
           this.logList.scrollTop = elementTop;
         }
-      } else if (logsAdded && wasAtBottom) {
-        // Sticky scroll: Only force scroll to bottom if new logs were added, we aren't replaying, and they were already at the bottom
+      } else if (wasAtBottom) {
+        // Sticky scroll: If user was at the bottom (or newly populated) in live mode, keep scrolled to bottom
         this.logList.scrollTop = this.logList.scrollHeight;
       }
     }

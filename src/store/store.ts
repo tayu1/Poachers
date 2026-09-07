@@ -443,11 +443,6 @@ export class GameStore {
   public get activeLogIndex(): number {
     if (this.logs.length === 0) return -1;
     if (!this.isReplaying) return this.logs.length - 1;
-    if (this.historyIndex >= 0 && this.historyIndex < this.logs.length) {
-      return this.historyIndex;
-    }
-    const exactIdx = this.logs.findIndex(e => e.historyIndex === this.historyIndex);
-    if (exactIdx !== -1) return exactIdx;
     for (let i = this.logs.length - 1; i >= 0; i--) {
       if (this.historyIndex >= this.logs[i].historyIndex) return i;
     }
@@ -475,9 +470,16 @@ export class GameStore {
     const currentIdx = this.activeLogIndex;
 
     if (direction === 'prev' && currentIdx > 0) {
-      this.scrubToHistoryIndex(currentIdx - 1);
+      const targetLog = this.logs[currentIdx - 1];
+      this.scrubToHistoryIndex(targetLog.historyIndex);
     } else if (direction === 'next' && currentIdx < this.logs.length - 1) {
-      this.scrubToHistoryIndex(currentIdx + 1);
+      const nextIdx = currentIdx + 1;
+      if (nextIdx === this.logs.length - 1) {
+        this.stepReplay('live');
+      } else {
+        const targetLog = this.logs[nextIdx];
+        this.scrubToHistoryIndex(targetLog.historyIndex);
+      }
     }
   }
 

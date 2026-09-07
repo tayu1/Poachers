@@ -555,4 +555,48 @@ describe('GameStore History Replay and Indexing', () => {
     expect(store.isReplaying).toBe(false);
     expect(store.activeLogIndex).toBe(2);
   });
+
+  it('should correctly map activeLogIndex and stepReplay when history snapshots outnumber logs', () => {
+    store.resetGame(false, true);
+
+    // Turn 1: 2 snapshots (e.g. Setup/action + combat)
+    store.recordSnapshot(); // history 0
+    store.recordSnapshot(); // history 1
+    store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'Move 1' }); // log 0 -> historyIndex: 1
+
+    // Turn 2: 2 snapshots (combat delay + refill)
+    store.recordSnapshot(); // history 2
+    store.recordSnapshot(); // history 3
+    store.addLogEntry({ turnNumber: 2, seat: 'E', text: 'Move 2' }); // log 1 -> historyIndex: 3
+
+    // Turn 3: 2 snapshots
+    store.recordSnapshot(); // history 4
+    store.recordSnapshot(); // history 5
+    store.addLogEntry({ turnNumber: 3, seat: 'S', text: 'Move 3' }); // log 2 -> historyIndex: 5
+
+    expect(store.historyLength).toBe(6);
+    expect(store.logs.length).toBe(3);
+    expect(store.activeLogIndex).toBe(2);
+
+    // Step back to Move 2 (log 1)
+    store.stepReplay('prev');
+    expect(store.activeLogIndex).toBe(1);
+    expect(store.historyIndex).toBe(3); // accurately jumped to snapshot 3, not snapshot 1!
+
+    // Step back to Move 1 (log 0)
+    store.stepReplay('prev');
+    expect(store.activeLogIndex).toBe(0);
+    expect(store.historyIndex).toBe(1); // accurately jumped to snapshot 1!
+
+    // Step forward to Move 2 (log 1)
+    store.stepReplay('next');
+    expect(store.activeLogIndex).toBe(1);
+    expect(store.historyIndex).toBe(3);
+
+    // Step forward to Move 3 (last log -> resumes live)
+    store.stepReplay('next');
+    expect(store.activeLogIndex).toBe(2);
+    expect(store.isReplaying).toBe(false);
+    expect(store.historyIndex).toBe(5);
+  });
 });

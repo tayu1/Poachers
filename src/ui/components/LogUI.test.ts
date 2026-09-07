@@ -267,4 +267,23 @@ describe('LogUI and ControlsUI requirements', () => {
     // Math.max(0, 0 - 50 + 50) = 0
     expect(logEntries.scrollTop).toBe(0);
   });
+
+  it('should render victory announcements with gold color and trophy prefix', () => {
+    const container = new MockElement('div') as unknown as HTMLElement;
+    const logUI = new LogUI(container, () => {});
+
+    store.addLogEntry({
+      turnNumber: 39,
+      seat: 'N',
+      text: '🏆 Team A Victorious! (King Captured)'
+    });
+
+    logUI.render(store.getState(), store);
+
+    const logEntries = (container as any).querySelector('#log-entries');
+    expect(logEntries.children.length).toBe(1);
+    expect(logEntries.children[0].children[0].innerText).toBe('🏆 Team A Victorious! (King Captured)');
+    expect(logEntries.children[0].children[0].style.color).toBe('var(--accent-gold)');
+    expect(logEntries.children[0].children[0].style.fontWeight).toBe('bold');
+  });
 });
