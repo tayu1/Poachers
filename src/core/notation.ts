@@ -144,7 +144,7 @@ export function getHandDescription(hand: EvaluatedHand): string {
 
 /**
  * Formats live Combat Announcement Banner text:
- * Format: "Attacker Win with [handDesc]!" / "Defender Win with [handDesc]!" / "Draw - attacker wins"
+ * Format: "Attacker Wins with [handDesc]!" / "Defender Wins with [handDesc]!" / "Draw - attacker wins"
  */
 export function formatCombatAnnouncementText(combat: CombatResult): string {
   if (combat.attackerHand.score === combat.defenderHand.score) {
@@ -168,7 +168,7 @@ export function formatCombatAnnouncementText(combat: CombatResult): string {
         break;
       }
     }
-    
+
     if (kickerRank > 0) {
       const kickerNames: Record<number, string> = {
         14: 'ace', 13: 'king', 12: 'queen', 11: 'jack',
@@ -181,7 +181,7 @@ export function formatCombatAnnouncementText(combat: CombatResult): string {
   }
 
   const handDesc = getHandDescription(winnerHand);
-  return `${winnerRole} Win with ${handDesc}!`;
+  return `${winnerRole} Wins with ${handDesc}!`;
 }
 
 /**
@@ -199,7 +199,7 @@ export function formatPokerComparison(combat: CombatResult): string {
 
   if (combat.winnerSeat === combat.attackerSeat) {
     if (combat.attackerHand.score === combat.defenderHand.score) {
-      return `${attStr} > ${defStr} (Draw - Attacker Wins)`;
+      return `${attStr} >= ${defStr}`;
     }
     return `${attStr} > ${defStr}`;
   } else {
