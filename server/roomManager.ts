@@ -352,15 +352,19 @@ export function sanitizeGameStateForClient(
 
 export function emitGameStateToRoom(
   io: Server<ClientToServerEvents, ServerToClientEvents>,
-  room: ServerRoom
+  room: ServerRoom,
+  forceIncludeHistory: boolean = false
 ): void {
   if (!room.gameState) return;
+  const isGameOver = Boolean(room.gameState.isGameOver || room.status === 'ended');
+  const includeHistory = forceIncludeHistory || isGameOver;
+
   const hasHumanOnline = Array.from(room.players.values()).some(p => p.isOnline);
   if (!hasHumanOnline) {
     io.to(room.roomCode).emit('game_state_update', {
       gameState: room.gameState,
       logs: room.logs,
-      history: room.history ? room.history.map(h => sanitizeGameStateForClient(h, [])) : undefined
+      history: includeHistory && room.history ? room.history.map(h => sanitizeGameStateForClient(h, [])) : undefined
     });
     return;
   }
@@ -369,7 +373,7 @@ export function emitGameStateToRoom(
     if (player.socketId && player.isOnline) {
       const seats = getSeatsForPlayer(room, player.playerId);
       const sanitized = sanitizeGameStateForClient(room.gameState, seats);
-      const sanitizedHistory = room.history ? room.history.map(h => sanitizeGameStateForClient(h, seats)) : undefined;
+      const sanitizedHistory = includeHistory && room.history ? room.history.map(h => sanitizeGameStateForClient(h, seats)) : undefined;
       io.to(player.socketId).emit('game_state_update', {
         gameState: sanitized,
         logs: room.logs,

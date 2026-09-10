@@ -58,8 +58,69 @@ export class TurnManager {
   ): void {
     const state = this.store.getState();
 
+    const isCardSwap = typeof action === 'number'
+      ? (action >>> 20) === ActionType.CARD_SWAP
+      : action.type === 'CARD_SWAP' || action.type === ActionType.CARD_SWAP;
+
     if (this.store.isMultiplayer) {
-      socketClient.sendGameAction(typeof action === 'number' ? actionIntToGameAction(action) : action);
+      const gameAction = typeof action === 'number' ? actionIntToGameAction(action) : action;
+      socketClient.sendGameAction(gameAction);
+
+      // Optimistic execution for deterministic player moves to eliminate network turn delay on Render
+      const fromIdx = typeof gameAction.input1 === 'number' ? gameAction.input1 : gameAction.origin;
+      const toIdx = typeof gameAction.input2 === 'number' ? gameAction.input2 : (typeof gameAction.end === 'number' ? gameAction.end : null);
+      const isMoveAction = gameAction.type === 'MOVE' || gameAction.type === ActionType.MOVE;
+      const isRegularMove = Boolean(isMoveAction && fromIdx !== undefined && toIdx !== null && toIdx !== undefined && state.board[toIdx] === 0);
+      const isKingCapture = Boolean(isMoveAction && fromIdx !== undefined && toIdx !== null && toIdx !== undefined && state.board[toIdx] !== 0 && (
+        (state.board[toIdx] & 7) === 5 || (state.board[fromIdx] & 7) === 5
+      ));
+      const isBunker = gameAction.type === 'SET_BUNKER' || gameAction.type === ActionType.SET_BUNKER;
+      const isOptimisticEligible = isRegularMove || isKingCapture || isBunker || isCardSwap;
+
+      if (isOptimisticEligible && !state.isGameOver && this.phase !== TurnPhase.COMBAT_DELAY) {
+        const turnNum = state.turnCount;
+        const seat = getSeatCode(state.activePlayer);
+        const deferPostCombat = opts?.deferPostCombat ?? false;
+
+        const result = applyAction(state, action, {
+          botSeats: this.store.botSeats,
+          autoCardPick: this.store.autoCardPick,
+          botStrategies: opts?.botStrategies,
+          deferPostCombat
+        });
+
+        if (isCardSwap) {
+          this.store.recordSnapshot();
+          this.store.addLogEntry({
+            turnNumber: turnNum,
+            seat,
+            text: 'card swap'
+          });
+          this.store.triggerUIUpdate();
+          return;
+        }
+
+        if (result.isGameOver && result.winnerTeam) {
+          this.phase = TurnPhase.GAME_OVER;
+          this.handleGameOver(result.winnerTeam);
+        } else {
+          this.phase = TurnPhase.AWAITING_INPUT;
+        }
+
+        if (!opts?.skipLog) {
+          this.store.recordSnapshot();
+          const prefix = opts?.logPrefix ?? '';
+          const suffix = opts?.logSuffix ?? '';
+          this.store.addLogEntry({
+            turnNumber: turnNum,
+            seat,
+            text: prefix + result.logText + suffix,
+            pokerText: result.pokerText
+          });
+        } else {
+          this.store.triggerUIUpdate();
+        }
+      }
       return;
     }
 
@@ -70,10 +131,6 @@ export class TurnManager {
     const turnNum = state.turnCount;
     const seat = getSeatCode(state.activePlayer);
     const deferPostCombat = opts?.deferPostCombat ?? false;
-
-    const isCardSwap = typeof action === 'number'
-      ? (action >>> 20) === ActionType.CARD_SWAP
-      : action.type === 'CARD_SWAP' || action.type === ActionType.CARD_SWAP;
 
     const result = applyAction(state, action, {
       botSeats: this.store.botSeats,

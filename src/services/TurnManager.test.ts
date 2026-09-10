@@ -335,4 +335,43 @@ describe('TurnManager State Machine', () => {
     expect(mockOverlays.showGameOver).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
+
+  it('should optimistically apply regular moves in multiplayer to eliminate turn delay', async () => {
+    const { socketClient } = await import('../net/socketClient');
+    const store = new GameStore();
+    const mockOverlays: any = {
+      showGameOver: vi.fn(),
+      hideAll: vi.fn()
+    };
+    const tm = new TurnManager(store, mockOverlays);
+
+    store.isMultiplayer = true;
+    store.mySeats = [PlayerSeat.NORTH];
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+
+    const socketSpy = vi.spyOn(socketClient, 'sendGameAction').mockImplementation(() => {});
+
+    // Pawn at 11 moving to empty square 19
+    const originalPiece = state.board[11];
+    expect(originalPiece).not.toBe(0);
+    expect(state.board[19]).toBe(0);
+
+    tm.dispatchAction({ type: 'MOVE', input1: 11, input2: 19 }, { deferPostCombat: true });
+
+    // 1. Socket message sent to server
+    expect(socketSpy).toHaveBeenCalledWith({ type: 'MOVE', input1: 11, input2: 19 });
+
+    // 2. State updated optimistically on client without waiting for server response
+    const freshState = store.getState();
+    expect(freshState.board[11]).toBe(0);
+    expect(freshState.board[19]).toBe(originalPiece);
+    expect(freshState.lastMove?.fromIndex).toBe(11);
+    expect(freshState.lastMove?.toIndex).toBe(19);
+    expect(freshState.turnCount).toBe(2);
+
+    socketSpy.mockRestore();
+  });
 });
+

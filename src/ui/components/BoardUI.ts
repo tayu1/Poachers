@@ -419,7 +419,7 @@ export class BoardUI {
     );
 
     const moveId = state.lastMove
-      ? (state.lastMove.moveId || `${state.lastMove.fromIndex}->${state.lastMove.toIndex}:${state.lastMove.type || 'move'}`)
+      ? `${state.turnCount}:${state.lastMove.fromIndex}->${state.lastMove.toIndex}:${state.lastMove.type || 'move'}`
       : null;
 
     let animatableTargetIndex: number | null = null;
