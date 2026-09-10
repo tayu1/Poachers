@@ -122,7 +122,8 @@ export class SoundManager {
 
     if (storeInstance.isReplaying || !lastMove) {
       if (storeInstance.isReplaying && lastMove) {
-        this.lastPlayedMoveKey = `${lastMove.fromIndex}->${lastMove.toIndex}:${lastMove.type || 'move'}@${lastMove.moveId || historyLength}`;
+        const moveIdOrTurn = state?.turnCount !== undefined ? state.turnCount : (lastMove.moveId || historyLength);
+        this.lastPlayedMoveKey = `${lastMove.fromIndex}->${lastMove.toIndex}:${lastMove.type || 'move'}@${moveIdOrTurn}`;
       }
       return;
     }
@@ -132,7 +133,8 @@ export class SoundManager {
       return;
     }
 
-    const currentMoveKey = `${lastMove.fromIndex}->${lastMove.toIndex}:${lastMove.type || 'move'}@${lastMove.moveId || historyLength}`;
+    const moveIdOrTurn = state?.turnCount !== undefined ? state.turnCount : (lastMove.moveId || historyLength);
+    const currentMoveKey = `${lastMove.fromIndex}->${lastMove.toIndex}:${lastMove.type || 'move'}@${moveIdOrTurn}`;
 
     if (currentMoveKey !== this.lastPlayedMoveKey) {
       this.lastPlayedMoveKey = currentMoveKey;

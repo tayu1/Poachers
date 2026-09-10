@@ -13,6 +13,7 @@ export class BoardUI {
   private displayedArrowMove: LastMove | null = null;
   private arrowTimer: any = null;
   private lastDroppedMove: { fromIndex: number; toIndex: number; timestamp: number } | null = null;
+  private activeAnimation: { targetIndex: number; moveId: string; expiresAt: number } | null = null;
 
   // Cached state references for active drag resolution
   private latestState: GameState | null = null;
@@ -397,6 +398,10 @@ export class BoardUI {
       this.initDOMStructure();
     }
 
+    if (store.isReplaying) {
+      this.activeAnimation = null;
+    }
+
     // Clear ALL animation state on game reset (fresh game = no lastMove + turn 1)
     // This prevents stale animation IDs, arrows, and timers from a previous game
     // from interfering with the first render of the new game.
@@ -409,6 +414,7 @@ export class BoardUI {
       this.lastLiveAnimatedMoveId = null;
       this.displayedArrowMove = null;
       this.lastDroppedMove = null;
+      this.activeAnimation = null;
       const oldOverlay = this.boardFrame!.querySelector('.last-move-arrow');
       if (oldOverlay) oldOverlay.remove();
     }
@@ -561,6 +567,11 @@ export class BoardUI {
         img.style.display = 'block';
 
         if (animatableTargetIndex !== null && animatableFromIndex !== null && index === animatableTargetIndex) {
+          this.activeAnimation = {
+            targetIndex: index,
+            moveId: moveId || '',
+            expiresAt: Date.now() + PIECE_ANIMATION_TIME_MS
+          };
           const fromRow = getRow(animatableFromIndex);
           const fromCol = getCol(animatableFromIndex);
           const deltaX = (fromCol - col) * 54;
@@ -581,6 +592,9 @@ export class BoardUI {
               img.style.transform = `translate(0px, 0px) rotate(-${targetAngle}deg)`;
 
               const handleTransitionEnd = () => {
+                if (this.activeAnimation?.targetIndex === index) {
+                  this.activeAnimation = null;
+                }
                 img.style.transition = 'none';
                 img.style.transform = `rotate(-${targetAngle}deg)`;
                 img.style.willChange = '';
@@ -590,14 +604,22 @@ export class BoardUI {
               img.addEventListener('transitionend', handleTransitionEnd);
             });
           } else {
+            this.activeAnimation = null;
             img.style.transition = 'none';
             img.style.transform = `rotate(-${targetAngle}deg)`;
             img.style.willChange = '';
             img.style.zIndex = '';
           }
         } else {
-          img.style.transition = 'none';
-          img.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
+          const isMidFlight = this.activeAnimation !== null &&
+            this.activeAnimation.targetIndex === index &&
+            this.activeAnimation.moveId === moveId &&
+            Date.now() < this.activeAnimation.expiresAt;
+
+          if (!isMidFlight) {
+            img.style.transition = 'none';
+            img.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
+          }
         }
       } else {
         img.style.display = 'none';
