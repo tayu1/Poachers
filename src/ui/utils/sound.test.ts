@@ -104,6 +104,42 @@ describe('SoundManager', () => {
     expect(playSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('should NOT play sound again when turn advances from turn 2 to turn 3 after combat delay (turnpass)', () => {
+    const mockStore = { historyLength: 1, isReplaying: false };
+
+    // 1. Combat resolves on turn 2
+    const combatResolvedState = {
+      turnCount: 2,
+      lastMove: { fromIndex: 8, toIndex: 16, type: 'capture', turnNumber: 2, moveId: 'm2' },
+      pendingCombat: {
+        attackerSeat: PlayerSeat.NORTH,
+        defenderSeat: PlayerSeat.EAST,
+        attackerPosIndex: 8,
+        defenderPosIndex: 16,
+        winnerSeat: PlayerSeat.NORTH
+      },
+      isTurnRiverRevealed: true,
+      isGameOver: false
+    };
+
+    soundManager.handleStateUpdate(combatResolvedState, mockStore);
+    expect(playSpy).toHaveBeenCalledTimes(1);
+    expect(playSpy).toHaveBeenCalledWith('capture');
+
+    // 2. Post combat completes and turnpass advances turnCount to 3, pendingCombat cleared
+    const turnPassState = {
+      turnCount: 3,
+      lastMove: { fromIndex: 8, toIndex: 16, type: 'capture', turnNumber: 2, moveId: 'm2' },
+      pendingCombat: null,
+      isTurnRiverRevealed: false,
+      isGameOver: false
+    };
+
+    soundManager.handleStateUpdate(turnPassState, mockStore);
+    // MUST NOT PLAY SOUND AGAIN ON TURNPASS!
+    expect(playSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('should play move-self when defender wins combat (failed attack)', () => {
     const mockStore = { historyLength: 1, isReplaying: false };
 

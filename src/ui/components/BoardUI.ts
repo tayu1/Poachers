@@ -424,8 +424,12 @@ export class BoardUI {
       (!state.isTurnRiverRevealed || state.pendingCombat.winnerSeat === null || state.pendingCombat.winnerSeat === undefined)
     );
 
+    const moveTurn = state.lastMove
+      ? (state.lastMove.turnNumber !== undefined ? state.lastMove.turnNumber : (state.lastMove.moveId || state.turnCount))
+      : null;
+
     const moveId = state.lastMove
-      ? `${state.turnCount}:${state.lastMove.fromIndex}->${state.lastMove.toIndex}:${state.lastMove.type || 'move'}`
+      ? `${moveTurn}:${state.lastMove.fromIndex}->${state.lastMove.toIndex}:${state.lastMove.type || 'move'}`
       : null;
 
     let animatableTargetIndex: number | null = null;

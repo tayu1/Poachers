@@ -268,6 +268,11 @@ describe('TurnManager State Machine', () => {
     expect(store.logs[1].text).toBe('card refill');
     expect(store.logs[1].historyIndex).toBe(2);
 
+    const postCombatState = store.getState();
+    expect(postCombatState.turnCount).toBe(2);
+    expect(postCombatState.lastMove?.type).toBe('capture');
+    expect(postCombatState.lastMove?.turnNumber).toBe(1);
+
     vi.useRealTimers();
   });
 

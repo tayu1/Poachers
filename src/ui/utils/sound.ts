@@ -122,7 +122,9 @@ export class SoundManager {
 
     if (storeInstance.isReplaying || !lastMove) {
       if (storeInstance.isReplaying && lastMove) {
-        const moveIdOrTurn = state?.turnCount !== undefined ? state.turnCount : (lastMove.moveId || historyLength);
+        const moveIdOrTurn = lastMove.turnNumber !== undefined
+          ? lastMove.turnNumber
+          : (lastMove.moveId || (state?.turnCount !== undefined ? state.turnCount : historyLength));
         this.lastPlayedMoveKey = `${lastMove.fromIndex}->${lastMove.toIndex}:${lastMove.type || 'move'}@${moveIdOrTurn}`;
       }
       return;
@@ -133,7 +135,9 @@ export class SoundManager {
       return;
     }
 
-    const moveIdOrTurn = state?.turnCount !== undefined ? state.turnCount : (lastMove.moveId || historyLength);
+    const moveIdOrTurn = lastMove.turnNumber !== undefined
+      ? lastMove.turnNumber
+      : (lastMove.moveId || (state?.turnCount !== undefined ? state.turnCount : historyLength));
     const currentMoveKey = `${lastMove.fromIndex}->${lastMove.toIndex}:${lastMove.type || 'move'}@${moveIdOrTurn}`;
 
     if (currentMoveKey !== this.lastPlayedMoveKey) {

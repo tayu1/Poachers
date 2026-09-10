@@ -88,6 +88,14 @@ class MockElement {
     }
   }
 
+  public dispatchEvent(event: any): boolean {
+    const list = this.listeners[event?.type] || [];
+    for (const listener of [...list]) {
+      listener(event);
+    }
+    return true;
+  }
+
   public querySelector(selector: string): MockElement | null {
     const isClass = selector.startsWith('.');
     const targetClass = isClass ? selector.slice(1).split(',')[0].trim() : '';
@@ -273,6 +281,47 @@ describe('BoardUI Move and Combat Animations', () => {
     // Defender ghost was rendered on square 18
     const ghost = squares[18]?.children.find(c => c.className.includes('captured-piece-ghost'));
     expect(ghost).toBeTruthy();
+  });
+
+  it('does NOT animate piece again when turn passes after combat resolution', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.turnCount = 2;
+
+    // 1. Combat resolves on turn 2: attacker wins -> Knight moves to 18
+    state.board[10] = 0;
+    state.board[18] = Pc.A_KNIGHT;
+    state.lastMove = { fromIndex: 10, toIndex: 18, type: 'capture', turnNumber: 2, moveId: 'm2' };
+    state.pendingCombat = {
+      attackerSeat: PlayerSeat.NORTH,
+      defenderSeat: PlayerSeat.EAST,
+      attackerPosIndex: 10,
+      defenderPosIndex: 18,
+      attackerHand: {} as any,
+      defenderHand: {} as any,
+      winnerSeat: PlayerSeat.NORTH,
+      capturedPiece: Pc.B_PAWN
+    };
+    state.isTurnRiverRevealed = true;
+    boardUI.render(state, store);
+
+    // Initial render animates the capture
+    const squares = container.querySelectorAll('.sq');
+    const img18 = squares[18]?.children.find(c => c.tagName === 'img' && !c.className.includes('ghost'));
+    expect(img18).toBeTruthy();
+    expect(img18?.style.transition).toContain('transform');
+
+    // Simulate transitionend on piece
+    img18?.dispatchEvent(new Event('transitionend'));
+
+    // 2. Post-combat delay completes: turn passes to 3, pendingCombat cleared, lastMove remains
+    state.turnCount = 3;
+    state.pendingCombat = null;
+    state.isTurnRiverRevealed = false;
+    boardUI.render(state, store);
+
+    // Piece at 18 must NOT have transition transform applied again!
+    expect(img18?.style.transition).toBe('none');
   });
 
   it('renders failed attack arrow without phantom slide when attack fails', () => {

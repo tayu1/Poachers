@@ -954,6 +954,7 @@ export function executeCombatResolution(
     toIndex,
     destIndex: failedAttackDestIndex,
     type: moveType,
+    turnNumber: state.turnCount,
     moveId: isFastOrHeadless ? undefined : generateMoveId()
   };
   state.lastMove = moveInfo;
@@ -1031,7 +1032,7 @@ export function executeTurnAction(
     }
     update_threatMap_by_move(state.board, state.threatMap, fromIndex, toIndex);
 
-    const moveInfo: LastMove = { fromIndex, toIndex, type: moveType, moveId: isFastOrHeadless ? undefined : generateMoveId() };
+    const moveInfo: LastMove = { fromIndex, toIndex, type: moveType, turnNumber: state.turnCount, moveId: isFastOrHeadless ? undefined : generateMoveId() };
     finalizeTurn(state, currentSeat, moveInfo, options);
   } else if (isAttack) {
     combatOccurred = true;
@@ -1057,7 +1058,7 @@ export function executeTurnAction(
       state.pendingCombat = combat;
       state.isCombatDelaying = true;
       state.threatenedKings = getThreatenedKings(state.board, state.threatMap);
-      state.lastMove = { fromIndex, toIndex, type: 'move', moveId: isFastOrHeadless ? undefined : generateMoveId() };
+      state.lastMove = { fromIndex, toIndex, type: 'move', turnNumber: state.turnCount, moveId: isFastOrHeadless ? undefined : generateMoveId() };
     } else {
       const combatOutcome = executeCombatResolution(state, combat, options);
       text = combatOutcome.logText;
@@ -1074,7 +1075,7 @@ export function executeTurnAction(
       text = formatStandardMoveText(getPieceChar(piece), fromIndex, toIndex);
     }
 
-    const moveInfo: LastMove = { fromIndex, toIndex, type: moveType, moveId: isFastOrHeadless ? undefined : generateMoveId() };
+    const moveInfo: LastMove = { fromIndex, toIndex, type: moveType, turnNumber: state.turnCount, moveId: isFastOrHeadless ? undefined : generateMoveId() };
     finalizeTurn(state, currentSeat, moveInfo, options);
   }
 
@@ -1118,6 +1119,7 @@ export function executePromotionAction(
     toIndex: targetIndex,
     type: 'promotion',
     hillIndex: targetIndex,
+    turnNumber: state.turnCount,
     moveId: isFastOrHeadless ? undefined : generateMoveId()
   };
   finalizeTurn(state, currentSeat, moveInfo, options);
@@ -1226,6 +1228,7 @@ export function executeSetBunkerAction(
     fromIndex: originIndex,
     toIndex: endIndex ?? originIndex,
     type: 'bunker_change',
+    turnNumber: state.turnCount,
     moveId: isFastOrHeadless ? undefined : generateMoveId()
   };
   finalizeTurn(state, currentSeat, moveInfo, options);
@@ -1343,6 +1346,7 @@ export function applyAction(
         fromIndex: 0,
         toIndex: 0,
         type: 'move',
+        turnNumber: state.turnCount,
         moveId: isFastOrHeadless ? undefined : generateMoveId()
       };
       finalizeTurn(state, state.activePlayer, moveInfo, options);

@@ -252,6 +252,7 @@ export interface LastMove {
   hillIndex?: number;
   /** Populated when failed_attack results in sliding piece advancing to an intermediate square. */
   destIndex?: number;
+  turnNumber?: number;
   moveId?: string;
 }
 
