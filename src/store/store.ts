@@ -31,7 +31,7 @@ interface ChannelSubscriber {
 }
 
 export class GameStore {
-  private state: GameState;
+  public state: GameState;
   private channelSubscribers: Set<ChannelSubscriber> = new Set();
   private timerSubscribers: Set<StoreSubscriber> = new Set();
   private history: GameState[] = [];
@@ -354,6 +354,10 @@ export class GameStore {
     return this.isReplaying && this.historyIndex >= 0 && this.historyIndex < this.history.length
       ? this.history[this.historyIndex]
       : this.state;
+  }
+
+  public getLiveState(): GameState {
+    return this.state;
   }
 
   public subscribe(callback: StoreSubscriber, channels: number = StoreChannel.ALL): () => void {
