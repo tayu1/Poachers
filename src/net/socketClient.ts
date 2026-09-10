@@ -98,8 +98,8 @@ class SocketClient {
         store.setRoomState(roomState);
       });
 
-      this.socket.on('game_state_update', ({ gameState, logs }) => {
-        store.applyServerGameState(gameState, logs);
+      this.socket.on('game_state_update', ({ gameState, logs, history }) => {
+        store.applyServerGameState(gameState, logs, history);
       });
 
       this.socket.on('timer_tick', ({ remainingSeconds, activeSeat }) => {
@@ -138,7 +138,7 @@ class SocketClient {
         if (res.success && res.roomState) {
           store.setRoomState(res.roomState);
           if (res.gameState) {
-            store.applyServerGameState(res.gameState, res.logs || []);
+            store.applyServerGameState(res.gameState, res.logs || [], res.history);
           }
         } else {
           removeStorageItem('poachers_room_code');

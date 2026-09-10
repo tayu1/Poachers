@@ -188,7 +188,7 @@ describe('TurnManager State Machine', () => {
     };
 
     const tm = new TurnManager(store, mockOverlays);
-    expect(store.historyLength).toBe(0);
+    expect(store.historyLength).toBe(1); // Frame 0: Initial starting position
     expect(store.logs.length).toBe(0);
 
     const state = store.getState();
@@ -198,19 +198,19 @@ describe('TurnManager State Machine', () => {
     // Swap North trench card 0 with base card 0 (slot 3)
     tm.dispatchAction({ type: 'CARD_SWAP', input1: 0, input2: 3 });
 
-    expect(store.historyLength).toBe(1); // Frame 0 added
+    expect(store.historyLength).toBe(2); // Frame 1 added
     expect(store.logs.length).toBe(1); // 1 log entry added
     expect(store.logs[0].text).toBe('card swap');
-    expect(store.logs[0].historyIndex).toBe(0);
+    expect(store.logs[0].historyIndex).toBe(1);
 
     // Now make a move
     state.board[8] = 1; // North pawn
     state.board[16] = 0;
     tm.dispatchAction({ type: 'MOVE', input1: 8, input2: 16 });
 
-    expect(store.historyLength).toBe(2); // Frame 1 added
+    expect(store.historyLength).toBe(3); // Frame 2 added
     expect(store.logs.length).toBe(2); // 2 log entries
-    expect(store.logs[1].historyIndex).toBe(1); // Associated with move frame
+    expect(store.logs[1].historyIndex).toBe(2); // Associated with move frame
     expect(store.getState().lastMove).toEqual(expect.objectContaining({ fromIndex: 8, toIndex: 16, type: 'move' }));
 
     // Next player (East) swaps card: lastMove from North's move must be preserved
@@ -236,7 +236,7 @@ describe('TurnManager State Machine', () => {
     state.board[8] = 1; // North pawn
     state.board[16] = 2; // East pawn
 
-    expect(store.historyLength).toBe(0);
+    expect(store.historyLength).toBe(1); // Frame 0: Initial starting position
 
     tm.dispatchAction({ type: 'MOVE', input1: 8, input2: 16 }, { deferPostCombat: true });
 
@@ -250,7 +250,7 @@ describe('TurnManager State Machine', () => {
     expect(store.logs.length).toBe(1);
     const combatLog = store.logs[0];
     const resolvedFrameIdx = combatLog.historyIndex;
-    expect(resolvedFrameIdx).toBe(0); // Frame 0 is the resolved combat frame
+    expect(resolvedFrameIdx).toBe(1); // Frame 1 is the resolved combat frame
 
     // Scrubbing to combat log frame shows river revealed
     store.scrubToHistoryIndex(resolvedFrameIdx);
@@ -263,10 +263,10 @@ describe('TurnManager State Machine', () => {
     vi.advanceTimersByTime(2900);
 
     // Post-combat frame & "card refill" log entry added
-    expect(store.historyLength).toBe(2); // Frame 1 is post-combat card refill
+    expect(store.historyLength).toBe(3); // 1 initial + combat + post-combat refill
     expect(store.logs.length).toBe(2); // 2 log entries: combat log + card refill
     expect(store.logs[1].text).toBe('card refill');
-    expect(store.logs[1].historyIndex).toBe(1);
+    expect(store.logs[1].historyIndex).toBe(2);
 
     vi.useRealTimers();
   });
@@ -290,5 +290,49 @@ describe('TurnManager State Machine', () => {
 
     expect(store.logs.length).toBe(1);
     expect(store.logs[0].text).toBe('P : a7 -> a6 (timer)');
+  });
+
+  it('should NOT re-trigger showGameOver popup when scrubbing back to the game over entry during review', () => {
+    vi.useFakeTimers();
+    const store = new GameStore();
+    const mockOverlays: any = {
+      showGameOver: vi.fn(),
+      hideAll: vi.fn()
+    };
+
+    const tm = new TurnManager(store, mockOverlays);
+
+    // Initial board at 0
+    store.resetGame(false, true);
+    // Move 1 at 1
+    store.recordSnapshot();
+    store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'P : a7 -> a6' });
+
+    // Game over move at 2
+    store.recordSnapshot();
+    store.addLogEntry({ turnNumber: 2, seat: 'E', text: '🏆 Team B Victorious!' });
+    store.state.isGameOver = true;
+    store.state.winnerTeam = 'B';
+
+    // Game ends live: syncTurn triggers showGameOver
+    tm.syncTurn(store.getState());
+    vi.advanceTimersByTime(600);
+    expect(mockOverlays.showGameOver).toHaveBeenCalledTimes(1);
+
+    // User reviews Move 1 (history index 1)
+    store.scrubToHistoryIndex(1);
+    tm.syncTurn(store.getState());
+    expect(store.isReplaying).toBe(true);
+
+    // User scrubs back to Game Over entry (history index 2)
+    store.scrubToHistoryIndex(2);
+    tm.syncTurn(store.getState());
+
+    // Advance timers again
+    vi.advanceTimersByTime(1000);
+
+    // showGameOver must NOT have been called a second time!
+    expect(mockOverlays.showGameOver).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 });

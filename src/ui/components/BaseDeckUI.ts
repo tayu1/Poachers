@@ -156,7 +156,7 @@ export class BaseDeckUI {
 
     const isMySeatOrLocal = !store.isMultiplayer || (store.mySeat !== null && store.mySeat === activePlayerSeat) || (store.mySeats && store.mySeats.includes(activePlayerSeat));
     const isRefillStage = state.pendingRefills.length > 0 && !isBotTurn && isMySeatOrLocal;
-    const isSwapAvailable = !state.setupState?.inSetup && !state.hasSwappedThisTurn && !isBotTurn && isMySeatOrLocal;
+    const isSwapAvailable = !store.isReplaying && !state.setupState?.inSetup && !state.hasSwappedThisTurn && !isBotTurn && isMySeatOrLocal;
 
     // Pair each card with its original slot index, then sort high → low by rank for display
     const sortedCards = activePlayerState.baseDeck

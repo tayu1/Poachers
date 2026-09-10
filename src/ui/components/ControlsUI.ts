@@ -68,11 +68,7 @@ export class ControlsUI {
 
     // Scoreboard
     const scoreboard = document.createElement('div');
-    scoreboard.style.textAlign = 'center';
-    scoreboard.style.padding = '6px';
-    scoreboard.style.background = '#1e293b';
-    scoreboard.style.borderRadius = '4px';
-    scoreboard.style.fontWeight = 'bold';
+    scoreboard.className = 'controls-scoreboard';
     scoreboard.innerHTML = `<span style="color:var(--accent-gold)">Team A ${state.score.teamA}</span> : <span style="color:var(--accent-cyan)">${state.score.teamB} Team B</span>`;
     panel.appendChild(scoreboard);
 

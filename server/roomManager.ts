@@ -359,7 +359,8 @@ export function emitGameStateToRoom(
   if (!hasHumanOnline) {
     io.to(room.roomCode).emit('game_state_update', {
       gameState: room.gameState,
-      logs: room.logs
+      logs: room.logs,
+      history: room.history ? room.history.map(h => sanitizeGameStateForClient(h, [])) : undefined
     });
     return;
   }
@@ -368,9 +369,11 @@ export function emitGameStateToRoom(
     if (player.socketId && player.isOnline) {
       const seats = getSeatsForPlayer(room, player.playerId);
       const sanitized = sanitizeGameStateForClient(room.gameState, seats);
+      const sanitizedHistory = room.history ? room.history.map(h => sanitizeGameStateForClient(h, seats)) : undefined;
       io.to(player.socketId).emit('game_state_update', {
         gameState: sanitized,
-        logs: room.logs
+        logs: room.logs,
+        history: sanitizedHistory
       });
     }
   }

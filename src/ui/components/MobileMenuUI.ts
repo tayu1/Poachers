@@ -9,6 +9,8 @@ export class MobileMenuUI {
   private controlsPanel: HTMLElement | null = null;
   private logPanel: HTMLElement | null = null;
   private capturesPanel: HTMLElement | null = null;
+  private leftUnifiedPanel: HTMLElement | null = null;
+  private rightUnifiedPanel: HTMLElement | null = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -17,6 +19,8 @@ export class MobileMenuUI {
     this.controlsPanel = document.getElementById('controls-panel');
     this.logPanel = document.getElementById('log-panel');
     this.capturesPanel = document.getElementById('captures-panel');
+    this.leftUnifiedPanel = document.getElementById('unified-left-panel');
+    this.rightUnifiedPanel = document.getElementById('unified-right-panel');
     this.render();
   }
 
@@ -33,21 +37,47 @@ export class MobileMenuUI {
       if (this.controlsPanel) this.controlsPanel.style.display = '';
       if (this.logPanel) this.logPanel.style.display = '';
       if (this.capturesPanel) this.capturesPanel.style.display = '';
+      if (this.leftUnifiedPanel) this.leftUnifiedPanel.style.display = '';
+      if (this.rightUnifiedPanel) this.rightUnifiedPanel.style.display = '';
+      const dividers = document.querySelectorAll('.panel-section-divider');
+      dividers.forEach(d => (d as HTMLElement).style.display = '');
       return;
     }
 
     const showAll = this.activeTab === 'all' || this.activeTab === 'board';
+    const showStatus = showAll || this.activeTab === 'status';
+    const showCaptures = showAll || this.activeTab === 'captures';
+    const showControls = showAll || this.activeTab === 'controls';
+    const showLog = showAll || this.activeTab === 'log';
+
     if (this.statusPanel) {
-      this.statusPanel.style.display = showAll || this.activeTab === 'status' ? 'flex' : 'none';
-    }
-    if (this.controlsPanel) {
-      this.controlsPanel.style.display = showAll || this.activeTab === 'controls' ? 'flex' : 'none';
-    }
-    if (this.logPanel) {
-      this.logPanel.style.display = showAll || this.activeTab === 'log' ? 'flex' : 'none';
+      this.statusPanel.style.display = showStatus ? 'flex' : 'none';
     }
     if (this.capturesPanel) {
-      this.capturesPanel.style.display = showAll || this.activeTab === 'captures' ? 'flex' : 'none';
+      this.capturesPanel.style.display = showCaptures ? 'flex' : 'none';
+    }
+    if (this.controlsPanel) {
+      this.controlsPanel.style.display = showControls ? 'flex' : 'none';
+    }
+    if (this.logPanel) {
+      this.logPanel.style.display = showLog ? 'flex' : 'none';
+    }
+
+    if (this.leftUnifiedPanel) {
+      this.leftUnifiedPanel.style.display = (showControls || showLog) ? 'flex' : 'none';
+    }
+    if (this.rightUnifiedPanel) {
+      this.rightUnifiedPanel.style.display = (showStatus || showCaptures) ? 'flex' : 'none';
+    }
+
+    const leftDivider = this.leftUnifiedPanel?.querySelector(':scope > .panel-section-divider') as HTMLElement | null;
+    if (leftDivider) {
+      leftDivider.style.display = (showControls && showLog) ? '' : 'none';
+    }
+
+    const rightDivider = this.rightUnifiedPanel?.querySelector(':scope > .panel-section-divider') as HTMLElement | null;
+    if (rightDivider) {
+      rightDivider.style.display = (showStatus && showCaptures) ? '' : 'none';
     }
   }
 

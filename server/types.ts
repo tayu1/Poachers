@@ -20,6 +20,7 @@ export interface ServerRoom {
   gameStarted: boolean;
   status: 'lobby' | 'playing' | 'ended';
   gameState: GameState | null;
+  history: GameState[];
   logs: NetworkLogEntry[];
   botTimer: NodeJS.Timeout | null;
   turnTimeout: NodeJS.Timeout | null;

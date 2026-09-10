@@ -49,22 +49,20 @@ export class StatusUI {
       this.container.style.display = 'flex';
     }
     this.container.style.flexDirection = 'column';
-    this.container.style.gap = '10px';
+    this.container.style.gap = '0px';
 
-    // 1. Separate Message Board Box
+    // 1. Message Board Box (message + timer)
     this.messageBox = document.createElement('div');
-    this.messageBox.className = 'panel message-board-box';
+    this.messageBox.className = 'message-board-box';
     this.messageBox.style.display = 'flex';
     this.messageBox.style.alignItems = 'center';
     this.messageBox.style.justifyContent = 'space-between';
-    this.messageBox.style.height = '52px';
-    this.messageBox.style.minHeight = '52px';
-    this.messageBox.style.maxHeight = '52px';
+    this.messageBox.style.height = '48px';
+    this.messageBox.style.minHeight = '48px';
+    this.messageBox.style.maxHeight = '48px';
     this.messageBox.style.boxSizing = 'border-box';
-    this.messageBox.style.padding = '8px 12px';
+    this.messageBox.style.padding = '6px 10px';
     this.messageBox.style.borderRadius = '8px';
-    this.messageBox.style.background = 'rgba(15, 23, 42, 0.85)';
-    this.messageBox.style.border = '1px solid #1e293b';
     this.messageBox.style.flexShrink = '0';
     this.messageBox.style.gap = '8px';
     this.messageBox.style.overflow = 'hidden';
@@ -97,18 +95,23 @@ export class StatusUI {
     this.messageBox.appendChild(this.timerElement);
     this.container.appendChild(this.messageBox);
 
+    // Separation line between message+timer and status bars
+    const divider = document.createElement('div');
+    divider.className = 'panel-section-divider';
+    this.container.appendChild(divider);
+
     // 2. Dedicated Players Status Box
     this.statusBox = document.createElement('div');
-    this.statusBox.className = 'panel players-status-box';
+    this.statusBox.className = 'players-status-box';
 
     const seats = [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST];
 
-    seats.forEach(() => {
+    seats.forEach((_, idx) => {
       const row = document.createElement('div');
       row.style.display = 'flex';
       row.style.justifyContent = 'space-between';
       row.style.alignItems = 'center';
-      row.style.marginBottom = '6px';
+      row.style.marginBottom = idx < seats.length - 1 ? '6px' : '0px';
       row.style.padding = '5px 8px';
       row.style.borderRadius = '6px';
       row.style.transition = 'all 0.25s ease';
@@ -198,7 +201,17 @@ export class StatusUI {
     let isMyTurn = false;
     let messageText = '';
 
-    if (state.isGameOver) {
+    if (store?.isReplaying) {
+      isMyTurn = false;
+      if (store.historyIndex === 0) {
+        messageText = 'REPLAY — Starting Position';
+      } else if (store.activeLogIndex >= 0 && store.activeLogIndex < store.logs.length) {
+        const currentLog = store.logs[store.activeLogIndex];
+        messageText = `REPLAY — ${currentLog.turnNumber}. ${currentLog.seat}] ${currentLog.text}`;
+      } else {
+        messageText = 'REPLAY';
+      }
+    } else if (state.isGameOver) {
       const winner = state.winnerTeam;
       const isTeamA = winner === 'A';
       messageText = winner
@@ -238,7 +251,17 @@ export class StatusUI {
 
     if (this.messageContent) {
       this.messageContent.innerText = messageText;
-      if (state.isGameOver) {
+      if (store?.isReplaying) {
+        if (store.historyIndex === 0) {
+          this.messageContent.style.color = '#f59e0b';
+        } else if (store.activeLogIndex >= 0 && store.activeLogIndex < store.logs.length) {
+          const currentLog = store.logs[store.activeLogIndex];
+          const isTeamA = currentLog.seat === 'N' || currentLog.seat === 'S';
+          this.messageContent.style.color = isTeamA ? '#f59e0b' : '#06b6d4';
+        } else {
+          this.messageContent.style.color = '#f59e0b';
+        }
+      } else if (state.isGameOver) {
         this.messageContent.style.color = state.winnerTeam === 'A' ? '#f59e0b' : (state.winnerTeam === 'B' ? '#06b6d4' : '#f8fafc');
       } else {
         const activePlayerState = state.players[state.activePlayer];
@@ -247,7 +270,7 @@ export class StatusUI {
     }
 
     if (this.timerElement) {
-      this.timerElement.style.display = state.isGameOver ? 'none' : '';
+      this.timerElement.style.display = (state.isGameOver || Boolean(store?.isReplaying)) ? 'none' : '';
     }
 
     const seats = [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST];
@@ -259,7 +282,7 @@ export class StatusUI {
       const playerState = state.players[seat];
       const isTeamA = playerState?.team === 'A';
       const teamColor = isTeamA ? '#f59e0b' : '#06b6d4';
-      const isTurn = activeSeat === seat;
+      const isTurn = !store?.isReplaying && activeSeat === seat;
 
       if (isTurn) {
         el.row.style.border = `1.5px solid ${teamColor}`;

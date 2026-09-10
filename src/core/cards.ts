@@ -102,6 +102,48 @@ export function dealInitialPlayerCards(deck: Card[]): { baseDeck: Card[]; trench
 }
 
 /**
+ * Deals community cards with burn cards:
+ * 1. Deal Flop (3 cards from top of deck)
+ * 2. Burn 1 card before Turn (top of deck to bottom of deck)
+ * 3. Deal Turn (1 card from top of deck)
+ * 4. Burn 1 card before River (top of deck to bottom of deck)
+ * 5. Deal River (1 card from top of deck)
+ */
+export function dealCommunityCards(deck: Card[]): {
+  publicFlop: [Card | null, Card | null, Card | null];
+  publicTurnRiver: [Card | null, Card | null];
+} {
+  const publicFlop: [Card | null, Card | null, Card | null] = [
+    deck.pop() || null,
+    deck.pop() || null,
+    deck.pop() || null
+  ];
+
+  // Burn card before Turn (top of deck -> bottom of deck)
+  const burnTurn = deck.pop();
+  if (burnTurn) {
+    deck.unshift(burnTurn);
+  }
+
+  // Deal Turn card
+  const turn = deck.pop() || null;
+
+  // Burn card before River (top of deck -> bottom of deck)
+  const burnRiver = deck.pop();
+  if (burnRiver) {
+    deck.unshift(burnRiver);
+  }
+
+  // Deal River card
+  const river = deck.pop() || null;
+
+  return {
+    publicFlop,
+    publicTurnRiver: [turn, river]
+  };
+}
+
+/**
  * Initial trench filling / bot trench auto-picker.
  * Remarked out / retained for reference; players now start directly with 3 random trench cards.
  * (Can be deleted completely later).
@@ -226,7 +268,8 @@ export function processPostCombat(state: GameState, combat: CombatResult): void 
     const card = state.players[seat].trenchCards[defCardIdx];
     if (card) {
       if (winnerSeat === attackerSeat && seat === defenderSeat) {
-        if (state.players[attackerSeat].baseDeck.length < MAX_BASE_DECK_SIZE) {
+        const emptySlots = state.players[attackerSeat].trenchCards.filter(c => c === null).length;
+        if (state.players[attackerSeat].baseDeck.length < MAX_BASE_DECK_SIZE + emptySlots) {
           state.players[attackerSeat].baseDeck.push(card);
         } else {
           state.deck.unshift(card);
@@ -238,21 +281,17 @@ export function processPostCombat(state: GameState, combat: CombatResult): void 
     }
   }
 
-  state.pendingRefills = [
-    ...attackerSeats.map(seat => ({ seat, slot: attCardIdx })),
-    ...defenderSeats.map(seat => ({ seat, slot: defCardIdx }))
-  ];
+  // Refill in natural clockwise turn order starting from the active attacker
+  state.pendingRefills = [0, 1, 2, 3].map(i => {
+    const seat = ((attackerSeat + i) % 4) as PlayerSeat;
+    const slot = state.players[seat].team === attackerTeam ? attCardIdx : defCardIdx;
+    return { seat, slot };
+  });
 
-  // 2. Open 3 new public flop cards + 2 turn/river cards from deck
-  state.publicFlop = [
-    state.deck.pop() || null,
-    state.deck.pop() || null,
-    state.deck.pop() || null
-  ];
-  state.publicTurnRiver = [
-    state.deck.pop() || null,
-    state.deck.pop() || null
-  ];
+  // 2. Open 3 new public flop cards + 2 turn/river cards from deck with card burns
+  const communityCards = dealCommunityCards(state.deck);
+  state.publicFlop = communityCards.publicFlop;
+  state.publicTurnRiver = communityCards.publicTurnRiver;
   state.isTurnRiverRevealed = false;
 }
 
@@ -273,13 +312,15 @@ export function grantHillCardReward(state: GameState, seat: PlayerSeat): boolean
     state.deck &&
     state.deck.length > 0 &&
     state.players &&
-    state.players[seat] &&
-    state.players[seat].baseDeck.length < MAX_BASE_DECK_SIZE
+    state.players[seat]
   ) {
-    const topCard = state.deck[state.deck.length - 1];
-    if (topCard) {
-      state.players[seat].baseDeck.push(state.deck.pop()!);
-      return true;
+    const emptySlots = state.players[seat].trenchCards.filter(c => c === null).length;
+    if (state.players[seat].baseDeck.length < MAX_BASE_DECK_SIZE + emptySlots) {
+      const topCard = state.deck[state.deck.length - 1];
+      if (topCard) {
+        state.players[seat].baseDeck.push(state.deck.pop()!);
+        return true;
+      }
     }
   }
   return false;

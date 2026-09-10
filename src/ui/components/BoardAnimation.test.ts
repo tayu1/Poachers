@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GameStore } from '../../store/store';
 import { BoardUI } from './BoardUI';
 import { PlayerSeat, Pc } from '../../core/types';
+import { PIECE_ANIMATION_TIME_MS } from '../../config';
 
 class MockElement {
   public tagName: string;
@@ -579,5 +580,22 @@ describe('BoardUI Move and Combat Animations', () => {
     arrow = container.querySelector('.last-move-arrow');
     expect(arrow).toBeTruthy();
     vi.useRealTimers();
+  });
+
+  it('applies configured PIECE_ANIMATION_TIME_MS to piece movement transition', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.turnCount = 2;
+    state.board[11] = 0;
+    state.board[19] = Pc.A_PAWN;
+    state.lastMove = { fromIndex: 11, toIndex: 19, type: 'move', moveId: 'config_test_move' };
+    state.pendingCombat = null;
+
+    boardUI.render(state, store);
+
+    const squares = container.querySelectorAll('.sq');
+    const img19 = squares[19]?.children.find(c => c.tagName === 'img');
+    expect(img19).toBeTruthy();
+    expect(img19?.style.transition).toContain(`${PIECE_ANIMATION_TIME_MS}ms`);
   });
 });

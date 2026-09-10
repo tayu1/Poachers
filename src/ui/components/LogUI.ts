@@ -18,6 +18,8 @@ export class LogUI {
   private btnLive!: HTMLButtonElement;
   private entryElements: HTMLElement[] = [];
 
+  private currentTurnElement: HTMLElement | null = null;
+
   constructor(container: HTMLElement, onScrubClick: (historyIndex: number) => void) {
     this.container = container;
     this.onScrubClick = onScrubClick;
@@ -34,7 +36,9 @@ export class LogUI {
         .log-ui-btn:disabled { background: rgba(255, 255, 255, 0.03); color: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.05); cursor: not-allowed; }
         .log-ui-entry { padding: 4px 6px; border-radius: 4px; cursor: pointer; border-left: 3px solid transparent; background: rgba(255, 255, 255, 0.02); transition: all 0.15s ease; }
         .log-ui-entry:hover:not(.log-ui-entry-selected) { background: rgba(255, 255, 255, 0.08); }
-        .log-ui-entry-selected { background: rgba(6, 182, 212, 0.15) !important; border-left: 3px solid var(--accent-cyan) !important; }
+        .log-ui-entry-selected { background: rgba(255, 255, 255, 0.12) !important; border-left: 3px solid rgba(255, 255, 255, 0.75) !important; }
+        .log-ui-current-turn-entry { opacity: 0.9; }
+        .log-ui-current-turn-entry:hover:not(.log-ui-entry-selected) { background: rgba(255, 255, 255, 0.08); }
       `;
       document.head.appendChild(style);
     }
@@ -45,19 +49,20 @@ export class LogUI {
 
     this.panel = document.createElement('div');
     this.panel.className = 'panel';
-    this.panel.style.height = '240px';
     this.panel.style.display = 'flex';
     this.panel.style.flexDirection = 'column';
+    this.panel.style.flex = '1';
+    this.panel.style.minHeight = '0';
 
     this.header = document.createElement('div');
     this.header.style.display = 'flex';
     this.header.style.alignItems = 'center';
-    this.header.style.gap = '6px';
+    this.header.style.justifyContent = 'space-between';
     this.header.style.marginBottom = '8px';
 
     // Scrubbing via wheel on header
     this.header.addEventListener('wheel', (e: WheelEvent) => {
-      if (store.logs.length <= 1) return;
+      if (store.historyLength <= 1) return;
       e.preventDefault();
       const now = Date.now();
       if (now - this.lastWheelTime < 80) return;
@@ -84,15 +89,31 @@ export class LogUI {
     };
 
     this.btnPrev = createBtn('<', 'Back', () => store.stepReplay('prev'));
+    this.btnPrev.id = 'log-btn-prev';
     this.btnNext = createBtn('>', 'Forward', () => store.stepReplay('next'));
+    this.btnNext.id = 'log-btn-next';
     this.btnLive = createBtn('>>', 'Last / Resume Live', () => {
       store.stepReplay('live');
       this.logList.scrollTop = this.logList.scrollHeight;
     });
+    this.btnLive.id = 'log-btn-live';
 
-    this.header.appendChild(this.btnPrev);
-    this.header.appendChild(this.btnNext);
-    this.header.appendChild(this.btnLive);
+    const logTitle = document.createElement('span');
+    logTitle.style.fontSize = '12px';
+    logTitle.style.fontWeight = 'bold';
+    logTitle.style.color = '#94a3b8';
+    logTitle.style.letterSpacing = '0.5px';
+    logTitle.innerText = 'LOG / REPLAY';
+
+    const btnGroup = document.createElement('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '6px';
+    btnGroup.appendChild(this.btnPrev);
+    btnGroup.appendChild(this.btnNext);
+    btnGroup.appendChild(this.btnLive);
+
+    this.header.appendChild(logTitle);
+    this.header.appendChild(btnGroup);
 
     this.panel.appendChild(this.header);
 
@@ -121,13 +142,18 @@ export class LogUI {
     }
 
     const currentLogIdx = store.activeLogIndex;
-    const canPrev = currentLogIdx > 0;
-    const canNext = currentLogIdx >= 0 && currentLogIdx < store.logs.length - 1;
+    const canPrev = store.historyIndex > 0;
+    const canNext = store.isReplaying && store.historyIndex < store.historyLength - 1;
     const canLive = store.isReplaying;
 
     this.btnPrev.disabled = !canPrev;
     this.btnNext.disabled = !canNext;
     this.btnLive.disabled = !canLive;
+
+    const hasVictory = store.logs.some(l => l.text.includes('Victorious') || l.text.includes('Game Over'));
+    const isGameOver = Boolean(_state.isGameOver || hasVictory);
+    const inSetup = Boolean(_state.setupState?.inSetup);
+    const showCurrentTurn = !isGameOver && !inSetup;
 
     const historyIndexChanged = this.prevHistoryIndex !== store.historyIndex;
     const logCountChanged = this.prevLogCount !== store.logs.length;
@@ -135,7 +161,7 @@ export class LogUI {
 
     // Fast path: just update styles if only history index changed
     if (!logCountChanged && !isNewLogSequence && historyIndexChanged && this.entryElements.length === store.logs.length) {
-      this.updateSelection(currentLogIdx, store.isReplaying);
+      this.updateSelection(currentLogIdx, store.isReplaying, false, showCurrentTurn);
       this.prevHistoryIndex = store.historyIndex;
       return;
     }
@@ -147,12 +173,18 @@ export class LogUI {
     if (store.logs.length < this.prevLogCount || isNewLogSequence) {
       this.logList.innerHTML = '';
       this.entryElements = [];
+      this.currentTurnElement = null;
       this.firstLogRef = store.logs.length > 0 ? store.logs[0] : null;
       this.prevHistoryIndex = null;
     } else if (store.logs.length > 0 && !this.firstLogRef) {
       this.firstLogRef = store.logs[0];
     } else if (store.logs.length === 0) {
       this.firstLogRef = null;
+    }
+
+    // Detach current turn element temporarily if it exists so new logs append before it
+    if (this.currentTurnElement && this.currentTurnElement.parentElement === this.logList) {
+      this.removeElement(this.currentTurnElement);
     }
 
     // Append new logs
@@ -213,22 +245,74 @@ export class LogUI {
       this.entryElements.push(entryContainer);
     }
 
-    this.updateSelection(currentLogIdx, store.isReplaying, wasAtBottom, logCountChanged);
+    // Attach or remove current turn element based on active game status
+    if (showCurrentTurn) {
+      if (!this.currentTurnElement) {
+        this.currentTurnElement = document.createElement('div');
+        this.currentTurnElement.className = 'log-ui-entry log-ui-current-turn-entry';
+
+        const line1 = document.createElement('div');
+        line1.style.fontWeight = '600';
+        line1.style.color = '#e2e8f0';
+        line1.innerText = 'current turn';
+        this.currentTurnElement.appendChild(line1);
+
+        this.currentTurnElement.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.prevHistoryIndex = null;
+          store.stepReplay('live');
+        });
+      }
+      this.logList.appendChild(this.currentTurnElement);
+    } else {
+      if (this.currentTurnElement) {
+        this.removeElement(this.currentTurnElement);
+        this.currentTurnElement = null;
+      }
+    }
+
+    this.updateSelection(currentLogIdx, store.isReplaying, wasAtBottom, showCurrentTurn);
 
     this.prevHistoryIndex = store.historyIndex;
     this.prevLogCount = store.logs.length;
   }
 
-  private updateSelection(currentLogIdx: number, isReplaying: boolean, wasAtBottom: boolean = false, logsAdded: boolean = false) {
+  private removeElement(el: HTMLElement): void {
+    if (typeof el.remove === 'function') {
+      el.remove();
+    } else if (el.parentElement && typeof (el.parentElement as any).removeChild === 'function') {
+      (el.parentElement as any).removeChild(el);
+    }
+  }
+
+  private updateSelection(
+    currentLogIdx: number,
+    isReplaying: boolean,
+    wasAtBottom: boolean = false,
+    showCurrentTurn: boolean = false
+  ) {
     let selectedElement: HTMLElement | null = null;
 
     for (let i = 0; i < this.entryElements.length; i++) {
       const el = this.entryElements[i];
-      if (i === currentLogIdx) {
+      if (isReplaying && i === currentLogIdx) {
+        el.classList.add('log-ui-entry-selected');
+        selectedElement = el;
+      } else if (!isReplaying && !showCurrentTurn && i === currentLogIdx) {
         el.classList.add('log-ui-entry-selected');
         selectedElement = el;
       } else {
         el.classList.remove('log-ui-entry-selected');
+      }
+    }
+
+    if (this.currentTurnElement) {
+      if (showCurrentTurn && !isReplaying) {
+        this.currentTurnElement.classList.add('log-ui-entry-selected');
+        selectedElement = this.currentTurnElement;
+      } else {
+        this.currentTurnElement.classList.remove('log-ui-entry-selected');
       }
     }
 

@@ -1,6 +1,7 @@
 import { Card, GameState, PlayerSeat } from '../../core/types';
 import { GameStore } from '../../store/store';
 import { getTrenchCardIndexForSquare } from '../../core/cards';
+import { CARD_ANIMATION_TIME_MS } from '../../config';
 
 export interface TRENCHContainers {
   north: HTMLElement;
@@ -32,6 +33,8 @@ const CLOCKWISE_PERIMETER_SLOTS: PerimeterSlotRef[] = [
 
 interface SlotElementHolder {
   cardEl: HTMLElement;
+  slotBayEl: HTMLElement;
+  innerEl: HTMLElement;
   valEl: HTMLElement;
   suitEl: HTMLElement;
 }
@@ -41,11 +44,61 @@ export class TrenchCardsUI {
   private onCardClick: (seat: PlayerSeat, cardIndex: number) => void;
   private slotHolders: Map<number, SlotElementHolder> = new Map();
   private slotClickTargets: Map<number, { seat: PlayerSeat; cardIndex: number }> = new Map();
+  private lastCardKeys: Map<number, string> = new Map();
+  private animTimeouts: Map<number, number> = new Map();
+  private lastRotationStep?: number;
+  private hasRenderedOnce = false;
   private isInitialized = false;
 
   constructor(containers: TRENCHContainers, onCardClick: (seat: PlayerSeat, cardIndex: number) => void) {
     this.containers = containers;
     this.onCardClick = onCardClick;
+  }
+
+  private clearSlotAnimation(slotIdx: number, holder: SlotElementHolder): void {
+    const timer = this.animTimeouts.get(slotIdx);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.animTimeouts.delete(slotIdx);
+    }
+    holder.innerEl.classList.remove('slide-out-right', 'slide-in-right');
+  }
+
+  private applySlotContent(
+    holder: SlotElementHolder,
+    actualCard: Card | null,
+    isFaceDown: boolean,
+    isEmptySlot: boolean
+  ): void {
+    if (isEmptySlot || !actualCard) {
+      holder.innerEl.style.display = 'none';
+      holder.innerEl.className = 'card-inner-face';
+      holder.valEl.style.display = 'none';
+      holder.suitEl.style.display = 'none';
+    } else if (isFaceDown) {
+      holder.innerEl.className = 'card-inner-face card-back face-down';
+      holder.valEl.style.display = 'none';
+      holder.suitEl.style.display = 'none';
+      holder.innerEl.style.display = 'block';
+    } else {
+      const isRed = actualCard.suit === 'H' || actualCard.suit === 'D';
+      const suitSymbol = { S: '♠', H: '♥', D: '♦', C: '♣' }[actualCard.suit];
+      const rankSymbol =
+        ({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' } as Record<number, string>)[actualCard.rank] ||
+        actualCard.rank.toString();
+      const colorClass = isRed ? 'card-red' : 'card-black';
+      const tenClass = actualCard.rank === 10 ? ' rank-ten' : '';
+
+      holder.innerEl.className = `card-inner-face ${colorClass}`;
+      holder.valEl.className = `card-val-top${tenClass}`;
+      holder.valEl.textContent = rankSymbol;
+      holder.valEl.style.display = 'block';
+
+      holder.suitEl.className = 'card-suit-bottom';
+      holder.suitEl.textContent = suitSymbol;
+      holder.suitEl.style.display = 'block';
+      holder.innerEl.style.display = 'block';
+    }
   }
 
   private initDOMStructure(): void {
@@ -55,14 +108,23 @@ export class TrenchCardsUI {
       const cardEl = document.createElement('div');
       cardEl.className = 'trench-card card-empty';
 
+      const slotBayEl = document.createElement('div');
+      slotBayEl.className = 'card-slot-bay';
+
+      const innerEl = document.createElement('div');
+      innerEl.className = 'card-inner-face';
+
       const valEl = document.createElement('div');
       valEl.className = 'card-val-top';
 
       const suitEl = document.createElement('div');
       suitEl.className = 'card-suit-bottom';
 
-      cardEl.appendChild(valEl);
-      cardEl.appendChild(suitEl);
+      innerEl.appendChild(valEl);
+      innerEl.appendChild(suitEl);
+
+      cardEl.appendChild(slotBayEl);
+      cardEl.appendChild(innerEl);
 
       cardEl.addEventListener('click', () => {
         const target = this.slotClickTargets.get(slotIdx);
@@ -71,7 +133,7 @@ export class TrenchCardsUI {
         }
       });
 
-      const holder: SlotElementHolder = { cardEl, valEl, suitEl };
+      const holder: SlotElementHolder = { cardEl, slotBayEl, innerEl, valEl, suitEl };
       this.slotHolders.set(slotIdx, holder);
       return holder;
     };
@@ -180,7 +242,7 @@ export class TrenchCardsUI {
     const activePlayerState = state.players[activeSeat];
     const draftTargetSlotIdx = activePlayerState ? activePlayerState.trenchCards.findIndex(c => c === null) : -1;
     const isBotTurn = Boolean(store.botSeats[activeSeat]);
-    const isSwapAvailable = !isDrafting && !state.hasSwappedThisTurn && !isBotTurn;
+    const isSwapAvailable = !store.isReplaying && !isDrafting && !state.hasSwappedThisTurn && !isBotTurn;
 
     const winningCardIds = new Set<string>();
     let winningTeamClass = '';
@@ -203,6 +265,11 @@ export class TrenchCardsUI {
         }
       }
     }
+
+    const inCombat = Boolean(state.pendingCombat || store.isCombatDelaying);
+    const isBoardRotated = this.lastRotationStep !== undefined && this.lastRotationStep !== rotationStep;
+    this.lastRotationStep = rotationStep;
+    const canAnimate = this.hasRenderedOnce && !store.isReplaying && !isBoardRotated && !inCombat && !isRefillStage && !isDrafting;
 
     for (let slotIdx = 0; slotIdx < 12; slotIdx++) {
       const holder = this.slotHolders.get(slotIdx);
@@ -247,33 +314,50 @@ export class TrenchCardsUI {
         highlightClass = `${highlightClass} card-dimmed`.trim();
       }
 
-      if (isEmptySlot) {
-        holder.cardEl.className = `trench-card card-empty ${teamClass} ${highlightClass}`.trim();
-        holder.valEl.style.display = 'none';
-        holder.suitEl.style.display = 'none';
-      } else if (isFaceDown) {
-        holder.cardEl.className = `trench-card card-back face-down ${teamClass} ${highlightClass}`.trim();
-        holder.valEl.style.display = 'none';
-        holder.suitEl.style.display = 'none';
-      } else if (actualCard) {
-        const isRed = actualCard.suit === 'H' || actualCard.suit === 'D';
-        const suitSymbol = { S: '♠', H: '♥', D: '♦', C: '♣' }[actualCard.suit];
-        const rankSymbol =
-          ({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' } as Record<number, string>)[actualCard.rank] ||
-          actualCard.rank.toString();
-        const colorClass = isRed ? 'card-red' : 'card-black';
-        const tenClass = actualCard.rank === 10 ? ' rank-ten' : '';
-        const selectedClass = isSelected ? ' selected' : '';
+      const cardKey = isEmptySlot ? 'empty' : (isFaceDown ? `facedown-${actualCard.id}` : actualCard.id);
+      const prevKey = this.lastCardKeys.get(slotIdx);
+      const isCardChanged = prevKey !== undefined && prevKey !== cardKey;
 
-        holder.cardEl.className = `trench-card ${teamClass} ${colorClass}${selectedClass} ${highlightClass}`.trim();
-        holder.valEl.className = `card-val-top${tenClass}`;
-        holder.valEl.textContent = rankSymbol;
-        holder.valEl.style.display = 'block';
+      const isRed = actualCard && (actualCard.suit === 'H' || actualCard.suit === 'D');
+      const colorClass = actualCard && !isFaceDown ? (isRed ? 'card-red' : 'card-black') : '';
+      const selectedClass = isSelected ? ' selected' : '';
+      const emptyClass = isEmptySlot ? ' card-empty' : '';
+      const faceDownClass = isFaceDown ? ' card-back face-down' : '';
 
-        holder.suitEl.className = 'card-suit-bottom';
-        holder.suitEl.textContent = suitSymbol;
-        holder.suitEl.style.display = 'block';
+      holder.cardEl.className = `trench-card ${teamClass}${emptyClass}${faceDownClass} ${colorClass}${selectedClass} ${highlightClass}`.trim();
+
+      // Confined 2-phase swap animation: slide out old card to the right, delay, then slide in new card from the right
+      if (canAnimate && isCardChanged && !isEmptySlot && prevKey !== 'empty') {
+        this.clearSlotAnimation(slotIdx, holder);
+        // Phase 1: Old card slides out to the right
+        holder.innerEl.classList.add('slide-out-right');
+
+        // Delay until slide-out finishes before updating to the new card
+        const timer = setTimeout(() => {
+          holder.innerEl.classList.remove('slide-out-right');
+          this.applySlotContent(holder, actualCard, isFaceDown, isEmptySlot);
+          // Phase 2: New card slides in from the same direction (from the right)
+          holder.innerEl.classList.add('slide-in-right');
+
+          const inTimer = setTimeout(() => {
+            holder.innerEl.classList.remove('slide-in-right');
+            this.animTimeouts.delete(slotIdx);
+          }, CARD_ANIMATION_TIME_MS);
+          this.animTimeouts.set(slotIdx, inTimer as any);
+        }, CARD_ANIMATION_TIME_MS);
+        this.animTimeouts.set(slotIdx, timer as any);
+      } else {
+        if (!this.animTimeouts.has(slotIdx) || inCombat) {
+          if (inCombat) {
+            this.clearSlotAnimation(slotIdx, holder);
+          }
+          this.applySlotContent(holder, actualCard, isFaceDown, isEmptySlot);
+        }
       }
+
+      this.lastCardKeys.set(slotIdx, cardKey);
     }
+
+    this.hasRenderedOnce = true;
   }
 }

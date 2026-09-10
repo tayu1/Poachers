@@ -53,6 +53,7 @@ export interface BotProfile {
   randomnessTemperature?: number;
   randomnessP?: number;
   heuristicGapThreshold?: number;
+  initialEvalBlendWeight?: number;
   verbose?: boolean;
 }
 
@@ -60,6 +61,7 @@ export interface BotCandidateAction {
   action: GameAction;
   actionInt?: ActionInt;
   score: number;
+  searchScore?: number;
   plyScores?: Record<number, number[]>;
   logSummary?: string;
 }
@@ -119,7 +121,8 @@ export const DEFAULT_BOT_PROFILE: BotProfile = {
   depth: 4,
   topK: 8,
   adaptiveBranching: false,
-  trenchStrategy: 'BOT_DEFAULT_DRAFT'
+  trenchStrategy: 'BOT_DEFAULT_DRAFT',
+  initialEvalBlendWeight: 0.07
 };
 
 /** Pre-allocated scratch buffer stack for zero-allocation tree search */
@@ -674,17 +677,17 @@ function searchMinimaxRecursive(
         const evalWin = (nextStateWin.isGameOver || depthRemaining <= 1)
           ? evaluateState(nextStateWin, rootSeat, pvals, depthRemaining - 1)
           : searchMinimaxRecursive(
-              nextStateWin,
-              rootSeat,
-              rootTeam,
-              pvals,
-              depthRemaining - 1,
-              topK,
-              adaptiveBranching,
-              nextPoolIndex,
-              totalDepth,
-              branchTracer
-            );
+            nextStateWin,
+            rootSeat,
+            rootTeam,
+            pvals,
+            depthRemaining - 1,
+            topK,
+            adaptiveBranching,
+            nextPoolIndex,
+            totalDepth,
+            branchTracer
+          );
 
         // Branch 2: Attacker Loses Combat (50% probability)
         const nextStateLoss = cloneIntoScratch(state, nextPoolIndex);
@@ -696,17 +699,17 @@ function searchMinimaxRecursive(
         const evalLoss = (nextStateLoss.isGameOver || depthRemaining <= 1)
           ? evaluateState(nextStateLoss, rootSeat, pvals, depthRemaining - 1)
           : searchMinimaxRecursive(
-              nextStateLoss,
-              rootSeat,
-              rootTeam,
-              pvals,
-              depthRemaining - 1,
-              topK,
-              adaptiveBranching,
-              nextPoolIndex,
-              totalDepth,
-              undefined
-            );
+            nextStateLoss,
+            rootSeat,
+            rootTeam,
+            pvals,
+            depthRemaining - 1,
+            topK,
+            adaptiveBranching,
+            nextPoolIndex,
+            totalDepth,
+            undefined
+          );
 
         // True 50/50 Expectimax combination
         evaluation = 0.5 * evalWin + 0.5 * evalLoss;
@@ -720,17 +723,17 @@ function searchMinimaxRecursive(
         evaluation = (nextState.isGameOver || depthRemaining <= 1)
           ? evaluateState(nextState, rootSeat, pvals, depthRemaining - 1)
           : searchMinimaxRecursive(
-              nextState,
-              rootSeat,
-              rootTeam,
-              pvals,
-              depthRemaining - 1,
-              topK,
-              adaptiveBranching,
-              nextPoolIndex,
-              totalDepth,
-              branchTracer
-            );
+            nextState,
+            rootSeat,
+            rootTeam,
+            pvals,
+            depthRemaining - 1,
+            topK,
+            adaptiveBranching,
+            nextPoolIndex,
+            totalDepth,
+            branchTracer
+          );
       }
 
       if (evaluation > maxEval) maxEval = evaluation;
@@ -765,17 +768,17 @@ function searchMinimaxRecursive(
         const evalWin = (nextStateWin.isGameOver || depthRemaining <= 1)
           ? evaluateState(nextStateWin, rootSeat, pvals, depthRemaining - 1)
           : searchMinimaxRecursive(
-              nextStateWin,
-              rootSeat,
-              rootTeam,
-              pvals,
-              depthRemaining - 1,
-              topK,
-              adaptiveBranching,
-              nextPoolIndex,
-              totalDepth,
-              branchTracer
-            );
+            nextStateWin,
+            rootSeat,
+            rootTeam,
+            pvals,
+            depthRemaining - 1,
+            topK,
+            adaptiveBranching,
+            nextPoolIndex,
+            totalDepth,
+            branchTracer
+          );
 
         // Branch 2: Attacker Loses Combat (50% probability)
         const nextStateLoss = cloneIntoScratch(state, nextPoolIndex);
@@ -787,17 +790,17 @@ function searchMinimaxRecursive(
         const evalLoss = (nextStateLoss.isGameOver || depthRemaining <= 1)
           ? evaluateState(nextStateLoss, rootSeat, pvals, depthRemaining - 1)
           : searchMinimaxRecursive(
-              nextStateLoss,
-              rootSeat,
-              rootTeam,
-              pvals,
-              depthRemaining - 1,
-              topK,
-              adaptiveBranching,
-              nextPoolIndex,
-              totalDepth,
-              undefined
-            );
+            nextStateLoss,
+            rootSeat,
+            rootTeam,
+            pvals,
+            depthRemaining - 1,
+            topK,
+            adaptiveBranching,
+            nextPoolIndex,
+            totalDepth,
+            undefined
+          );
 
         // True 50/50 Expectimax combination
         evaluation = 0.5 * evalWin + 0.5 * evalLoss;
@@ -811,17 +814,17 @@ function searchMinimaxRecursive(
         evaluation = (nextState.isGameOver || depthRemaining <= 1)
           ? evaluateState(nextState, rootSeat, pvals, depthRemaining - 1)
           : searchMinimaxRecursive(
-              nextState,
-              rootSeat,
-              rootTeam,
-              pvals,
-              depthRemaining - 1,
-              topK,
-              adaptiveBranching,
-              nextPoolIndex,
-              totalDepth,
-              branchTracer
-            );
+            nextState,
+            rootSeat,
+            rootTeam,
+            pvals,
+            depthRemaining - 1,
+            topK,
+            adaptiveBranching,
+            nextPoolIndex,
+            totalDepth,
+            branchTracer
+          );
       }
 
       if (evaluation < minEval) minEval = evaluation;
@@ -890,8 +893,8 @@ export function greedyRolloutScore(
 function getSlotScore(state: GameState, seat: PlayerSeat, trenchIndex: number, testCard: any): number {
   const teammateSeat = seat === PlayerSeat.NORTH ? PlayerSeat.SOUTH
     : seat === PlayerSeat.SOUTH ? PlayerSeat.NORTH
-    : seat === PlayerSeat.EAST ? PlayerSeat.WEST
-    : PlayerSeat.EAST;
+      : seat === PlayerSeat.EAST ? PlayerSeat.WEST
+        : PlayerSeat.EAST;
   const teammate = state.players[teammateSeat];
   const teammateCard = teammate?.trenchCards[trenchIndex];
   const communityCards = state.publicFlop.filter((c: any) => c !== null) as any[];
@@ -903,7 +906,7 @@ function getSlotScore(state: GameState, seat: PlayerSeat, trenchIndex: number, t
   if (pool.length >= 5) {
     return getBestHandFrom7CardPool(pool).score;
   }
-  
+
   let slotScore = testCard ? testCard.rank * 10 : 0;
   if (testCard && teammateCard && testCard.rank === teammateCard.rank) {
     slotScore += 2000000;
@@ -923,7 +926,7 @@ function findBestCardSwap(state: GameState, seat: PlayerSeat): ActionInt | null 
     const isPos2 = slot2 < 3;
     const c1 = isPos1 ? player.trenchCards[slot1] : player.baseDeck[slot1 - 3];
     const c2 = isPos2 ? player.trenchCards[slot2] : player.baseDeck[slot2 - 3];
-    
+
     const isValidCard = (c: any) => c && c.id !== 'hidden' && c.rank > 0;
     if (!isValidCard(c1) && !isValidCard(c2)) return;
 
@@ -1102,12 +1105,16 @@ export function getBestBotAction(
       action: actionIntToGameAction(chosenActionInt),
       actionInt: chosenActionInt,
       score: immediateScore,
+      searchScore: immediateScore,
       plyScores: Object.fromEntries(tracer.plyScores.entries()),
       logSummary
     };
   }
 
-  const scoredCandidates: { actionInt: ActionInt; score: number; ply1Score: number }[] = [];
+  const blendWeight = profile.initialEvalBlendWeight !== undefined
+    ? profile.initialEvalBlendWeight
+    : (DEFAULT_BOT_PROFILE.initialEvalBlendWeight ?? 0.08);
+  const scoredCandidates: { actionInt: ActionInt; score: number; searchScore: number; ply1Score: number }[] = [];
   let bestDeepScore = -Infinity;
   const evaluatedActionInts = new Set<ActionInt>();
 
@@ -1126,7 +1133,7 @@ export function getBestBotAction(
       const pType = piece & 7;
       const targetType = target === 0 ? 0 : (target & 7);
 
-      let score: number;
+      let searchScore: number;
       const isAttack = (type === ActionType.MOVE && target !== 0 && targetType !== 5 && pType !== 5);
 
       const currentTracer = (scoredCandidates.length === 0 && shouldLog) ? tracer : undefined;
@@ -1140,14 +1147,19 @@ export function getBestBotAction(
         const winScore = evaluateActionTopK(state, actionInt, seat, pvals, depth, topK, seat, adaptiveBranching, currentTracer, depth);
         const lossScore = evaluateActionTopK(state, actionInt, seat, pvals, depth, topK, defenderSeat, adaptiveBranching, undefined, depth);
 
-        score = pWin * winScore + (1 - pWin) * lossScore;
+        searchScore = pWin * winScore + (1 - pWin) * lossScore;
       } else {
-        score = evaluateActionTopK(state, actionInt, seat, pvals, depth, topK, undefined, adaptiveBranching, currentTracer, depth);
+        searchScore = evaluateActionTopK(state, actionInt, seat, pvals, depth, topK, undefined, adaptiveBranching, currentTracer, depth);
       }
 
-      scoredCandidates.push({ actionInt, score, ply1Score });
-      if (score > bestDeepScore) {
-        bestDeepScore = score;
+      // Blend initial eval into final score:
+      // When future calculations lead to the same result (or very close scores),
+      // the option with a better initial evaluation is ranked higher.
+      const score = searchScore + (ply1Score * blendWeight);
+
+      scoredCandidates.push({ actionInt, score, searchScore, ply1Score });
+      if (searchScore > bestDeepScore) {
+        bestDeepScore = searchScore;
       }
     }
   };
@@ -1158,28 +1170,33 @@ export function getBestBotAction(
   // Fallback search: if the best move found is losing (-10000 or worse), check more candidates
   if (bestDeepScore < -10000) {
     const allScoredMoves = getTopKScoredMoves(state, seat, topK, pvals, profile.heuristicGapThreshold, true, true);
-    
+
     let currentOffset = topK;
     let addedBatches = 0;
 
     while (currentOffset < allScoredMoves.length) {
       if (bestDeepScore >= -10000) {
-        break; 
+        break;
       }
       // If score is >= -30000, we only check 1 extra batch (8 more candidates)
       if (bestDeepScore >= -30000 && addedBatches >= 1) {
-        break; 
+        break;
       }
 
       const batch = allScoredMoves.slice(currentOffset, currentOffset + topK);
       evaluateBatch(batch);
-      
+
       currentOffset += topK;
       addedBatches++;
     }
   }
 
-  scoredCandidates.sort((a, b) => b.score - a.score);
+  scoredCandidates.sort((a, b) => {
+    if (Math.abs(b.score - a.score) > 1e-6) {
+      return b.score - a.score;
+    }
+    return b.ply1Score - a.ply1Score;
+  });
 
   let chosenActionInt = scoredCandidates[0].actionInt;
   let chosenScore = scoredCandidates[0].score;
@@ -1214,7 +1231,10 @@ export function getBestBotAction(
         chosenScore = pick.score;
       }
     } else {
-      const ties = scoredCandidates.filter(c => c.score === topScore);
+      const topPly1 = scoredCandidates[0].ply1Score;
+      const ties = scoredCandidates.filter(c =>
+        Math.abs(c.score - topScore) < 1e-6 && Math.abs(c.ply1Score - topPly1) < 1e-6
+      );
       if (ties.length > 1) {
         const pick = ties[Math.floor(Math.random() * ties.length)];
         chosenActionInt = pick.actionInt;
@@ -1223,7 +1243,10 @@ export function getBestBotAction(
     }
   } else {
     const topScore = scoredCandidates[0].score;
-    const ties = scoredCandidates.filter(c => c.score === topScore);
+    const topPly1 = scoredCandidates[0].ply1Score;
+    const ties = scoredCandidates.filter(c =>
+      Math.abs(c.score - topScore) < 1e-6 && Math.abs(c.ply1Score - topPly1) < 1e-6
+    );
     if (ties.length > 1) {
       const pick = ties[Math.floor(Math.random() * ties.length)];
       chosenActionInt = pick.actionInt;
@@ -1246,7 +1269,7 @@ export function getBestBotAction(
     for (let i = 0; i < scoredCandidates.length; i++) {
       const c = scoredCandidates[i];
       const desc = formatActionInt(c.actionInt, state.board);
-      lines.push(`    #${i + 1} ${state.turnCount}. ${getSeatCode(seat)}] ${desc} | 1-ply: ${Math.round(c.ply1Score)} | Search Score: ${Math.round(c.score)}`);
+      lines.push(`    #${i + 1} ${state.turnCount}. ${getSeatCode(seat)}] ${desc} | 1-ply: ${Math.round(c.ply1Score)} | Search Score: ${Math.round(c.searchScore)} | Final: ${Math.round(c.score)}`);
     }
     const chosenDesc = formatActionInt(chosenActionInt, state.board);
     lines.push(`  ▶ Chosen: ${state.turnCount}. ${getSeatCode(seat)}] ${chosenDesc} (Score: ${Math.round(chosenScore)})`);
@@ -1255,10 +1278,14 @@ export function getBestBotAction(
     console.log(logSummary);
   }
 
+  const matchCandidate = scoredCandidates.find(c => c.actionInt === chosenActionInt);
+  const chosenSearchScore = matchCandidate ? matchCandidate.searchScore : chosenScore;
+
   return {
     action: actionIntToGameAction(chosenActionInt),
     actionInt: chosenActionInt,
     score: chosenScore,
+    searchScore: chosenSearchScore,
     plyScores: Object.fromEntries(tracer.plyScores.entries()),
     logSummary
   };

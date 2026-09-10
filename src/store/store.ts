@@ -91,6 +91,8 @@ export class GameStore {
       turnTimeLimit: this.turnTimeLimit,
       startingPlayer: this.startingSeatIndex as PlayerSeat
     });
+    this.history = [fastCloneState(this.state)];
+    this.historyIndex = 0;
   }
 
   public get timerRemainingSeconds(): number {
@@ -139,6 +141,13 @@ export class GameStore {
       [PlayerSeat.SOUTH]: roomState.seats[PlayerSeat.SOUTH].isBot,
       [PlayerSeat.WEST]: roomState.seats[PlayerSeat.WEST].isBot
     };
+
+    if (roomState.status === 'lobby' && this.history.length > 0) {
+      this.history = [];
+      this.historyIndex = -1;
+      this.logs = [];
+      this.isReplaying = false;
+    }
 
     this.notify();
   }
@@ -191,23 +200,29 @@ export class GameStore {
     this.triggerTimerUpdate();
   }
 
-  public applyServerGameState(gameState: GameState, logs: NetworkLogEntry[]): void {
-    if (gameState) {
-      gameState.board = toUint8Array(gameState.board, 64);
-      gameState.threatMap = gameState.threatMap ? toUint8Array(gameState.threatMap, 4096) : generateFullThreatMap(gameState.board);
-      let hasData = false;
-      if (gameState.threatMap && gameState.threatMap.length === 4096) {
-        for (let i = 0; i < 4096; i++) {
-          if (gameState.threatMap[i] !== 0) {
-            hasData = true;
-            break;
-          }
+  private hydrateState(gameState: GameState): GameState {
+    if (!gameState) return gameState;
+    gameState.board = toUint8Array(gameState.board, 64);
+    gameState.threatMap = gameState.threatMap ? toUint8Array(gameState.threatMap, 4096) : generateFullThreatMap(gameState.board);
+    let hasData = false;
+    if (gameState.threatMap && gameState.threatMap.length === 4096) {
+      for (let i = 0; i < 4096; i++) {
+        if (gameState.threatMap[i] !== 0) {
+          hasData = true;
+          break;
         }
       }
-      if (!hasData) {
-        gameState.threatMap = generateFullThreatMap(gameState.board);
-      }
-      gameState.deadPoolCounts = toUint8Array(gameState.deadPoolCounts, 16);
+    }
+    if (!hasData) {
+      gameState.threatMap = generateFullThreatMap(gameState.board);
+    }
+    gameState.deadPoolCounts = toUint8Array(gameState.deadPoolCounts, 16);
+    return gameState;
+  }
+
+  public applyServerGameState(gameState: GameState, logs: NetworkLogEntry[], serverHistory?: GameState[]): void {
+    if (gameState) {
+      gameState = this.hydrateState(gameState);
     }
     this.state = gameState;
     if (gameState.score) {
@@ -220,10 +235,26 @@ export class GameStore {
       pokerText: l.pokerText,
       historyIndex: l.historyIndex
     }));
-    while (this.history.length < this.logs.length) {
-      this.history.push(fastCloneState(this.state));
+
+    if (serverHistory && Array.isArray(serverHistory) && serverHistory.length > 0) {
+      this.history = serverHistory.map(h => this.hydrateState(h));
+    } else {
+      if (logs.length === 0) {
+        this.history = [fastCloneState(this.state)];
+        this.historyIndex = 0;
+      } else {
+        if (this.history.length === 0) {
+          this.history.push(fastCloneState(this.state));
+        }
+        while (this.history.length <= this.logs.length) {
+          this.history.push(fastCloneState(this.state));
+        }
+      }
     }
-    this.isReplaying = false;
+
+    if (!this.isReplaying) {
+      this.historyIndex = Math.max(0, this.history.length - 1);
+    }
     this.selectedSquare = null;
     this.legalMoves = [];
     this.selectedBaseCardIndex = null;
@@ -267,6 +298,10 @@ export class GameStore {
     this.mySeat = null;
     this.myTeam = null;
     this.netError = null;
+    this.history = [];
+    this.historyIndex = -1;
+    this.logs = [];
+    this.isReplaying = false;
     this.notify();
   }
 
@@ -443,42 +478,57 @@ export class GameStore {
   public get activeLogIndex(): number {
     if (this.logs.length === 0) return -1;
     if (!this.isReplaying) return this.logs.length - 1;
+    if (this.historyIndex === 0) return -1;
     for (let i = this.logs.length - 1; i >= 0; i--) {
       if (this.historyIndex >= this.logs[i].historyIndex) return i;
     }
-    return 0;
+    return -1;
   }
 
   public scrubToHistoryIndex(historyIndex: number): void {
     if (this.history.length === 0) return;
     const target = Math.max(0, Math.min(historyIndex, this.history.length - 1));
     this.historyIndex = target;
-    this.isReplaying = target < this.history.length - 1;
+    this.isReplaying = this.state.isGameOver ? true : target < this.history.length - 1;
     this.notify();
   }
 
   public stepReplay(direction: 'prev' | 'next' | 'live'): void {
     if (direction === 'live') {
-      this.isReplaying = false;
+      this.isReplaying = this.state.isGameOver ? true : false;
       this.historyIndex = Math.max(0, this.history.length - 1);
       this.notify();
       return;
     }
 
-    if (this.logs.length === 0 || this.history.length === 0) return;
+    if (this.history.length === 0) return;
 
     const currentIdx = this.activeLogIndex;
 
-    if (direction === 'prev' && currentIdx > 0) {
-      const targetLog = this.logs[currentIdx - 1];
-      this.scrubToHistoryIndex(targetLog.historyIndex);
-    } else if (direction === 'next' && currentIdx < this.logs.length - 1) {
-      const nextIdx = currentIdx + 1;
-      if (nextIdx === this.logs.length - 1) {
-        this.stepReplay('live');
-      } else {
-        const targetLog = this.logs[nextIdx];
+    if (direction === 'prev') {
+      if (currentIdx > 0) {
+        const targetLog = this.logs[currentIdx - 1];
         this.scrubToHistoryIndex(targetLog.historyIndex);
+      } else if (currentIdx === 0 || this.historyIndex > 0) {
+        this.scrubToHistoryIndex(0);
+      }
+    } else if (direction === 'next') {
+      if (currentIdx === -1) {
+        if (this.logs.length > 0) {
+          if (this.logs.length === 1) {
+            this.stepReplay('live');
+          } else {
+            this.scrubToHistoryIndex(this.logs[0].historyIndex);
+          }
+        }
+      } else if (currentIdx < this.logs.length - 1) {
+        const nextIdx = currentIdx + 1;
+        if (nextIdx === this.logs.length - 1) {
+          this.stepReplay('live');
+        } else {
+          const targetLog = this.logs[nextIdx];
+          this.scrubToHistoryIndex(targetLog.historyIndex);
+        }
       }
     }
   }
@@ -535,8 +585,8 @@ export class GameStore {
       turnTimeLimit: this.turnTimeLimit,
       skipSetup: skipSetup
     });
-    this.history = [];
-    this.historyIndex = -1;
+    this.history = [fastCloneState(this.state)];
+    this.historyIndex = 0;
     this.logs = [];
     this.selectedSquare = null;
     this.legalMoves = [];

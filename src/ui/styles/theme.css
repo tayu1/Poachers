@@ -1,8 +1,52 @@
 :root {
+  /* ==========================================================================
+     SET 1: LOBBY & ROOM (Background & Texture Controls)
+     ========================================================================== */
+  --lobby-bg-color: #083238;
+  /* 🎨 Lobby Background Color */
+  --lobby-texture-color: #094745;
+  /* 🎨 Lobby Texture Symbol Color */
+  --lobby-texture-opacity: 1;
+  /* 👁️ Lobby Texture Opacity (0.0 to 1.0) */
+  --lobby-texture-size: 400px;
+  /* 📐 Lobby Texture Size (e.g. 400px = spacious) */
+  --lobby-modal-bg: rgba(5, 26, 79, 0.131);
+  /* 🪟 Lobby Modal Frosted Glass Background */
+  --lobby-modal-blur: 8px;
+  /* 🌫️ Lobby Modal Blur Radius */
+
+  /* ==========================================================================
+     SET 2: GAME SCREEN (Background, Texture & Board Glass Controls)
+     ========================================================================== */
+  --game-bg-color: #062b21;
+  /* 🎨 Game Screen Background Color */
+  --game-texture-color: #063929;
+  /* 🎨 Game Texture Symbol Color */
+  --game-texture-opacity: 1;
+  /* 👁️ Game Texture Opacity (0.0 to 1.0) */
+  --game-texture-size: 300px;
+  /* 📐 Game Texture Size (e.g. 240px = smaller/denser symbols) */
+  --board-glass-blur: 5px;
+  /* 🌫️ Board Glass Panel Blur (e.g. 5px = crisp & subtle) */
+  --board-glass-bg: rgba(0, 41, 58, 0.25);
+  /* 🪟 Board Glass Section Background (Translucent neutral glass) */
+  --board-glass-border: rgba(255, 255, 255, 0);
+  --board-glass-shadow: 0 0 50px rgba(0, 0, 0, 0.5), inset 1px 0 1px rgba(255, 255, 255, 0.08), inset -1px 0 1px rgba(255, 255, 255, 0.08);
+  --game-menu-glass-bg: rgba(0, 41, 58, 0.25);
+  /* 🪟 Game Screen Sidebars / Menus Glass Background */
+  --game-menu-glass-blur: 8px;
+  /* 🌫️ Game Screen Sidebars / Menus Glass Blur Radius */
+  --game-menu-glass-border: rgba(255, 255, 255, 0.12);
+  /* 🖼️ Game Screen Sidebars / Menus Border & Separation Line Color */
+  --game-menu-glass-shadow: none;
+  /* 🌑 Game Screen Sidebars / Menus Shadow */
+
   /* Color Palette strictly adhering to specifications */
-  --bg-color: #0b0f19;
-  --panel-bg: rgba(18, 26, 43, 0.85);
-  --panel-border: rgba(255, 255, 255, 0.1);
+  --bg-color: var(--game-bg-color);
+  --panel-bg: var(--game-menu-glass-bg);
+  --panel-border: var(--game-menu-glass-border);
+  --panel-blur: var(--game-menu-glass-blur);
+  --panel-shadow: var(--game-menu-glass-shadow);
   --accent-gold: #ffea00;
   --accent-cyan: #00d9ff;
   --team-a-color: var(--accent-gold);
@@ -100,6 +144,7 @@
   --color-card-black: #1e293b;
   --card-suit-red-color: #c50606;
   --bg-card-face: rgb(255, 229, 162);
+  --card-empty-bg: rgba(11, 19, 37, 0.224);
   --card-val-font-size: 1.3rem;
   --card-suit-font-size: 1.3rem;
   --card-border-width: 1px;
@@ -140,23 +185,57 @@
   --log-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
   --log-scrollbar-thumb-radius: 4px;
 
+  /* Card Swap/Switch Animation Duration */
+  --card-anim-duration: 140ms;
+
+  /* Piece Movement Animation Duration */
+  --piece-anim-duration: 280ms;
+
   /* Aliases supporting snake_case variable names */
   --gap_pieces: var(--gap-pieces);
   --gap_similar_pice: var(--gap-similar-piece);
   --gap_similar_piece: var(--gap-similar-piece);
   --gap_pawns: var(--gap-pawns);
+  --card_anim_duration: var(--card-anim-duration);
+  --piece_anim_duration: var(--piece-anim-duration);
+  --card_empty_bg: var(--card-empty-bg);
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--bg-color);
+  background-color: var(--game-bg-color);
   color: #f3f4f6;
   font-family: var(--font-body);
   user-select: none;
   overflow: hidden;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  min-height: 100vh;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-color: var(--game-texture-color);
+  opacity: var(--game-texture-opacity);
+  mask-image: url('/assets/lobby_texture.svg');
+  -webkit-mask-image: url('/assets/lobby_texture.svg');
+  mask-repeat: repeat;
+  -webkit-mask-repeat: repeat;
+  mask-size: var(--game-texture-size) auto;
+  -webkit-mask-size: var(--game-texture-size) auto;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#app {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
 }
 
 button,

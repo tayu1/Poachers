@@ -113,7 +113,7 @@ export class SoundManager {
         this.hasPlayedWinSound = true;
         this.play('win');
       }
-    } else if (!state?.isGameOver) {
+    } else if (!(storeInstance?.state?.isGameOver ?? state?.isGameOver)) {
       this.hasPlayedWinSound = false;
     }
 

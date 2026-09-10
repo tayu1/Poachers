@@ -217,7 +217,8 @@ export class TurnManager {
       return;
     }
 
-    if (!state.isGameOver) {
+    const isLiveGameOver = Boolean(this.store.state?.isGameOver ?? state.isGameOver);
+    if (!isLiveGameOver) {
       if (this.isGameOverShown || this.gameOverTimeoutId !== null) {
         this.clearGameOverPopupState();
         this.updateScreenGlow(null);

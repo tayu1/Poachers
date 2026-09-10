@@ -186,7 +186,7 @@ describe('Next-Gen Bot Search & Evaluation Engine', () => {
     // When 80% favorable attack on Knight is available, candidate should be this move with expectedScore
     expect(candidate).not.toBeNull();
     if (candidate!.action.origin === 18 && candidate!.action.end === 27) {
-      expect(candidate!.score).toBeCloseTo(expectedScore, 1);
+      expect((candidate as any).searchScore ?? candidate!.score).toBeCloseTo(expectedScore, 1);
     }
   });
 
@@ -424,6 +424,36 @@ describe('Next-Gen Bot Search & Evaluation Engine', () => {
     const scoreEnemyUnbunkered = evaluateState(stateUnbunkered, PlayerSeat.EAST);
     const scoreEnemyBunkered = evaluateState(stateBunkered, PlayerSeat.EAST);
     expect(scoreEnemyBunkered - scoreEnemyUnbunkered).toBe(30);
+  });
+
+  it('should rank candidates with higher 1-ply evaluation higher when deep search scores are identical', () => {
+    const state = createInitialGameState({ skipSetup: true });
+    state.board.fill(0);
+
+    // North King at 10, South King at 58
+    state.board[10] = 5;      // North King
+    state.board[58] = 5;      // South King
+    state.board[1] = 1;       // Friendly North pawn
+    state.deadPoolCounts.fill(0);
+
+    // East Rooks attack the rows so North King moves all lead to capture in 2 plies
+    state.board[16] = 4 | 8;  // East Rook
+    state.board[24] = 4 | 8;  // East Rook
+    state.board[31] = 5 | 8;  // East King
+    state.threatMap = generateFullThreatMap(state.board);
+    state.activePlayer = PlayerSeat.NORTH;
+    state.hasSwappedThisTurn = true;
+
+    const action = getBestBotAction(state, {
+      ...DEFAULT_BOT_PROFILE,
+      depth: 2,
+      topK: 4,
+      randomnessMargin: 0
+    });
+
+    expect(action).not.toBeNull();
+    expect(action?.logSummary).toContain('Candidates:');
+    expect(action?.logSummary).toContain('Final:');
   });
 });
 

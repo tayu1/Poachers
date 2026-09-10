@@ -56,7 +56,7 @@ export class LobbyUI {
       const isPrivate = r.isPublic === false;
       const displayCode = isPrivate ? '----' : r.roomCode;
       return `
-          <div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 8px 12px; border-radius: 6px; border: 1px solid ${isPlaying ? '#475569' : (isPrivate ? '#334155' : '#38bdf8')}; opacity: ${isPlaying || isPrivate ? '0.85' : '1'};">
+          <div class="public-room-row" style="border: 1px solid ${isPlaying ? 'rgba(71, 85, 105, 0.6)' : (isPrivate ? 'rgba(51, 65, 85, 0.6)' : 'rgba(56, 189, 248, 0.5)')}; opacity: ${isPlaying || isPrivate ? '0.85' : '1'};">
             <div>
               <span style="font-weight: 700; color: #f59e0b; font-size: 14px;">ROOM ${displayCode}</span>
               <span style="font-size: 12px; color: #94a3b8; margin-left: 8px;">Host: ${r.hostName}</span>
@@ -116,7 +116,7 @@ export class LobbyUI {
             </div>
 
             <!-- Public / Active Rooms Section -->
-            <div class="public-rooms-section" style="margin-top: 6px; background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 12px;">
+            <div class="public-rooms-section">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span style="font-size: 12px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">🌐 ACTIVE ROOMS</span>
                 <button id="btn-refresh-rooms" class="copy-btn">Refresh</button>
@@ -253,12 +253,12 @@ export class LobbyUI {
                 <button id="btn-copy-code" class="copy-btn-icon" title="Copy Room Code" style="background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px; color: #cbd5e1;" aria-label="Copy Code">📋</button>
               </span>
               ${isHost
-        ? `<button id="btn-toggle-privacy" class="copy-btn" style="background: #1e293b; border: 1px solid #334155; color: ${roomState.isPublic ? '#38bdf8' : '#cbd5e1'}; padding: 2px 8px; border-radius: 4px; font-weight: 700; cursor: pointer;">${roomState.isPublic ? 'Public' : 'Private'}</button>`
-        : `<span style="font-size: 11px; background: #1e293b; border: 1px solid #334155; padding: 2px 8px; border-radius: 4px; color: ${roomState.isPublic ? '#38bdf8' : '#cbd5e1'}; font-weight: 700;">${roomState.isPublic ? 'Public' : 'Private'}</span>`
+        ? `<button id="btn-toggle-privacy" class="copy-btn" style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(51, 65, 85, 0.8); color: ${roomState.isPublic ? '#38bdf8' : '#cbd5e1'}; padding: 2px 8px; border-radius: 4px; font-weight: 700; cursor: pointer;">${roomState.isPublic ? 'Public' : 'Private'}</button>`
+        : `<span style="font-size: 11px; background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(51, 65, 85, 0.8); padding: 2px 8px; border-radius: 4px; color: ${roomState.isPublic ? '#38bdf8' : '#cbd5e1'}; font-weight: 700;">${roomState.isPublic ? 'Public' : 'Private'}</span>`
       }
               ${isHost
-        ? `<button id="btn-toggle-timer" class="copy-btn" style="background: #1e293b; border: 1px solid #d97706; padding: 2px 8px; border-radius: 4px; color: #f59e0b; font-weight: 700; cursor: pointer;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</button>`
-        : `<span style="font-size: 11px; background: #1e293b; border: 1px solid #d97706; padding: 2px 8px; border-radius: 4px; color: #f59e0b; font-weight: 700;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</span>`
+        ? `<button id="btn-toggle-timer" class="copy-btn" style="background: rgba(30, 41, 59, 0.7); border: 1px solid #d97706; padding: 2px 8px; border-radius: 4px; color: #f59e0b; font-weight: 700; cursor: pointer;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</button>`
+        : `<span style="font-size: 11px; background: rgba(30, 41, 59, 0.7); border: 1px solid #d97706; padding: 2px 8px; border-radius: 4px; color: #f59e0b; font-weight: 700;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</span>`
       }
             </div>
           </div>

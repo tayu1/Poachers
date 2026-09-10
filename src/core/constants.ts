@@ -59,5 +59,5 @@ export const INITIAL_BUNKER_INDICES_BY_SEAT: Record<PlayerSeat, number[]> = {
   [PlayerSeat.WEST]: [17, 41]   // Row 2, Col 1 ('p') and Row 5, Col 1 ('p')
 };
 
-export { DEFAULT_TURN_TIME_LIMIT, TURN_TIME_LIMIT_OPTIONS } from '../config';
+export { DEFAULT_TURN_TIME_LIMIT, TURN_TIME_LIMIT_OPTIONS, CARD_ANIMATION_TIME_MS, PIECE_ANIMATION_TIME_MS } from '../config';
 export type { TurnTimeLimit } from '../config';

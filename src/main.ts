@@ -19,6 +19,13 @@ import { OverlaysUI } from './ui/components/OverlaysUI';
 import { PublicCardsUI } from './ui/components/PublicCardsUI';
 import { StatusUI } from './ui/components/StatusUI';
 import { soundManager } from './ui/utils/sound';
+import { CARD_ANIMATION_TIME_MS, PIECE_ANIMATION_TIME_MS } from './config';
+
+// 0. Synchronize Configured Animation Timers to CSS Custom Properties
+if (typeof document !== 'undefined') {
+  document.documentElement.style.setProperty('--card-anim-duration', `${CARD_ANIMATION_TIME_MS}ms`);
+  document.documentElement.style.setProperty('--piece-anim-duration', `${PIECE_ANIMATION_TIME_MS}ms`);
+}
 
 // 1. Initialize UI Overlays & Menu
 const lobbyUI = new LobbyUI(document.getElementById('lobby-overlay')!);
@@ -79,7 +86,7 @@ store.subscribe((state: GameState, storeInstance) => {
   boardUI.render(state, storeInstance);
   trenchUI.render(state, storeInstance);
   baseDeckUI.render(state, storeInstance);
-  publicCardsUI.render(state);
+  publicCardsUI.render(state, storeInstance);
   statusUI.render(state, storeInstance);
   capturesUI.render(state, storeInstance);
   controlsUI.render(state, storeInstance);
@@ -113,7 +120,7 @@ function updateBoardScale(): void {
 
   container.style.transform = `scale(${scale}) translateZ(0)`;
   container.style.transformOrigin = 'top center';
-  centerArea.style.height = `${Math.round(naturalHeight * scale)}px`;
+  centerArea.style.height = `${Math.round(naturalHeight * scale) + 24}px`;
 }
 
 let resizeRafId: number | null = null;
@@ -137,13 +144,17 @@ document.addEventListener('click', (e: MouseEvent) => {
     target.closest('#modal-overlay') ||
     target.closest('#lobby-overlay') ||
     target.closest('#mobile-bottom-menu-bar') ||
+    target.closest('#unified-left-panel') ||
+    target.closest('#unified-right-panel') ||
     target.closest('#controls-panel') ||
+    target.closest('#log-panel') ||
+    target.closest('#status-panel') ||
+    target.closest('#captures-panel') ||
     target.closest('#trench-north') ||
     target.closest('#trench-east') ||
     target.closest('#trench-south') ||
     target.closest('#trench-west') ||
-    target.closest('#base-deck-panel') ||
-    target.closest('#captures-panel')
+    target.closest('#base-deck-panel')
   ) {
     return;
   }

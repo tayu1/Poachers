@@ -39,6 +39,7 @@ function createMockRoom(): { room: ServerRoom; host: ServerPlayer } {
     gameStarted: false,
     status: 'lobby',
     gameState: null,
+    history: [],
     logs: [],
     botTimer: null,
     turnTimeout: null,

@@ -500,23 +500,23 @@ describe('GameStore Rematch Validation', () => {
 });
 
 describe('GameStore History Replay and Indexing', () => {
-  it('should support stepping through logbook entries', () => {
-    store.resetGame(false, true); // initial state, history and logs empty
-    expect(store.historyLength).toBe(0);
+  it('should support stepping through logbook entries and back to initial board', () => {
+    store.resetGame(false, true); // initial state, history has starting frame (index 0) and logs empty
+    expect(store.historyLength).toBe(1);
     expect(store.logs.length).toBe(0);
 
     // Simulate 3 moves with snapshots and logs
-    store.recordSnapshot(); // history index 0 (Move 1)
-    store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'P : e2 -> e4' }); // log 0
-
-    store.recordSnapshot(); // history index 1 (Move 2)
-    store.addLogEntry({ turnNumber: 2, seat: 'E', text: 'N : c3 -> d5' }); // log 1
+    store.recordSnapshot(); // history index 1 (Move 1)
+    store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'P : e2 -> e4' }); // log 0 -> historyIndex: 1
 
     store.recordSnapshot(); // history index 2 (Move 2)
-    store.addLogEntry({ turnNumber: 3, seat: 'S', text: 'P : d7 -> d5' }); // log 2
+    store.addLogEntry({ turnNumber: 2, seat: 'E', text: 'N : c3 -> d5' }); // log 1 -> historyIndex: 2
+
+    store.recordSnapshot(); // history index 3 (Move 3)
+    store.addLogEntry({ turnNumber: 3, seat: 'S', text: 'P : d7 -> d5' }); // log 2 -> historyIndex: 3
 
     expect(store.logs.length).toBe(3);
-    expect(store.historyLength).toBe(3);
+    expect(store.historyLength).toBe(4);
     expect(store.activeLogIndex).toBe(2); // Last log by default in live state
     expect(store.isReplaying).toBe(false);
 
@@ -524,27 +524,42 @@ describe('GameStore History Replay and Indexing', () => {
     store.stepReplay('prev');
     expect(store.isReplaying).toBe(true);
     expect(store.activeLogIndex).toBe(1);
-    expect(store.historyIndex).toBe(1);
+    expect(store.historyIndex).toBe(2);
 
     // Step back to Log 0 (first move)
     store.stepReplay('prev');
     expect(store.isReplaying).toBe(true);
     expect(store.activeLogIndex).toBe(0);
+    expect(store.historyIndex).toBe(1);
+
+    // Step back to starting position (history index 0)
+    store.stepReplay('prev');
+    expect(store.isReplaying).toBe(true);
+    expect(store.activeLogIndex).toBe(-1); // starting position has no log entry selected!
     expect(store.historyIndex).toBe(0);
 
-    // Cannot step back before Log 0
+    // Cannot step back before starting position
     store.stepReplay('prev');
+    expect(store.activeLogIndex).toBe(-1);
+    expect(store.historyIndex).toBe(0);
+
+    // Step forward to Log 0
+    store.stepReplay('next');
     expect(store.activeLogIndex).toBe(0);
+    expect(store.historyIndex).toBe(1);
+    expect(store.isReplaying).toBe(true);
 
     // Step forward to Log 1
     store.stepReplay('next');
     expect(store.activeLogIndex).toBe(1);
+    expect(store.historyIndex).toBe(2);
     expect(store.isReplaying).toBe(true);
 
     // Step forward to Log 2 (last log -> resumes live)
     store.stepReplay('next');
     expect(store.activeLogIndex).toBe(2);
     expect(store.isReplaying).toBe(false);
+    expect(store.historyIndex).toBe(3);
 
     // Direct scrub to Log 0 and live jump
     store.scrubToHistoryIndex(store.logs[0].historyIndex);
@@ -557,46 +572,80 @@ describe('GameStore History Replay and Indexing', () => {
   });
 
   it('should correctly map activeLogIndex and stepReplay when history snapshots outnumber logs', () => {
-    store.resetGame(false, true);
+    store.resetGame(false, true); // history has starting snapshot 0
 
     // Turn 1: 2 snapshots (e.g. Setup/action + combat)
-    store.recordSnapshot(); // history 0
     store.recordSnapshot(); // history 1
-    store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'Move 1' }); // log 0 -> historyIndex: 1
+    store.recordSnapshot(); // history 2
+    store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'Move 1' }); // log 0 -> historyIndex: 2
 
     // Turn 2: 2 snapshots (combat delay + refill)
-    store.recordSnapshot(); // history 2
     store.recordSnapshot(); // history 3
-    store.addLogEntry({ turnNumber: 2, seat: 'E', text: 'Move 2' }); // log 1 -> historyIndex: 3
+    store.recordSnapshot(); // history 4
+    store.addLogEntry({ turnNumber: 2, seat: 'E', text: 'Move 2' }); // log 1 -> historyIndex: 4
 
     // Turn 3: 2 snapshots
-    store.recordSnapshot(); // history 4
     store.recordSnapshot(); // history 5
-    store.addLogEntry({ turnNumber: 3, seat: 'S', text: 'Move 3' }); // log 2 -> historyIndex: 5
+    store.recordSnapshot(); // history 6
+    store.addLogEntry({ turnNumber: 3, seat: 'S', text: 'Move 3' }); // log 2 -> historyIndex: 6
 
-    expect(store.historyLength).toBe(6);
+    expect(store.historyLength).toBe(7);
     expect(store.logs.length).toBe(3);
     expect(store.activeLogIndex).toBe(2);
 
     // Step back to Move 2 (log 1)
     store.stepReplay('prev');
     expect(store.activeLogIndex).toBe(1);
-    expect(store.historyIndex).toBe(3); // accurately jumped to snapshot 3, not snapshot 1!
+    expect(store.historyIndex).toBe(4);
 
     // Step back to Move 1 (log 0)
     store.stepReplay('prev');
     expect(store.activeLogIndex).toBe(0);
-    expect(store.historyIndex).toBe(1); // accurately jumped to snapshot 1!
+    expect(store.historyIndex).toBe(2);
+
+    // Step back to starting position (history index 0)
+    store.stepReplay('prev');
+    expect(store.activeLogIndex).toBe(-1);
+    expect(store.historyIndex).toBe(0);
+
+    // Step forward to Move 1 (log 0)
+    store.stepReplay('next');
+    expect(store.activeLogIndex).toBe(0);
+    expect(store.historyIndex).toBe(2);
 
     // Step forward to Move 2 (log 1)
     store.stepReplay('next');
     expect(store.activeLogIndex).toBe(1);
-    expect(store.historyIndex).toBe(3);
+    expect(store.historyIndex).toBe(4);
 
     // Step forward to Move 3 (last log -> resumes live)
     store.stepReplay('next');
     expect(store.activeLogIndex).toBe(2);
     expect(store.isReplaying).toBe(false);
-    expect(store.historyIndex).toBe(5);
+    expect(store.historyIndex).toBe(6);
+  });
+
+  it('should reset history when applyServerGameState is called with new match or serverHistory', () => {
+    // 1. Simulate past game with snapshots
+    store.applyServerGameState(store.getState(), [
+      { turnNumber: 1, seat: 'N', text: 'Move 1', historyIndex: 1 },
+      { turnNumber: 2, seat: 'E', text: 'Move 2', historyIndex: 2 }
+    ]);
+    expect(store.historyLength).toBeGreaterThanOrEqual(2);
+
+    // 2. New match starts with logs: [] (e.g. rematch or new room game)
+    store.applyServerGameState(store.getState(), []);
+    expect(store.historyLength).toBe(1); // Only initial state!
+    expect(store.historyIndex).toBe(0);
+    expect(store.logs.length).toBe(0);
+
+    // 3. Server provides full history snapshots
+    const mockSnap1 = { ...store.getState(), turnCount: 1 };
+    const mockSnap2 = { ...store.getState(), turnCount: 2 };
+    store.applyServerGameState(mockSnap2, [
+      { turnNumber: 1, seat: 'N', text: 'Move 1', historyIndex: 1 }
+    ], [mockSnap1, mockSnap2]);
+    expect(store.historyLength).toBe(2);
+    expect(store.getState().turnCount).toBe(2);
   });
 });

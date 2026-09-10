@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import { DEFAULT_BOT_PROFILE, getBestBotAction } from '../src/bot/bot';
-import { applyAction, completePostCombat, executeCombatResolution, createInitialGameState, getRandomLegalAction } from '../src/core/engine';
+import { applyAction, completePostCombat, executeCombatResolution, createInitialGameState, getRandomLegalAction, fastCloneState } from '../src/core/engine';
 import { getSeatCode } from '../src/core/notation';
 import { BOT_SPEED_MS, POST_COMBAT_DELAY_MS, DEFAULT_TURN_TIME_LIMIT, TURN_RIVER_DELAY_MS } from '../src/config';
 import { PlayerSeat } from '../src/core/types';
@@ -9,6 +9,12 @@ import { emitGameStateToRoom, serializeRoomState } from './roomManager';
 import { ServerRoom } from './types';
 
 type IOServer = Server<ClientToServerEvents, ServerToClientEvents>;
+
+export function recordRoomSnapshot(room: ServerRoom): number {
+  if (!room.history) room.history = [];
+  if (room.gameState) room.history.push(fastCloneState(room.gameState));
+  return room.history.length - 1;
+}
 
 export function clearTurnTimeout(room: ServerRoom): void {
   if (room.turnTimeout) {
@@ -103,7 +109,7 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
             autoCardPick: room.autoCardPick ?? true
           });
 
-          const historyIdx = room.logs.length;
+          const historyIdx = recordRoomSnapshot(room);
           room.logs.push({
             turnNumber: turnNum,
             seat: seatCode,
@@ -123,7 +129,7 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
             });
             if (room.gameState.isGameOver) {
               if (room.gameState.winnerTeam) {
-                const winIdx = room.logs.length;
+                const winIdx = recordRoomSnapshot(room);
                 room.logs.push({
                   turnNumber: turnNum,
                   seat: seatCode,
@@ -136,7 +142,7 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
               clearTurnTimeout(room);
               if (room.botTimer) { clearTimeout(room.botTimer); room.botTimer = null; }
             } else {
-              const refillIdx = room.logs.length;
+              const refillIdx = recordRoomSnapshot(room);
               room.logs.push({
                 turnNumber: turnNum,
                 seat: seatCode,
@@ -157,7 +163,7 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
           : (randomAction as any).type === 'CARD_SWAP';
 
         if (isCardSwap) {
-          const swapIdx = room.logs.length;
+          const swapIdx = recordRoomSnapshot(room);
           room.logs.push({
             turnNumber: turnNum,
             seat: seatCode,
@@ -165,7 +171,7 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
             historyIndex: swapIdx
           });
         } else {
-          const historyIdx = room.logs.length;
+          const historyIdx = recordRoomSnapshot(room);
           room.logs.push({
             turnNumber: turnNum,
             seat: seatCode,
@@ -177,7 +183,7 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
 
         if (room.gameState.isGameOver) {
           if (room.gameState.winnerTeam) {
-            const winIdx = room.logs.length;
+            const winIdx = recordRoomSnapshot(room);
             room.logs.push({
               turnNumber: turnNum,
               seat: seatCode,
@@ -302,7 +308,7 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
           autoCardPick: room.autoCardPick ?? true
         });
 
-        const historyIdx = room.logs.length;
+        const historyIdx = recordRoomSnapshot(room);
         room.logs.push({
           turnNumber: turnNum,
           seat: seatCode,
@@ -323,7 +329,7 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
           });
           if (room.gameState.isGameOver) {
             if (room.gameState.winnerTeam) {
-              const winIdx = room.logs.length;
+              const winIdx = recordRoomSnapshot(room);
               room.logs.push({
                 turnNumber: turnNum,
                 seat: seatCode,
@@ -334,7 +340,7 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
             room.matchScore = { ...room.gameState.score };
             room.status = 'ended';
           } else {
-            const refillIdx = room.logs.length;
+            const refillIdx = recordRoomSnapshot(room);
             room.logs.push({
               turnNumber: turnNum,
               seat: seatCode,
@@ -356,7 +362,7 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
         : (botCandidate.action as any).type === 'CARD_SWAP';
 
       if (isCardSwap) {
-        const swapIdx = room.logs.length;
+        const swapIdx = recordRoomSnapshot(room);
         room.logs.push({
           turnNumber: turnNum,
           seat: seatCode,
@@ -364,7 +370,7 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
           historyIndex: swapIdx
         });
       } else {
-        const historyIdx = room.logs.length;
+        const historyIdx = recordRoomSnapshot(room);
         room.logs.push({
           turnNumber: turnNum,
           seat: seatCode,
@@ -376,7 +382,7 @@ export function triggerBotTurnIfNeeded(room: ServerRoom, io: IOServer): void {
 
       if (room.gameState.isGameOver) {
         if (room.gameState.winnerTeam) {
-          const winIdx = room.logs.length;
+          const winIdx = recordRoomSnapshot(room);
           room.logs.push({
             turnNumber: turnNum,
             seat: seatCode,
@@ -431,6 +437,7 @@ export function startMatch(room: ServerRoom, io: IOServer, isRematch: boolean = 
   room.gameStarted = true;
   room.status = 'playing';
   room.logs = [];
+  room.history = [fastCloneState(room.gameState)];
 
   io.to(room.roomCode).emit('room_state_update', serializeRoomState(room));
   emitGameStateToRoom(io, room);

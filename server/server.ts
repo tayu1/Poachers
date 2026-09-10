@@ -11,7 +11,7 @@ import { DEFAULT_TURN_TIME_LIMIT, TURN_TIME_LIMIT_OPTIONS, TurnTimeLimit, POST_C
 import { PlayerSeat } from '../src/core/types';
 import { ClientToServerEvents, ServerToClientEvents } from '../src/net/events';
 
-import { checkAndAutoStartMatch, clearTurnTimeout, startMatch, startTurnTimeout, triggerBotTurnIfNeeded } from './gameLoop';
+import { checkAndAutoStartMatch, clearTurnTimeout, recordRoomSnapshot, startMatch, startTurnTimeout, triggerBotTurnIfNeeded } from './gameLoop';
 import { assignInitialHostSeats, assignSeat, autoAssignSeat, broadcastPublicRooms, clearPlayerSeats, createEmptySeats, emitGameStateToRoom, ensureAllHumansSeated, findRoom, generateRoomCode, getPublicRoomsSummary, getSeatTeam, getSeatsForPlayer, rooms, sanitizeGameStateForClient, serializeRoomState, toggleBot } from './roomManager';
 
 import { ServerPlayer, ServerRoom } from './types';
@@ -169,9 +169,11 @@ io.on('connection', (socket) => {
     broadcastPublicRooms(io);
 
     if (room.status === 'playing' && room.gameState) {
+      const seats = getSeatsForPlayer(room, player.playerId);
       socket.emit('game_state_update', {
-        gameState: sanitizeGameStateForClient(room.gameState, getSeatsForPlayer(room, player.playerId)),
-        logs: room.logs
+        gameState: sanitizeGameStateForClient(room.gameState, seats),
+        logs: room.logs,
+        history: room.history ? room.history.map(h => sanitizeGameStateForClient(h, seats)) : undefined
       });
     }
   });
@@ -200,11 +202,13 @@ io.on('connection', (socket) => {
 
     const roomState = serializeRoomState(room);
     if (callback) {
+      const seats = getSeatsForPlayer(room, player.playerId);
       callback({
         success: true,
         roomState,
-        gameState: sanitizeGameStateForClient(room.gameState, getSeatsForPlayer(room, player.playerId)) || undefined,
-        logs: room.logs
+        gameState: sanitizeGameStateForClient(room.gameState, seats) || undefined,
+        logs: room.logs,
+        history: room.history ? room.history.map(h => sanitizeGameStateForClient(h, seats)) : undefined
       });
     }
 
@@ -395,7 +399,7 @@ io.on('connection', (socket) => {
       });
 
       const seatCode = getSeatCode(resigningSeat) as 'N' | 'E' | 'S' | 'W';
-      const historyIdx = room.logs.length;
+      const historyIdx = recordRoomSnapshot(room);
       room.logs.push({
         turnNumber: state.turnCount,
         seat: seatCode,
@@ -462,7 +466,7 @@ io.on('connection', (socket) => {
           autoCardPick: room.autoCardPick ?? true
         });
 
-        const historyIdx = room.logs.length;
+        const historyIdx = recordRoomSnapshot(room);
         room.logs.push({
           turnNumber: turnNum,
           seat: seatCode,
@@ -482,7 +486,7 @@ io.on('connection', (socket) => {
           });
           if (room.gameState.isGameOver) {
             if (room.gameState.winnerTeam) {
-              const winIdx = room.logs.length;
+              const winIdx = recordRoomSnapshot(room);
               room.logs.push({
                 turnNumber: turnNum,
                 seat: seatCode,
@@ -495,7 +499,7 @@ io.on('connection', (socket) => {
             io.to(code).emit('room_state_update', serializeRoomState(room));
             broadcastPublicRooms(io);
           } else {
-            const refillIdx = room.logs.length;
+            const refillIdx = recordRoomSnapshot(room);
             room.logs.push({
               turnNumber: turnNum,
               seat: seatCode,
@@ -512,7 +516,7 @@ io.on('connection', (socket) => {
       }, TURN_RIVER_DELAY_MS);
     } else {
       if (action.type === 'CARD_SWAP') {
-        const swapIdx = room.logs.length;
+        const swapIdx = recordRoomSnapshot(room);
         room.logs.push({
           turnNumber: turnNum,
           seat: seatCode,
@@ -520,7 +524,7 @@ io.on('connection', (socket) => {
           historyIndex: swapIdx
         });
       } else if (action.type === 'MOVE' || action.type === 'PROMOTION' || action.type === 'SKIP_TURN' || action.type === 'SET_BUNKER') {
-        const historyIdx = room.logs.length;
+        const historyIdx = recordRoomSnapshot(room);
         room.logs.push({
           turnNumber: turnNum,
           seat: seatCode,
@@ -532,7 +536,7 @@ io.on('connection', (socket) => {
 
       if (room.gameState.isGameOver) {
         if (room.gameState.winnerTeam) {
-          const winIdx = room.logs.length;
+          const winIdx = recordRoomSnapshot(room);
           room.logs.push({
             turnNumber: turnNum,
             seat: seatCode,

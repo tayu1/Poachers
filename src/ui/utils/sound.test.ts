@@ -166,4 +166,34 @@ describe('SoundManager', () => {
     soundManager.handleTimerUpdate(mockStore);
     expect(playSpy).toHaveBeenCalledWith('tenseconds');
   });
+
+  it('should NOT replay win sound when scrubbing back to game over entry during review', () => {
+    const mockStore: any = {
+      isReplaying: false,
+      isInMatch: () => true,
+      state: { isGameOver: true }
+    };
+    const gameOverState = {
+      isGameOver: true,
+      lastMove: { fromIndex: 8, toIndex: 16, type: 'capture', moveId: 'mEnd' }
+    };
+    const pastMoveState = {
+      isGameOver: false,
+      lastMove: { fromIndex: 0, toIndex: 8, type: 'move', moveId: 'm1' }
+    };
+
+    // 1. Live game ends -> win sound plays once
+    soundManager.handleStateUpdate(gameOverState, mockStore);
+    expect(playSpy).toHaveBeenCalledWith('win');
+    playSpy.mockClear();
+
+    // 2. User scrubs to past move in replay
+    mockStore.isReplaying = true;
+    soundManager.handleStateUpdate(pastMoveState, mockStore);
+    expect(playSpy).not.toHaveBeenCalled();
+
+    // 3. User scrubs back to game over entry in replay
+    soundManager.handleStateUpdate(gameOverState, mockStore);
+    expect(playSpy).not.toHaveBeenCalledWith('win');
+  });
 });

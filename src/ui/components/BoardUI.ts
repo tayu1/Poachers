@@ -1,4 +1,4 @@
-import { HILL_SQUARE_INDICES, PLAYER_TEAMS, getCol, getRow } from '../../core/constants';
+import { HILL_SQUARE_INDICES, PLAYER_TEAMS, getCol, getRow, PIECE_ANIMATION_TIME_MS } from '../../core/constants';
 import { getValidPromotionOptions } from '../../core/engine';
 import { isPieceControllable } from '../../core/moves';
 import { GameState, LastMove, Move, PieceType, PlayerSeat, getPieceType, pieceToChar, Pc, decEnd, ActionInt } from '../../core/types';
@@ -476,16 +476,26 @@ export class BoardUI {
 
     this.boardFrame!.style.transform = `rotate(${store.boardRotationAngle}deg)`;
 
-    const activeTeam = PLAYER_TEAMS[state.activePlayer];
+    let displaySeat = state.activePlayer;
+    let displayTeam = PLAYER_TEAMS[state.activePlayer];
+    if (store.isReplaying && store.activeLogIndex >= 0 && store.activeLogIndex < store.logs.length) {
+      const reviewedLog = store.logs[store.activeLogIndex];
+      const seatMap: Record<string, PlayerSeat> = { N: PlayerSeat.NORTH, E: PlayerSeat.EAST, S: PlayerSeat.SOUTH, W: PlayerSeat.WEST };
+      if (seatMap[reviewedLog.seat] !== undefined) {
+        displaySeat = seatMap[reviewedLog.seat];
+        displayTeam = PLAYER_TEAMS[displaySeat];
+      }
+    }
+
     if (this.midHorizontalElement) {
-      this.midHorizontalElement.style.display = activeTeam === 'A' ? 'block' : 'none';
+      this.midHorizontalElement.style.display = displayTeam === 'A' ? 'block' : 'none';
     }
     if (this.midVerticalElement) {
-      this.midVerticalElement.style.display = activeTeam === 'B' ? 'block' : 'none';
+      this.midVerticalElement.style.display = displayTeam === 'B' ? 'block' : 'none';
     }
 
     const isRefillOrSetupStage = Boolean(state.setupState?.inSetup) || state.pendingRefills.length > 0;
-    const isUserTurn = !store.botSeats[state.activePlayer] && (
+    const isUserTurn = !store.isReplaying && !store.botSeats[state.activePlayer] && (
       !store.isMultiplayer
         ? (!store.mySeats?.length || store.mySeats.includes(state.activePlayer))
         : (store.mySeats?.includes(state.activePlayer) || store.mySeat === state.activePlayer)
@@ -564,20 +574,27 @@ export class BoardUI {
           void img.offsetWidth;
 
           const targetAngle = store.boardRotationAngle;
-          requestAnimationFrame(() => {
-            if (!img.isConnected) return;
-            img.style.transition = 'transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1)';
-            img.style.transform = `translate(0px, 0px) rotate(-${targetAngle}deg)`;
+          if (PIECE_ANIMATION_TIME_MS > 0) {
+            requestAnimationFrame(() => {
+              if (!img.isConnected) return;
+              img.style.transition = `transform ${PIECE_ANIMATION_TIME_MS}ms cubic-bezier(0.25, 0.8, 0.25, 1)`;
+              img.style.transform = `translate(0px, 0px) rotate(-${targetAngle}deg)`;
 
-            const handleTransitionEnd = () => {
-              img.style.transition = 'none';
-              img.style.transform = `rotate(-${targetAngle}deg)`;
-              img.style.willChange = '';
-              img.style.zIndex = '';
-              img.removeEventListener('transitionend', handleTransitionEnd);
-            };
-            img.addEventListener('transitionend', handleTransitionEnd);
-          });
+              const handleTransitionEnd = () => {
+                img.style.transition = 'none';
+                img.style.transform = `rotate(-${targetAngle}deg)`;
+                img.style.willChange = '';
+                img.style.zIndex = '';
+                img.removeEventListener('transitionend', handleTransitionEnd);
+              };
+              img.addEventListener('transitionend', handleTransitionEnd);
+            });
+          } else {
+            img.style.transition = 'none';
+            img.style.transform = `rotate(-${targetAngle}deg)`;
+            img.style.willChange = '';
+            img.style.zIndex = '';
+          }
         } else {
           img.style.transition = 'none';
           img.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
@@ -594,24 +611,27 @@ export class BoardUI {
 
       // If this square is the capture destination, display the captured piece ghost that collapses on impact
       if (animatableTargetIndex === index && capturedPieceSrcForGhost) {
-        const ghost = document.createElement('img');
-        ghost.src = capturedPieceSrcForGhost;
-        ghost.className = 'captured-piece-ghost';
-        ghost.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
-        ghost.style.transition = 'opacity 0.26s ease-out, transform 0.26s ease-out';
-        sq.appendChild(ghost);
+        if (PIECE_ANIMATION_TIME_MS > 0) {
+          const ghost = document.createElement('img');
+          ghost.src = capturedPieceSrcForGhost;
+          ghost.className = 'captured-piece-ghost';
+          ghost.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
+          const ghostDuration = Math.max(0, Math.round(PIECE_ANIMATION_TIME_MS * 0.93));
+          ghost.style.transition = `opacity ${ghostDuration}ms ease-out, transform ${ghostDuration}ms ease-out`;
+          sq.appendChild(ghost);
 
-        const targetAngle = store.boardRotationAngle;
-        requestAnimationFrame(() => {
-          if (!ghost.isConnected) return;
-          ghost.style.opacity = '0';
-          ghost.style.transform = `rotate(-${targetAngle}deg) scale(0.5)`;
-          setTimeout(() => {
-            if (ghost.parentElement) {
-              ghost.remove();
-            }
-          }, 280);
-        });
+          const targetAngle = store.boardRotationAngle;
+          requestAnimationFrame(() => {
+            if (!ghost.isConnected) return;
+            ghost.style.opacity = '0';
+            ghost.style.transform = `rotate(-${targetAngle}deg) scale(0.5)`;
+            setTimeout(() => {
+              if (ghost.parentElement) {
+                ghost.remove();
+              }
+            }, PIECE_ANIMATION_TIME_MS);
+          });
+        }
       }
 
       const isBunkered = (piece & 16) !== 0;
@@ -675,8 +695,7 @@ export class BoardUI {
       }
     }
 
-    const activeSeat = state.activePlayer;
-    const teamClass = activeTeam === 'A' ? 'team-a' : 'team-b';
+    const teamClass = displayTeam === 'A' ? 'team-a' : 'team-b';
     const seatEdgeClasses: Record<PlayerSeat, string> = {
       [PlayerSeat.NORTH]: 'edge-north',
       [PlayerSeat.EAST]: 'edge-east',
@@ -688,7 +707,7 @@ export class BoardUI {
         this.edgeGlowElement.style.display = 'none';
       } else {
         this.edgeGlowElement.style.display = '';
-        this.edgeGlowElement.className = `board-edge-glow ${seatEdgeClasses[activeSeat]} ${teamClass}`;
+        this.edgeGlowElement.className = `board-edge-glow ${seatEdgeClasses[displaySeat]} ${teamClass}`;
       }
     }
 
@@ -709,7 +728,7 @@ export class BoardUI {
       }, 280);
     }
 
-    if (this.displayedArrowMove) {
+    if (this.displayedArrowMove && state.lastMove) {
       this.renderArrow(this.boardFrame!, this.boardGrid!, this.displayedArrowMove);
     }
   }

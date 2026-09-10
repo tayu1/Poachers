@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { buildPieceRow, CapturesUI } from './CapturesUI';
 import { BaseDeckUI } from './BaseDeckUI';
-import { createInitialGameState } from '../../core/engine';
+import { createInitialGameState, getTeamCapturedPieces } from '../../core/engine';
 import { GameStore } from '../../store/store';
 import { PlayerSeat, Pc } from '../../core/types';
 
@@ -192,4 +192,87 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
       expect(img.src).toMatch(/\/assets\/w_/);
     }
   });
+
+  it('CapturesUI highlights Team A box border with #f59e0b when Team A is active', () => {
+    const container = document.createElement('div') as unknown as MockElement;
+    const capturesUI = new CapturesUI(container as unknown as HTMLElement);
+    const state = createInitialGameState();
+    const store = new GameStore();
+
+    // Active player NORTH is Team A
+    state.activePlayer = PlayerSeat.NORTH;
+    capturesUI.render(state, store);
+
+    const panel = container.children[0];
+    expect(panel.className).toBe('panel');
+    // panel children: [header, groupDivA, groupDivB]
+    const groupDivA = panel.children[1];
+    const groupDivB = panel.children[2];
+
+    expect(groupDivA.style.border).toBe('1.5px solid #f59e0b');
+    expect(groupDivB.style.border).toBe('1.5px solid transparent');
+  });
+
+  it('CapturesUI highlights Team B box border with #06b6d4 when Team B is active', () => {
+    const container = document.createElement('div') as unknown as MockElement;
+    const capturesUI = new CapturesUI(container as unknown as HTMLElement);
+    const state = createInitialGameState();
+    const store = new GameStore();
+
+    // Active player EAST is Team B
+    state.activePlayer = PlayerSeat.EAST;
+    capturesUI.render(state, store);
+
+    const panel = container.children[0];
+    const groupDivA = panel.children[1];
+    const groupDivB = panel.children[2];
+
+    expect(groupDivA.style.border).toBe('1.5px solid transparent');
+    expect(groupDivB.style.border).toBe('1.5px solid #06b6d4');
+  });
+
+  it('getTeamCapturedPieces includes captured pawns for both teams', () => {
+    const state = createInitialGameState();
+    // 1 = A_PAWN, 9 = B_PAWN
+    state.deadPoolCounts[1] = 2; // 2 Team A pawns
+    state.deadPoolCounts[4] = 1; // 1 Team A rook
+    state.deadPoolCounts[9] = 3; // 3 Team B pawns
+    state.deadPoolCounts[10] = 1; // 1 Team B knight
+
+    const teamAPieces = getTeamCapturedPieces(state, 'A');
+    expect(teamAPieces).toEqual([1, 1, 4]);
+
+    const teamBPieces = getTeamCapturedPieces(state, 'B');
+    expect(teamBPieces).toEqual([9, 9, 9, 10]);
+  });
+
+  it('CapturesUI renders captured pawns and does not allow selecting pawns for promotion', () => {
+    const container = document.createElement('div') as unknown as MockElement;
+    const capturesUI = new CapturesUI(container as unknown as HTMLElement);
+    const state = createInitialGameState();
+    const store = new GameStore();
+
+    state.activePlayer = PlayerSeat.NORTH; // Team A
+    state.deadPoolCounts[1] = 2; // 2 Team A pawns
+    state.deadPoolCounts[4] = 1; // 1 Team A rook
+
+    capturesUI.render(state, store);
+
+    const panel = container.children[0];
+    const groupDivA = panel.children[1];
+    const imgs = groupDivA.querySelectorAll('img');
+
+    // Expected order: Rook (4) -> Pawn (1) -> Pawn (1)
+    expect(imgs.length).toBe(3);
+    expect(imgs[0].src).toBe('/assets/w_r.svg');
+    expect(imgs[1].src).toBe('/assets/w_p.svg');
+    expect(imgs[2].src).toBe('/assets/w_p.svg');
+
+    // Pawns should not have pointer cursor
+    const rookWrapper = imgs[0].parentElement!;
+    const pawnWrapper = imgs[1].parentElement!;
+    expect(rookWrapper.style.cursor).toBe('pointer');
+    expect(pawnWrapper.style.cursor).toBeUndefined();
+  });
 });
+

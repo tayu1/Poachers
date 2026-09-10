@@ -97,7 +97,7 @@ export function buildPieceRow(
       wrapper.style.background = 'rgba(34,197,94,0.12)';
     }
 
-    if (onClickPiece) {
+    if (onClickPiece && pType !== 1) {
       wrapper.style.cursor = 'pointer';
       wrapper.onclick = () => onClickPiece(piece);
     }
@@ -131,6 +131,7 @@ export class CapturesUI {
     this.container.innerHTML = '';
 
     this.panel = document.createElement('div');
+    this.panel.className = 'panel';
     this.panel.style.display = 'flex';
     this.panel.style.flexDirection = 'column';
     this.panel.style.gap = '10px';
@@ -146,10 +147,12 @@ export class CapturesUI {
     this.groupDivA = document.createElement('div');
     this.groupDivA.style.padding = '8px 10px';
     this.groupDivA.style.borderRadius = '6px';
+    this.groupDivA.style.transition = 'all 0.25s ease';
 
     this.groupDivB = document.createElement('div');
     this.groupDivB.style.padding = '8px 10px';
     this.groupDivB.style.borderRadius = '6px';
+    this.groupDivB.style.transition = 'all 0.25s ease';
 
     this.panel.appendChild(this.groupDivA);
     this.panel.appendChild(this.groupDivB);
@@ -166,17 +169,25 @@ export class CapturesUI {
     const activeTeam = activePlayerState.team;
 
     const teams: { team: 'A' | 'B'; label: string; color: string; groupDiv: HTMLElement }[] = [
-      { team: 'A', label: 'Team A (North & South)', color: '#3b82f6', groupDiv: this.groupDivA! },
-      { team: 'B', label: 'Team B (East & West)', color: '#ef4444', groupDiv: this.groupDivB! }
+      { team: 'A', label: 'Team A (North & South)', color: '#f59e0b', groupDiv: this.groupDivA! },
+      { team: 'B', label: 'Team B (East & West)', color: '#06b6d4', groupDiv: this.groupDivB! }
     ];
 
     teams.forEach(({ team, color, groupDiv }) => {
       const isCurrentActiveTeam = team === activeTeam;
+      const isTeamA = team === 'A';
       const teamPieces = getTeamCapturedPieces(state, team);
 
       groupDiv.innerHTML = '';
-      groupDiv.style.background = isCurrentActiveTeam ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255, 255, 255, 0.03)';
-      groupDiv.style.border = isCurrentActiveTeam ? `1px solid ${color}` : '1px solid transparent';
+      if (isCurrentActiveTeam) {
+        groupDiv.style.background = isTeamA ? 'rgba(245, 158, 11, 0.16)' : 'rgba(6, 182, 212, 0.16)';
+        groupDiv.style.border = `1.5px solid ${color}`;
+        groupDiv.style.boxShadow = `0 0 10px ${isTeamA ? 'rgba(245, 158, 11, 0.28)' : 'rgba(6, 182, 212, 0.28)'}`;
+      } else {
+        groupDiv.style.background = 'rgba(255, 255, 255, 0.03)';
+        groupDiv.style.border = '1.5px solid transparent';
+        groupDiv.style.boxShadow = 'none';
+      }
 
       const promoOptions = isCurrentActiveTeam ? getValidPromotionOptions(state, activeSeat) : [];
       const canPromoteSet = new Set(promoOptions.map(o => getPieceType(o.promotedPiece)).filter(t => t !== 0));
@@ -187,7 +198,7 @@ export class CapturesUI {
         promoNotice.style.fontWeight = 'bold';
         promoNotice.style.color = '#22c55e';
         promoNotice.style.marginBottom = '6px';
-        promoNotice.innerText = '⚡ Promotion available! Select a piece below to promote on Hill.';
+        promoNotice.innerText = 'Click to Promote';
         groupDiv.appendChild(promoNotice);
       }
 
@@ -215,6 +226,7 @@ export class CapturesUI {
   }
 
   private onSelectCapturedPiece(piece: PieceType | number): void {
+    if (getPieceType(piece) === 1) return;
     if (store.selectedPromotionPiece === piece) {
       store.selectedPromotionPiece = null;
     } else {

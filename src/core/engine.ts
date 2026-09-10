@@ -3,6 +3,7 @@ import {
   computeRegionProbabilities,
   createDeck,
   dealInitialPlayerCards,
+  dealCommunityCards,
   getBestHandFrom7CardPool,
   getTrenchCardIndexForSquare,
   getSquareCombatOdds,
@@ -138,6 +139,20 @@ export function fastCloneState(state: GameState): GameState {
     } : { inSetup: false, setupCompletedSeats: [0, 1, 2, 3] },
     botSeats: { ...state.botSeats },
     pendingRefills: (state.pendingRefills || []).map(pr => ({ ...pr })),
+    pendingCombat: state.pendingCombat ? {
+      ...state.pendingCombat,
+      attackerHand: state.pendingCombat.attackerHand ? {
+        ...state.pendingCombat.attackerHand,
+        cards: state.pendingCombat.attackerHand.cards ? [...state.pendingCombat.attackerHand.cards] : [],
+        winningCards: state.pendingCombat.attackerHand.winningCards ? [...state.pendingCombat.attackerHand.winningCards] : undefined
+      } : undefined as any,
+      defenderHand: state.pendingCombat.defenderHand ? {
+        ...state.pendingCombat.defenderHand,
+        cards: state.pendingCombat.defenderHand.cards ? [...state.pendingCombat.defenderHand.cards] : [],
+        winningCards: state.pendingCombat.defenderHand.winningCards ? [...state.pendingCombat.defenderHand.winningCards] : undefined
+      } : undefined as any
+    } : null,
+    isCombatDelaying: Boolean(state.isCombatDelaying),
     seatActionCounts: state.seatActionCounts ? { ...state.seatActionCounts } : { 0: 0, 1: 0, 2: 0, 3: 0 }
   };
 }
@@ -223,8 +238,9 @@ export function createInitialGameState(options?: CreateInitialGameStateOptions):
     [PlayerSeat.WEST]:  { seat: PlayerSeat.WEST,  team: 'B', baseDeck: westSetup.baseDeck,  trenchCards: westSetup.trenchCards }
   };
 
-  const publicFlop: [Card, Card, Card] = [deck.pop()!, deck.pop()!, deck.pop()!];
-  const publicTurnRiver: [Card, Card] = [deck.pop()!, deck.pop()!];
+  const communityCards = dealCommunityCards(deck);
+  const publicFlop: [Card, Card, Card] = communityCards.publicFlop as [Card, Card, Card];
+  const publicTurnRiver: [Card, Card] = communityCards.publicTurnRiver as [Card, Card];
 
   const state: GameState = {
     board: new Uint8Array(INITIAL_BOARD_1D),
@@ -535,7 +551,7 @@ export function checkWinCondition(board: Board1D): Team | null {
 export function getTeamCapturedPieces(state: GameState, team: Team): number[] {
   const pieces: number[] = [];
   const teamBit = team === 'A' ? 0 : 8;
-  for (let pType = 2; pType <= 5; pType++) {
+  for (let pType = 1; pType <= 5; pType++) {
     const pieceCode = pType | teamBit;
     for (let i = 0; i < state.deadPoolCounts[pieceCode]; i++) {
       pieces.push(pieceCode);
@@ -671,13 +687,6 @@ export function getRandomLegalAction(
 }
 
 export function advanceTurn(state: GameState): void {
-  // Grant turn end card rewards to the current active player before their turn ends.
-  // This must happen after all trench refills are complete so we don't hit the base deck cap artificially.
-  const cardRewards = grantTurnEndCardRewards(state, state.activePlayer);
-  if (cardRewards.hillGranted) {
-    state.regionOdds = computeRegionProbabilities(state);
-  }
-
   let nextSeat = ((state.activePlayer + 1) % 4) as PlayerSeat;
   let attempts = 0;
 
@@ -729,21 +738,6 @@ function finalizeTurn(
   }
   state.seatActionCounts[seat] = (state.seatActionCounts[seat] || 0) + 1;
 
-  let pendingHumanRefill = false;
-
-  if (reqType !== BotRequestType.FAST_CALC) {
-    pendingHumanRefill = handlePostCombatRefillStage(
-      state, options?.botSeats, options?.botStrategies, options?.autoCardPick ?? true
-    );
-
-    const skipOdds = options?.skipOddsRecompute ?? (reqType !== BotRequestType.UI_GAME);
-    if (!skipOdds) {
-      if (!state.regionOdds || state.regionOdds.length === 0) {
-        state.regionOdds = computeRegionProbabilities(state);
-      }
-    }
-  }
-
   if (!state.threatMap || state.threatMap.length !== 4096) {
     state.threatMap = generateFullThreatMap(state.board);
   }
@@ -756,7 +750,29 @@ function finalizeTurn(
     state.winnerTeam = winner;
     if (winner === 'A') state.score.teamA++;
     else state.score.teamB++;
-  } else if (!pendingHumanRefill) {
+    return;
+  }
+
+  let pendingHumanRefill = false;
+
+  if (reqType !== BotRequestType.FAST_CALC) {
+    // 1. Grant hill bonus reward BEFORE refill stage so that the bonus card can be used to refill any empty trench cards.
+    const cardRewards = grantTurnEndCardRewards(state, seat);
+
+    // 2. Card refill happens LAST after all card changes (stolen defender card + hill bonus card).
+    pendingHumanRefill = handlePostCombatRefillStage(
+      state, options?.botSeats, options?.botStrategies, options?.autoCardPick ?? true
+    );
+
+    const skipOdds = options?.skipOddsRecompute ?? (reqType !== BotRequestType.UI_GAME);
+    if (!skipOdds) {
+      if (!state.regionOdds || state.regionOdds.length === 0 || cardRewards.hillGranted) {
+        state.regionOdds = computeRegionProbabilities(state);
+      }
+    }
+  }
+
+  if (!pendingHumanRefill) {
     advanceTurn(state);
   }
 }
@@ -769,11 +785,12 @@ export function handlePostCombatRefillStage(
 ): boolean {
   const effectiveBotSeats = botSeats ? { ...state.botSeats, ...botSeats } : state.botSeats;
 
-  if (state.pendingRefills.length === 0) {
-    for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST]) {
-      const player = state.players[seat];
-      for (let slot = 0; slot < player.trenchCards.length; slot++) {
-        if (player.trenchCards[slot] === null && player.baseDeck.length > 0) {
+  // Ensure any empty trench slots for players with baseDeck cards are in pendingRefills
+  for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST]) {
+    const player = state.players[seat];
+    for (let slot = 0; slot < player.trenchCards.length; slot++) {
+      if (player.trenchCards[slot] === null && player.baseDeck.length > 0) {
+        if (!state.pendingRefills.some(pr => pr.seat === seat && pr.slot === slot)) {
           state.pendingRefills.push({ seat, slot });
         }
       }

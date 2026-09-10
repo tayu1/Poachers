@@ -2,23 +2,44 @@
 .lobby-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(11, 15, 25, 0.96);
+  background-color: var(--lobby-bg-color);
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Inter', sans-serif;
   color: #e2e8f0;
+  overflow: hidden;
+}
+
+.lobby-backdrop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--lobby-texture-color);
+  opacity: var(--lobby-texture-opacity);
+  mask-image: url('/assets/lobby_texture.svg');
+  -webkit-mask-image: url('/assets/lobby_texture.svg');
+  mask-repeat: repeat;
+  -webkit-mask-repeat: repeat;
+  mask-size: var(--lobby-texture-size) auto;
+  -webkit-mask-size: var(--lobby-texture-size) auto;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .lobby-modal {
-  background: #111827;
-  border: 1px solid #1f2937;
+  position: relative;
+  z-index: 1;
+  background: var(--lobby-modal-bg, rgba(10, 17, 34, 0.72));
+  backdrop-filter: blur(var(--lobby-modal-blur, 8px));
+  -webkit-backdrop-filter: blur(var(--lobby-modal-blur, 8px));
+  border: 1px solid rgba(56, 189, 248, 0.22);
   border-radius: 16px;
   width: 90%;
   max-width: 680px;
   padding: 32px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 40px rgba(14, 165, 233, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -53,8 +74,8 @@
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: rgba(30, 41, 59, 0.65);
+  border: 1px solid rgba(51, 65, 85, 0.65);
   padding: 8px 16px;
   border-radius: 8px;
   font-size: 16px;
@@ -101,18 +122,42 @@
 }
 
 .lobby-input {
-  background: #0f172a;
-  border: 1px solid #334155;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(51, 65, 85, 0.7);
   border-radius: 8px;
   padding: 12px 16px;
   font-size: 15px;
   color: #f8fafc;
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .lobby-input:focus {
+  background: rgba(15, 23, 42, 0.85);
   border-color: #38bdf8;
+}
+
+/* Public Active Rooms Section */
+.public-rooms-section {
+  margin-top: 6px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(51, 65, 85, 0.55);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.public-room-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(30, 41, 59, 0.55);
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.public-room-row:hover {
+  background: rgba(40, 53, 76, 0.75);
 }
 
 .form-actions-row {
@@ -162,8 +207,8 @@
 }
 
 .team-column {
-  background: #0f172a;
-  border: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(30, 41, 59, 0.7);
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -197,8 +242,8 @@
 }
 
 .seat-card {
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: rgba(30, 41, 59, 0.45);
+  border: 1px solid rgba(51, 65, 85, 0.55);
   border-radius: 10px;
   padding: 12px 14px;
   display: flex;
@@ -211,8 +256,8 @@
 
 /* Team A (Gold) Sit Box Styling */
 .team-a .seat-card {
-  border: 1px solid rgba(245, 158, 11, 0.45);
-  background: rgba(245, 158, 11, 0.04);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.06);
 }
 
 .team-a .seat-name {
@@ -226,8 +271,8 @@
 
 /* Team B (Cyan) Sit Box Styling */
 .team-b .seat-card {
-  border: 1px solid rgba(6, 182, 212, 0.45);
-  background: rgba(6, 182, 212, 0.04);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  background: rgba(6, 182, 212, 0.06);
 }
 
 .team-b .seat-name {
@@ -252,7 +297,7 @@
 .team-b .seat-card.clickable-seat:hover {
   border-color: #ffffff !important;
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
-  background: #243047;
+  background: rgba(36, 48, 71, 0.8) !important;
 }
 
 .seat-header {
@@ -577,7 +622,9 @@
 .rules-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(5, 9, 18, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 2000;
   display: flex;
   align-items: center;
@@ -589,15 +636,17 @@
 }
 
 .rules-modal {
-  background: #111827;
+  background: var(--lobby-modal-bg, rgba(10, 17, 34, 0.78));
+  backdrop-filter: blur(var(--lobby-modal-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--lobby-modal-blur, 12px));
   color: #e2e8f0;
-  border: 1px solid #1f2937;
+  border: 1px solid rgba(56, 189, 248, 0.25);
   width: 90%;
   max-width: 800px;
   height: 85vh;
   padding: 32px;
   border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 40px rgba(14, 165, 233, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
   position: relative;

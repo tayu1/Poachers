@@ -1,4 +1,4 @@
-# Poachers - Game Rules
+# POACHERS - Game Rules
 
 ![Poachers Rules Overview](/assets/rules_pic.webp)
 

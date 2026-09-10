@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createInitialGameState, applyAction, completePostCombat, executeCombatResolution, isSeatOccupyingHill, grantHillCardReward } from './engine';
+import { createInitialGameState, applyAction, completePostCombat, executeCombatResolution, fastCloneState, isSeatOccupyingHill, grantHillCardReward } from './engine';
+import { processPostCombat, dealCommunityCards } from './cards';
 import { PlayerSeat } from './types';
 
 describe('Core Engine & Combat Integration', () => {
@@ -68,10 +69,22 @@ describe('Core Engine & Combat Integration', () => {
     executeCombatResolution(state, result.pendingCombat!);
     expect(state.isTurnRiverRevealed).toBe(true);
 
+    // Snapshot taken during post combat delay
+    const snapshot = fastCloneState(state);
+    expect(snapshot.pendingCombat).toBeDefined();
+    expect(snapshot.pendingCombat?.attackerHand).toBeDefined();
+    expect(snapshot.pendingCombat?.defenderHand).toBeDefined();
+    expect(snapshot.isCombatDelaying).toBe(true);
+    expect(snapshot.isTurnRiverRevealed).toBe(true);
+
     // Step 2: Complete post combat
     completePostCombat(state, result.pendingCombat!);
     expect(state.isCombatDelaying).toBe(false);
     expect(state.pendingCombat).toBeNull();
+
+    // Snapshot remains intact with deep copy
+    expect(snapshot.pendingCombat).toBeDefined();
+    expect(snapshot.isCombatDelaying).toBe(true);
   });
 
   describe('Hill Card Bonus per Player', () => {
@@ -389,7 +402,197 @@ describe('Core Engine & Combat Integration', () => {
       expect(isSeatOccupyingHill(state.board, PlayerSeat.NORTH)).toBe(true);
       expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(initialNorthDeckCount + 1);
     });
+
+    it('should grant hill bonus before card refill so a player with 0 base deck cards can refill their empty trench card on combat victory', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      // North has 0 cards in baseDeck
+      state.players[PlayerSeat.NORTH].baseDeck = [];
+      // East enemy piece on hill square 27
+      state.board[27] = 1 | 8;
+      // North pawn on square 19
+      state.board[19] = 1;
+
+      // North attacks hill square 27 from square 19 and wins
+      const result = applyAction(state, {
+        type: 'MOVE',
+        input1: 19,
+        input2: 27
+      }, { deferPostCombat: true, forceCombatWinner: PlayerSeat.NORTH });
+
+      expect(result.combatOccurred).toBe(true);
+
+      // Resolve combat with North winning:
+      // 1) North steals defender card (+1 in baseDeck)
+      // 2) North occupies hill square 27, receives hill bonus (+1 in baseDeck) -> baseDeck has 2 cards
+      // 3) Trench refill happens last: North refills used trench card (-1 from baseDeck) -> baseDeck has 1 card
+      // Result: Trench has NO empty slots (all 3 filled), and 1 private card remains in baseDeck.
+      executeCombatResolution(state, result.pendingCombat!, { forceCombatWinner: PlayerSeat.NORTH });
+      completePostCombat(state, result.pendingCombat!, { autoCardPick: true });
+
+      expect(isSeatOccupyingHill(state.board, PlayerSeat.NORTH)).toBe(true);
+      expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(1);
+      expect(state.players[PlayerSeat.NORTH].trenchCards.includes(null)).toBe(false);
+    });
+
+    it('should refill an empty trench card using hill bonus on a non-combat move onto hill when baseDeck had 0 cards', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      // North has 0 baseDeck cards and an empty trench slot (slot 1)
+      state.players[PlayerSeat.NORTH].baseDeck = [];
+      state.players[PlayerSeat.NORTH].trenchCards[1] = null;
+      expect(state.players[PlayerSeat.NORTH].trenchCards[1]).toBeNull();
+
+      // North pawn on square 19 moves to hill square 27 (non-combat move)
+      state.board[19] = 1;
+
+      applyAction(state, {
+        type: 'MOVE',
+        input1: 19,
+        input2: 27
+      });
+
+      // North moved onto hill:
+      // 1) Hill bonus granted (+1 in baseDeck)
+      // 2) Refill happens last: empty trench slot 1 is refilled using the bonus card (-1 from baseDeck)
+      // Result: Trench is fully refilled (no nulls), baseDeck has 0 cards, no empty position card with private card!
+      expect(isSeatOccupyingHill(state.board, PlayerSeat.NORTH)).toBe(true);
+      expect(state.players[PlayerSeat.NORTH].trenchCards.includes(null)).toBe(false);
+      expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(0);
+    });
+
+    it('should refill trench card using hill bonus when attacker on hill loses combat with 0 base deck cards', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      // North has 0 baseDeck cards
+      state.players[PlayerSeat.NORTH].baseDeck = [];
+      // North has a piece on hill square 27
+      state.board[27] = 1;
+      // North pawn on square 10 attacks enemy on square 18 (not hill)
+      state.board[10] = 1;
+      state.board[18] = 9;
+
+      const result = applyAction(state, {
+        type: 'MOVE',
+        input1: 10,
+        input2: 18
+      }, { deferPostCombat: true, forceCombatWinner: PlayerSeat.EAST });
+
+      expect(result.combatOccurred).toBe(true);
+
+      // Resolve combat with East winning (North loses):
+      // 1) North does NOT steal defender card.
+      // 2) North still occupies hill square 27, receives hill bonus (+1 in baseDeck).
+      // 3) Refill happens last: North refills used trench card using the hill bonus card (-1 from baseDeck).
+      // Result: Trench cards are full (no nulls), baseDeck has 0 cards.
+      executeCombatResolution(state, result.pendingCombat!, { forceCombatWinner: PlayerSeat.EAST });
+      completePostCombat(state, result.pendingCombat!, { autoCardPick: true });
+
+      expect(isSeatOccupyingHill(state.board, PlayerSeat.NORTH)).toBe(true);
+      expect(state.players[PlayerSeat.NORTH].trenchCards.includes(null)).toBe(false);
+      expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(0);
+    });
+
+    it('should allow human player with autoCardPick: false to see both stolen card and hill bonus in baseDeck during manual refill', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      state.players[PlayerSeat.NORTH].baseDeck = [];
+      state.board[27] = 1 | 8; // East enemy on hill
+      state.board[19] = 1; // North pawn
+
+      const result = applyAction(state, {
+        type: 'MOVE',
+        input1: 19,
+        input2: 27
+      }, { deferPostCombat: true, forceCombatWinner: PlayerSeat.NORTH });
+
+      executeCombatResolution(state, result.pendingCombat!, { forceCombatWinner: PlayerSeat.NORTH });
+      completePostCombat(state, result.pendingCombat!, { autoCardPick: false });
+
+      // Before human manual refill:
+      // North has 2 cards in baseDeck (stolen card + hill bonus card)
+      expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(2);
+      expect(state.pendingRefills.length).toBeGreaterThan(0);
+      expect(state.pendingRefills.some(pr => pr.seat === PlayerSeat.NORTH)).toBe(true);
+
+      // Human chooses card 0 from baseDeck to refill trench slot
+      const northRefill = state.pendingRefills.find(pr => pr.seat === PlayerSeat.NORTH)!;
+      applyAction(state, {
+        type: 'REFILL_TRENCH',
+        input1: northRefill.slot,
+        input2: 0
+      }, { autoCardPick: true });
+
+      // Now North trench is refilled and 1 card remains in baseDeck
+      expect(state.players[PlayerSeat.NORTH].trenchCards[northRefill.slot]).not.toBeNull();
+      expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(1);
+    });
+    it('should order pendingRefills in natural clockwise turn cycle starting from attackerSeat', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      // South (seat 2) attacks West (seat 3)
+      const combatSouth: any = {
+        attackerSeat: PlayerSeat.SOUTH,
+        defenderSeat: PlayerSeat.WEST,
+        attackerPosIndex: 44,
+        defenderPosIndex: 36,
+        winnerSeat: PlayerSeat.SOUTH
+      };
+      processPostCombat(state, combatSouth);
+      expect(state.pendingRefills.map(pr => pr.seat)).toEqual([
+        PlayerSeat.SOUTH, // 2 (Attacker)
+        PlayerSeat.WEST,  // 3 (Defender)
+        PlayerSeat.NORTH, // 0 (Attacker Teammate)
+        PlayerSeat.EAST   // 1 (Defender Teammate)
+      ]);
+    });
+
+    it('should deal community cards with burn cards to bottom: flop (3), burn 1, turn (1), burn 1, river (1)', () => {
+      // Mock deck with named cards from bottom (index 0) to top (last index)
+      const c = (id: string) => ({ id, suit: 'S' as const, rank: 10 as const });
+      const deck = [
+        c('base1'), c('base2'), c('base3'), // Bottom of deck
+        c('flop1'), c('flop2'), c('flop3'), // Flop cards (top)
+        c('burn1'),                         // Card before turn (will be burned)
+        c('turn'),                          // Turn card
+        c('burn2'),                         // Card before river (will be burned)
+        c('river')                          // River card (topmost)
+      ];
+      // Note: pop() pulls from the end of the array.
+      // Order of pop():
+      // 1. flop3 = river (idx 9)? Wait!
+      // In dealCommunityCards:
+      // flop draws deck.pop() x 3.
+      // Then burn1 draws deck.pop(), unshifts to bottom.
+      // Then turn draws deck.pop().
+      // Then burn2 draws deck.pop(), unshifts to bottom.
+      // Then river draws deck.pop().
+
+      // Let's set the deck array explicitly in the order they will be popped from the top:
+      const deck2 = [
+        c('bottom1'), c('bottom2'),
+        c('river'),
+        c('burn2'),
+        c('turn'),
+        c('burn1'),
+        c('flop3'),
+        c('flop2'),
+        c('flop1') // Top of deck
+      ];
+
+      const result = dealCommunityCards(deck2);
+
+      // Flop should have received flop1, flop2, flop3
+      expect(result.publicFlop.map(x => x?.id)).toEqual(['flop1', 'flop2', 'flop3']);
+      // Turn should have received 'turn'
+      expect(result.publicTurnRiver[0]?.id).toBe('turn');
+      // River should have received 'river'
+      expect(result.publicTurnRiver[1]?.id).toBe('river');
+
+      // Burn cards were placed at the bottom of the deck via unshift:
+      // burn1 was unshifted first, then burn2 was unshifted in front of it.
+      expect(deck2[0]?.id).toBe('burn2');
+      expect(deck2[1]?.id).toBe('burn1');
+      expect(deck2[2]?.id).toBe('bottom1');
+      expect(deck2[3]?.id).toBe('bottom2');
+    });
   });
 });
+
 
 
