@@ -17,6 +17,7 @@ export class TurnManager {
   // Timers
   private turnClockInterval: any = null;
   private botTimer: any = null;
+  private botTurnStartTime: number | null = null;
   private gameOverTimeoutId: any = null;
   private isGameOverShown = false;
   private pendingWinnerTeam: Team | null = null;
@@ -43,6 +44,7 @@ export class TurnManager {
       clearTimeout(this.botTimer);
       this.botTimer = null;
     }
+    this.botTurnStartTime = null;
     this.store.cancelCombatTimers();
     this.lastSeat = null;
     this.lastTurnCount = null;
@@ -454,12 +456,20 @@ export class TurnManager {
   }
 
   private scheduleBotTurn(state: GameState): void {
-    if (state.isGameOver || this.store.isReplaying || state.setupState?.inSetup || this.phase === TurnPhase.COMBAT_DELAY) {
+    if (state.isGameOver || this.store.isReplaying || state.setupState?.inSetup || this.store.isCombatDelaying || this.phase === TurnPhase.COMBAT_DELAY) {
       if (this.botTimer !== null) {
         clearTimeout(this.botTimer);
         this.botTimer = null;
       }
+      this.botTurnStartTime = null;
       return;
+    }
+
+    // 1. Auto-refill for bot seats immediately
+    while (state.pendingRefills.length > 0 && this.store.botSeats[state.pendingRefills[0].seat]) {
+      this.checkAndTriggerAutoRefill(state);
+      state = this.store.getState();
+      if (state.isGameOver || this.phase === TurnPhase.COMBAT_DELAY || this.store.isCombatDelaying) return;
     }
 
     const effectiveSeat = state.pendingRefills.length > 0 ? state.pendingRefills[0].seat : state.activePlayer;
@@ -468,46 +478,79 @@ export class TurnManager {
         clearTimeout(this.botTimer);
         this.botTimer = null;
       }
+      this.botTurnStartTime = null;
       return;
     }
 
     if (this.botTimer !== null) return;
 
+    if (!this.botTurnStartTime) {
+      this.botTurnStartTime = Date.now();
+    }
+
+    const botStrategies = {
+      [PlayerSeat.NORTH]: DEFAULT_BOT_PROFILE.trenchStrategy,
+      [PlayerSeat.EAST]: DEFAULT_BOT_PROFILE.trenchStrategy,
+      [PlayerSeat.SOUTH]: DEFAULT_BOT_PROFILE.trenchStrategy,
+      [PlayerSeat.WEST]: DEFAULT_BOT_PROFILE.trenchStrategy
+    };
+
+    // 2. Instant card swap if bot wants to swap
+    let currentState = state;
+    if (!currentState.hasSwappedThisTurn && !currentState.setupState?.inSetup && currentState.turnCount > 0) {
+      const initialCandidate = getBestBotAction(currentState, DEFAULT_BOT_PROFILE);
+      const isSwap = initialCandidate && (
+        typeof initialCandidate.action === 'number'
+          ? (initialCandidate.action >>> 20) === ActionType.CARD_SWAP
+          : initialCandidate.action.type === 'CARD_SWAP' || initialCandidate.action.type === ActionType.CARD_SWAP
+      );
+      if (isSwap && initialCandidate) {
+        this.dispatchAction(initialCandidate.action, {
+          deferPostCombat: true,
+          botStrategies
+        });
+        return; // dispatchAction will syncTurn and trigger scheduleBotTurn with botTurnStartTime preserved
+      }
+    }
+
+    // 3. Yield 20ms to allow DOM paint of card swap/refill, then compute move
     this.botTimer = setTimeout(() => {
       this.botTimer = null;
-      const currentState = this.store.getState();
+      const latestState = this.store.getState();
 
-      if (currentState.isGameOver || this.store.isReplaying || currentState.setupState?.inSetup || this.store.isCombatDelaying || this.phase === TurnPhase.COMBAT_DELAY) {
+      if (latestState.isGameOver || this.store.isReplaying || latestState.setupState?.inSetup || this.store.isCombatDelaying || this.phase === TurnPhase.COMBAT_DELAY) {
+        this.botTurnStartTime = null;
         return;
       }
 
-      if (currentState.pendingRefills.length > 0) {
-        this.checkAndTriggerAutoRefill(currentState);
-        const updatedState = this.store.getState();
-        if (updatedState.pendingRefills.length > 0) {
-          this.botTimer = setTimeout(() => this.scheduleBotTurn(this.store.getState()), 100);
-          return;
-        }
+      const activeSeat = latestState.pendingRefills.length > 0 ? latestState.pendingRefills[0].seat : latestState.activePlayer;
+      if (!this.store.botSeats[activeSeat]) {
+        this.botTurnStartTime = null;
+        return;
       }
 
-      const activeSeat = currentState.pendingRefills.length > 0 ? currentState.pendingRefills[0].seat : currentState.activePlayer;
-      if (!this.store.botSeats[activeSeat]) return;
-
-      const botCandidate = getBestBotAction(currentState, DEFAULT_BOT_PROFILE);
+      const botCandidate = getBestBotAction(latestState, DEFAULT_BOT_PROFILE);
       const actionToDispatch: GameAction = botCandidate ? botCandidate.action : { type: 'SKIP_TURN', input1: undefined, input2: null };
 
-      const botStrategies = {
-        [PlayerSeat.NORTH]: DEFAULT_BOT_PROFILE.trenchStrategy,
-        [PlayerSeat.EAST]: DEFAULT_BOT_PROFILE.trenchStrategy,
-        [PlayerSeat.SOUTH]: DEFAULT_BOT_PROFILE.trenchStrategy,
-        [PlayerSeat.WEST]: DEFAULT_BOT_PROFILE.trenchStrategy
+      const turnStartTime = this.botTurnStartTime ?? Date.now();
+      const elapsed = Date.now() - turnStartTime;
+      const remainingDelay = Math.max(0, this.store.botSpeedMs - elapsed);
+
+      const executeMove = () => {
+        this.botTimer = null;
+        this.botTurnStartTime = null;
+        this.dispatchAction(actionToDispatch, {
+          deferPostCombat: true,
+          botStrategies
+        });
       };
 
-      this.dispatchAction(actionToDispatch, {
-        deferPostCombat: true,
-        botStrategies
-      });
-    }, this.store.botSpeedMs);
+      if (remainingDelay > 0) {
+        this.botTimer = setTimeout(executeMove, remainingDelay);
+      } else {
+        executeMove();
+      }
+    }, 20);
   }
 
   public updateScreenGlow(winnerTeam: Team | null): void {

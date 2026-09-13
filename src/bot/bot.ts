@@ -54,7 +54,14 @@ export interface BotProfile {
   randomnessP?: number;
   heuristicGapThreshold?: number;
   initialEvalBlendWeight?: number;
+  /**
+   * Whether to produce search tracing and thinking diagnostics (plyScores, logSummary).
+   * Paused (false) by default so the engine does not spend CPU cycles generating
+   * debug trees, scratch state clones, or string summaries.
+   */
+  diagnostics?: boolean;
   verbose?: boolean;
+  logToConsole?: boolean;
 }
 
 export interface BotCandidateAction {
@@ -113,6 +120,19 @@ export function formatActionInt(actionInt: ActionInt, board?: Uint8Array): strin
   return `ACTION(${type}, ${from}->${to})`;
 }
 
+/**
+ * Global toggle to control whether thinking diagnostics and terminal output are produced.
+ * Paused (false) by default so the engine doesn't spend CPU cycles generating debug trees,
+ * scratch clones, or string summaries.
+ *
+ * To re-enable:
+ * 1. Set BOT_DIAGNOSTICS_ENABLED = true below (or BOT_TERMINAL_LOGGING_ENABLED = true)
+ * 2. Set profile.diagnostics = true, profile.verbose = true, or profile.logToConsole = true in BotProfile
+ * 3. Set environment variable BOT_VERBOSE=true or BOT_DEBUG=true
+ */
+export const BOT_DIAGNOSTICS_ENABLED = false;
+export const BOT_TERMINAL_LOGGING_ENABLED = false;
+
 export const DEFAULT_BOT_PROFILE: BotProfile = {
   name: 'V22_DEEP',
   pvals: DEFAULT_PVALS,
@@ -122,7 +142,10 @@ export const DEFAULT_BOT_PROFILE: BotProfile = {
   topK: 8,
   adaptiveBranching: false,
   trenchStrategy: 'BOT_DEFAULT_DRAFT',
-  initialEvalBlendWeight: 0.07
+  initialEvalBlendWeight: 0.07,
+  diagnostics: false,
+  verbose: false,
+  logToConsole: false
 };
 
 /** Pre-allocated scratch buffer stack for zero-allocation tree search */
@@ -1005,14 +1028,31 @@ export function getBestBotAction(
 
   const seat = state.activePlayer;
 
+  const shouldProduceDiagnostics = _requestType !== BotRequestType.HEADLESS && (
+    profile.diagnostics === true ||
+    profile.verbose === true ||
+    profile.logToConsole === true ||
+    BOT_DIAGNOSTICS_ENABLED ||
+    BOT_TERMINAL_LOGGING_ENABLED ||
+    (typeof process !== 'undefined' && (process.env?.BOT_VERBOSE === 'true' || process.env?.BOT_DEBUG === 'true'))
+  );
+
+  const shouldConsoleLog = shouldProduceDiagnostics && (
+    profile.logToConsole === true ||
+    profile.verbose === true ||
+    BOT_TERMINAL_LOGGING_ENABLED ||
+    (typeof process !== 'undefined' && (process.env?.BOT_VERBOSE === 'true' || process.env?.BOT_DEBUG === 'true'))
+  );
+
   if (!state.hasSwappedThisTurn && !state.setupState?.inSetup && state.turnCount > 0) {
     const bestSwap = findBestCardSwap(state, seat);
     if (bestSwap !== null) {
-      const shouldLog = (_requestType !== BotRequestType.HEADLESS && profile.verbose !== false) || profile.verbose === true;
-      let logSummary = '';
-      if (shouldLog) {
+      let logSummary: string | undefined;
+      if (shouldProduceDiagnostics) {
         logSummary = `🤖 [Bot Process] Player: ${SEAT_NAMES[seat]} (Team ${PLAYER_TEAMS[seat]}) | Pre-move Card Swap for better synergies.`;
-        console.log(logSummary);
+        if (shouldConsoleLog) {
+          console.log(logSummary);
+        }
       }
       return {
         action: actionIntToGameAction(bestSwap),
@@ -1027,11 +1067,10 @@ export function getBestBotAction(
   const depth = profile.depth !== undefined ? profile.depth : 4;
   const topK = profile.topK !== undefined ? profile.topK : 8;
   const adaptiveBranching = profile.adaptiveBranching ?? false;
-  const shouldLog = (_requestType !== BotRequestType.HEADLESS && profile.verbose !== false) || profile.verbose === true;
 
-  const tracer: SearchTracer = {
-    plyScores: new Map<number, number[]>()
-  };
+  const tracer: SearchTracer | undefined = shouldProduceDiagnostics
+    ? { plyScores: new Map<number, number[]>() }
+    : undefined;
 
   const allActions = getAllLegalActions(state, seat);
   const actions: ActionInt[] = [];
@@ -1054,24 +1093,28 @@ export function getBestBotAction(
       const target = state.board[toIndex];
       if (target !== 0 && (target & 7) === 5) {
         const winScore = (profile.pvals?.[1] ?? DEFAULT_PVALS[1] ?? 100000) + (depth * 1000);
-        tracer.plyScores.set(1, [winScore]);
+        if (tracer) {
+          tracer.plyScores.set(1, [winScore]);
+        }
 
-        let logSummary = '';
-        if (shouldLog) {
+        let logSummary: string | undefined;
+        if (shouldProduceDiagnostics) {
           const lines = [
             `🤖 [Bot Process] Player: ${SEAT_NAMES[seat]} (Team ${PLAYER_TEAMS[seat]}) | Turn: ${state.turnCount} | Depth: ${depth}`,
             `  ply1: ${winScore} (Direct King Capture)`,
             `  ▶ Chosen: ${state.turnCount}. ${getSeatCode(seat)}] ${formatActionInt(actionInt, state.board)} (Score: ${winScore})`
           ];
           logSummary = lines.join('\n');
-          console.log(logSummary);
+          if (shouldConsoleLog) {
+            console.log(logSummary);
+          }
         }
 
         return {
           action: actionIntToGameAction(actionInt),
           actionInt,
           score: winScore,
-          plyScores: Object.fromEntries(tracer.plyScores.entries()),
+          plyScores: tracer ? Object.fromEntries(tracer.plyScores.entries()) : undefined,
           logSummary
         };
       }
@@ -1083,22 +1126,26 @@ export function getBestBotAction(
     return null;
   }
 
-  tracer.plyScores.set(1, scoredCandidatesPly1.map(c => Math.round(c.score)));
+  if (tracer) {
+    tracer.plyScores.set(1, scoredCandidatesPly1.map(c => Math.round(c.score)));
+  }
 
   // If only 1 candidate remains after gap pruning, execute the obvious choice immediately!
   if (scoredCandidatesPly1.length === 1) {
     const chosenActionInt = scoredCandidatesPly1[0].actionInt;
     const immediateScore = scoredCandidatesPly1[0].score;
 
-    let logSummary = '';
-    if (shouldLog) {
+    let logSummary: string | undefined;
+    if (shouldProduceDiagnostics) {
       const lines = [
         `🤖 [Bot Process] Player: ${SEAT_NAMES[seat]} (Team ${PLAYER_TEAMS[seat]}) | Turn: ${state.turnCount} | Depth: ${depth}`,
         `  ply1: ${Math.round(immediateScore)} (1 candidate after gap pruning)`,
         `  ▶ Chosen: ${state.turnCount}. ${getSeatCode(seat)}] ${formatActionInt(chosenActionInt, state.board)} (Score: ${Math.round(immediateScore)})`
       ];
       logSummary = lines.join('\n');
-      console.log(logSummary);
+      if (shouldConsoleLog) {
+        console.log(logSummary);
+      }
     }
 
     return {
@@ -1106,7 +1153,7 @@ export function getBestBotAction(
       actionInt: chosenActionInt,
       score: immediateScore,
       searchScore: immediateScore,
-      plyScores: Object.fromEntries(tracer.plyScores.entries()),
+      plyScores: tracer ? Object.fromEntries(tracer.plyScores.entries()) : undefined,
       logSummary
     };
   }
@@ -1136,7 +1183,7 @@ export function getBestBotAction(
       let searchScore: number;
       const isAttack = (type === ActionType.MOVE && target !== 0 && targetType !== 5 && pType !== 5);
 
-      const currentTracer = (scoredCandidates.length === 0 && shouldLog) ? tracer : undefined;
+      const currentTracer = (scoredCandidates.length === 0 && shouldProduceDiagnostics) ? tracer : undefined;
 
       if (isAttack) {
         const defenderSeat = getPieceOwnerSeat(target, toIndex);
@@ -1254,15 +1301,17 @@ export function getBestBotAction(
     }
   }
 
-  let logSummary = '';
-  if (shouldLog) {
+  let logSummary: string | undefined;
+  if (shouldProduceDiagnostics) {
     const lines: string[] = [
       `🤖 [Bot Process] Player: ${SEAT_NAMES[seat]} (Team ${PLAYER_TEAMS[seat]}) | Turn: ${state.turnCount} | Depth: ${depth}`
     ];
-    for (let p = 1; p <= depth; p++) {
-      const pScores = tracer.plyScores.get(p);
-      if (pScores && pScores.length > 0) {
-        lines.push(`  ply${p}: ${pScores.join(', ')}`);
+    if (tracer) {
+      for (let p = 1; p <= depth; p++) {
+        const pScores = tracer.plyScores.get(p);
+        if (pScores && pScores.length > 0) {
+          lines.push(`  ply${p}: ${pScores.join(', ')}`);
+        }
       }
     }
     lines.push(`  Candidates:`);
@@ -1275,7 +1324,9 @@ export function getBestBotAction(
     lines.push(`  ▶ Chosen: ${state.turnCount}. ${getSeatCode(seat)}] ${chosenDesc} (Score: ${Math.round(chosenScore)})`);
 
     logSummary = lines.join('\n');
-    console.log(logSummary);
+    if (shouldConsoleLog) {
+      console.log(logSummary);
+    }
   }
 
   const matchCandidate = scoredCandidates.find(c => c.actionInt === chosenActionInt);
@@ -1286,7 +1337,7 @@ export function getBestBotAction(
     actionInt: chosenActionInt,
     score: chosenScore,
     searchScore: chosenSearchScore,
-    plyScores: Object.fromEntries(tracer.plyScores.entries()),
+    plyScores: tracer ? Object.fromEntries(tracer.plyScores.entries()) : undefined,
     logSummary
   };
 }

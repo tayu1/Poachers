@@ -13,7 +13,7 @@ export class BoardUI {
   private displayedArrowMove: LastMove | null = null;
   private arrowTimer: any = null;
   private lastDroppedMove: { fromIndex: number; toIndex: number; timestamp: number } | null = null;
-  private activeAnimation: { targetIndex: number; moveId: string; expiresAt: number } | null = null;
+  private activeAnimations: Map<number, { fromIndex: number; targetIndex: number; moveId: string; expiresAt: number }> = new Map();
 
   // Cached state references for active drag resolution
   private latestState: GameState | null = null;
@@ -410,13 +410,13 @@ export class BoardUI {
     }
 
     if (store.isReplaying) {
-      this.activeAnimation = null;
+      this.activeAnimations.clear();
     }
 
-    // Clear ALL animation state on game reset (fresh game = no lastMove + turn 1)
+    // Clear ALL animation state on game reset (fresh game = no lastMove + turn <= 1)
     // This prevents stale animation IDs, arrows, and timers from a previous game
     // from interfering with the first render of the new game.
-    if (!state.lastMove && (!this.lastDroppedMove || Date.now() - this.lastDroppedMove.timestamp >= 3000)) {
+    if (!state.lastMove && state.turnCount <= 1 && (!this.lastDroppedMove || Date.now() - this.lastDroppedMove.timestamp >= 3000)) {
       if (this.arrowTimer) {
         clearTimeout(this.arrowTimer);
         this.arrowTimer = null;
@@ -425,7 +425,7 @@ export class BoardUI {
       this.lastLiveAnimatedMoveId = null;
       this.displayedArrowMove = null;
       this.lastDroppedMove = null;
-      this.activeAnimation = null;
+      this.activeAnimations.clear();
       const oldOverlay = this.boardFrame!.querySelector('.last-move-arrow');
       if (oldOverlay) oldOverlay.remove();
     }
@@ -445,6 +445,7 @@ export class BoardUI {
 
     let animatableTargetIndex: number | null = null;
     let animatableFromIndex: number | null = null;
+    let ghostTargetIndex: number | null = null;
     let capturedPieceSrcForGhost: string | null = null;
 
     if (state.lastMove) {
@@ -474,6 +475,7 @@ export class BoardUI {
           if (fromIdx !== undefined && toIdx !== undefined && fromIdx !== toIdx && state.board[toIdx] !== 0) {
             animatableTargetIndex = toIdx;
             animatableFromIndex = fromIdx;
+            ghostTargetIndex = toIdx;
 
             const rawCap = state.pendingCombat?.capturedPiece ?? null;
             if (rawCap) {
@@ -581,12 +583,16 @@ export class BoardUI {
         img.alt = pieceChar;
         img.style.display = 'block';
 
+        const activeAnim = this.activeAnimations.get(index);
+        const isMidFlight = activeAnim !== undefined && Date.now() < activeAnim.expiresAt;
+
         if (animatableTargetIndex !== null && animatableFromIndex !== null && index === animatableTargetIndex) {
-          this.activeAnimation = {
+          this.activeAnimations.set(index, {
+            fromIndex: animatableFromIndex,
             targetIndex: index,
             moveId: moveId || '',
             expiresAt: Date.now() + PIECE_ANIMATION_TIME_MS
-          };
+          });
           const fromRow = getRow(animatableFromIndex);
           const fromCol = getCol(animatableFromIndex);
           const deltaX = (fromCol - col) * 54;
@@ -607,9 +613,7 @@ export class BoardUI {
               img.style.transform = `translate(0px, 0px) rotate(-${targetAngle}deg)`;
 
               const handleTransitionEnd = () => {
-                if (this.activeAnimation?.targetIndex === index) {
-                  this.activeAnimation = null;
-                }
+                this.activeAnimations.delete(index);
                 img.style.transition = 'none';
                 img.style.transform = `rotate(-${targetAngle}deg)`;
                 img.style.willChange = '';
@@ -619,35 +623,44 @@ export class BoardUI {
               img.addEventListener('transitionend', handleTransitionEnd);
             });
           } else {
-            this.activeAnimation = null;
+            this.activeAnimations.delete(index);
             img.style.transition = 'none';
             img.style.transform = `rotate(-${targetAngle}deg)`;
             img.style.willChange = '';
             img.style.zIndex = '';
           }
+        } else if (isMidFlight) {
+          // Independent on-device animation in flight:
+          // Server state re-renders (timer ticks, combat delay echoes, etc.) must NEVER reset or disrupt this piece!
         } else {
-          const isMidFlight = this.activeAnimation !== null &&
-            this.activeAnimation.targetIndex === index &&
-            this.activeAnimation.moveId === moveId &&
-            Date.now() < this.activeAnimation.expiresAt;
-
-          if (!isMidFlight) {
-            img.style.transition = 'none';
-            img.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
-          }
+          this.activeAnimations.delete(index);
+          img.style.transition = 'none';
+          img.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
+          img.style.willChange = '';
+          img.style.zIndex = '';
         }
       } else {
         img.style.display = 'none';
         img.style.transition = 'none';
+        this.activeAnimations.delete(index);
       }
 
-      // Fast in-place marker removal without querySelectorAll overhead
-      while (sq.childNodes.length > 1) {
-        sq.removeChild(sq.lastChild!);
+      // In-place marker removal, preserving active captured ghost elements
+      for (let c = sq.childNodes.length - 1; c >= 1; c--) {
+        const child = sq.childNodes[c] as HTMLElement;
+        const cls = child.className || '';
+        if (typeof cls === 'string' && cls.includes('captured-piece-ghost')) {
+          continue;
+        }
+        if (child.classList && child.classList.contains('captured-piece-ghost')) {
+          continue;
+        }
+        sq.removeChild(child);
       }
 
       // If this square is the capture destination, display the captured piece ghost that collapses on impact
-      if (animatableTargetIndex === index && capturedPieceSrcForGhost) {
+      const isCaptureTarget = (animatableTargetIndex === index || ghostTargetIndex === index);
+      if (isCaptureTarget && capturedPieceSrcForGhost) {
         if (PIECE_ANIMATION_TIME_MS > 0) {
           const ghost = document.createElement('img');
           ghost.src = capturedPieceSrcForGhost;

@@ -392,7 +392,8 @@ describe('Next-Gen Bot Search & Evaluation Engine', () => {
       ...DEFAULT_BOT_PROFILE,
       depth: 4,
       topK: 3,
-      randomnessMargin: 0
+      randomnessMargin: 0,
+      diagnostics: true
     });
 
     expect(botAction).not.toBeNull();
@@ -448,7 +449,8 @@ describe('Next-Gen Bot Search & Evaluation Engine', () => {
       ...DEFAULT_BOT_PROFILE,
       depth: 2,
       topK: 4,
-      randomnessMargin: 0
+      randomnessMargin: 0,
+      diagnostics: true
     });
 
     expect(action).not.toBeNull();

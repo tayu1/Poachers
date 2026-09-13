@@ -23,6 +23,7 @@ export interface ServerRoom {
   history: GameState[];
   logs: NetworkLogEntry[];
   botTimer: NodeJS.Timeout | null;
+  botTurnStartTime?: number | null;
   turnTimeout: NodeJS.Timeout | null;
   autoCardPick: boolean;
   isPublic: boolean;

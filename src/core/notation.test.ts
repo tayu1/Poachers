@@ -165,8 +165,8 @@ describe('Log Book Notation Formatter', () => {
       capturedPiece: 'P'
     };
 
-    expect(formatCombatAnnouncementText(combatResultAttackerWin)).toBe('Attacker Win with a Full House!');
-    expect(formatCombatAnnouncementText(combatResultDefenderWin)).toBe('Defender Win with a Full House!');
+    expect(formatCombatAnnouncementText(combatResultAttackerWin)).toBe('Attacker Wins with a Full House!');
+    expect(formatCombatAnnouncementText(combatResultDefenderWin)).toBe('Defender Wins with a Full House!');
     expect(formatCombatAnnouncementText(combatResultDraw)).toBe('Draw - attacker wins');
   });
 });

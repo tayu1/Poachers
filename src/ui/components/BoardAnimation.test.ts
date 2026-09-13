@@ -648,14 +648,71 @@ describe('BoardUI Move and Combat Animations', () => {
     expect(img19?.style.transition).toContain(`${PIECE_ANIMATION_TIME_MS}ms`);
   });
 
-  it('creates constant horizontal and vertical mid line elements in the board grid', () => {
+  it('does NOT interrupt or cancel in-flight piece animation when intermediate server state updates arrive', () => {
     const state = store.getState();
+    state.setupState.inSetup = false;
+    state.turnCount = 2;
+    state.board[11] = 0;
+    state.board[19] = Pc.A_PAWN;
+    state.lastMove = { fromIndex: 11, toIndex: 19, type: 'move', moveId: 'live_move_1' };
+    state.pendingCombat = null;
+
+    // 1. Initial move triggers independent device animation (Start: 11, End: 19, Time: PIECE_ANIMATION_TIME_MS)
     boardUI.render(state, store);
 
-    const horizontalMidLine = container.querySelector('.board-constant-mid-line-horizontal');
-    const verticalMidLine = container.querySelector('.board-constant-mid-line-vertical');
+    const squares = container.querySelectorAll('.sq');
+    const img19 = squares[19]?.children.find(c => c.tagName === 'img');
+    expect(img19).toBeTruthy();
+    expect(img19?.style.transition).toContain('transform');
 
-    expect(horizontalMidLine).toBeTruthy();
-    expect(verticalMidLine).toBeTruthy();
+    // 2. Intermediate server state arrives mid-flight (e.g. timer tick, log update, server state echo)
+    // In old code, this wiped style.transition to 'none' and snapped the piece!
+    const intermediateState = { ...state, lastMove: null };
+    boardUI.render(intermediateState as any, store);
+
+    // Transition must STILL be active on the device without interruption
+    expect(img19?.style.transition).toContain('transform');
+
+    // 3. Dispatch transitionend once the device finishes playing the animation
+    img19?.dispatchEvent(new Event('transitionend'));
+
+    // 4. Subsequent render rests piece at destination
+    boardUI.render(intermediateState as any, store);
+    expect(img19?.style.transition).toBe('none');
+  });
+
+  it('preserves captured-piece-ghost during intermediate server re-renders mid-collapse', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.turnCount = 2;
+
+    state.board[10] = 0;
+    state.board[18] = Pc.A_KNIGHT;
+    state.lastMove = { fromIndex: 10, toIndex: 18, type: 'capture', moveId: 'cap_move_1' };
+    state.pendingCombat = {
+      attackerSeat: PlayerSeat.NORTH,
+      defenderSeat: PlayerSeat.EAST,
+      attackerPosIndex: 10,
+      defenderPosIndex: 18,
+      attackerHand: {} as any,
+      defenderHand: {} as any,
+      winnerSeat: PlayerSeat.NORTH,
+      capturedPiece: Pc.B_PAWN
+    };
+    state.isTurnRiverRevealed = true;
+
+    boardUI.render(state, store);
+
+    const squares = container.querySelectorAll('.sq');
+    let ghost = squares[18]?.children.find(c => c.className.includes('captured-piece-ghost'));
+    expect(ghost).toBeTruthy();
+
+    // Intermediate server message arrives mid-combat while ghost is fading out
+    boardUI.render(state, store);
+
+    // Ghost must NOT be wiped out prematurely by the server re-render
+    ghost = squares[18]?.children.find(c => c.className.includes('captured-piece-ghost'));
+    expect(ghost).toBeTruthy();
   });
 });
+
