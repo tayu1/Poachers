@@ -2,15 +2,15 @@
 
 ![Poachers Rules Overview](/assets/rules_pic.webp)
 
-A 4-player, 2-team (North-South vs. East-West) turn-based board game.
+Poachers is a 4-2 players, 2-teams  (North-South vs. East-West) turn-based board game.
 
-**Objective:** Win by capturing both of the opposing team's Kings.
+**Objective:** Win by capturing **Both** of the opposing team's Kings. (or by capturing all their pieces except one king).
 
 ## Board & Control
 
-**Team MidLine:** You control your team's pieces on your half of the board. When a piece crosses the center line, control transfers to your teammate.
+**Team MidLine:** You control your team's pieces that are on *your half of the board*. If you move a piece across the center line - control is transferred to your teammate. (Each team has its own mid line)
 
-**The Hill:** 2x2 area in the center of the board. Used for card refills and pawn promotions.
+**The Hill:** A 2x2 area in the center of the board. Used for *Card Refills* and *Pawn Promotions*.
 
 ## Pieces & Movement
 

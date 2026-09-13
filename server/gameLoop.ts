@@ -51,10 +51,12 @@ export function startTurnTimeout(room: ServerRoom, io: IOServer): void {
     if (room.timerRemainingSeconds !== undefined && room.timerActiveSeat !== undefined) {
       room.timerRemainingSeconds = Math.max(0, room.timerRemainingSeconds - 1);
 
-      io.to(room.roomCode).emit('timer_tick', {
-        remainingSeconds: room.timerRemainingSeconds,
-        activeSeat: room.timerActiveSeat
-      });
+      if (room.timerRemainingSeconds <= 5 || room.timerRemainingSeconds % 5 === 0) {
+        io.to(room.roomCode).emit('timer_tick', {
+          remainingSeconds: room.timerRemainingSeconds,
+          activeSeat: room.timerActiveSeat
+        });
+      }
 
       if (room.timerRemainingSeconds > 0) {
         return;

@@ -647,4 +647,15 @@ describe('BoardUI Move and Combat Animations', () => {
     expect(img19).toBeTruthy();
     expect(img19?.style.transition).toContain(`${PIECE_ANIMATION_TIME_MS}ms`);
   });
+
+  it('creates constant horizontal and vertical mid line elements in the board grid', () => {
+    const state = store.getState();
+    boardUI.render(state, store);
+
+    const horizontalMidLine = container.querySelector('.board-constant-mid-line-horizontal');
+    const verticalMidLine = container.querySelector('.board-constant-mid-line-vertical');
+
+    expect(horizontalMidLine).toBeTruthy();
+    expect(verticalMidLine).toBeTruthy();
+  });
 });

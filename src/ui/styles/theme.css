@@ -64,6 +64,15 @@
   --hill-border-style: dotted;
   --midline-border-width: 2px;
   --midline-border-style: dotted;
+  --constant-midlines-color: rgba(255, 255, 255, 0.319);
+  --constant-midlines-thickness: 2px;
+  --constant-midline-color: var(--constant-midlines-color);
+  --constant-midline-thickness: var(--constant-midlines-thickness);
+  --constantmidlines-color: var(--constant-midlines-color);
+  --constantmidlines-thickness: var(--constant-midlines-thickness);
+  --contantmidlines-color: var(--constant-midlines-color);
+  --contantmidlines-thickness: var(--constant-midlines-thickness);
+  --contantmidlines-thicknees: var(--constant-midlines-thickness);
   --trench_border_color: rgba(255, 255, 255, 0.25);
   --trench-border-color: var(--trench_border_color);
   --trench-border-width: 2px;
@@ -199,6 +208,12 @@
   --card_anim_duration: var(--card-anim-duration);
   --piece_anim_duration: var(--piece-anim-duration);
   --card_empty_bg: var(--card-empty-bg);
+  --constant_midlines_color: var(--constant-midlines-color);
+  --constant_midlines_thickness: var(--constant-midlines-thickness);
+  --constant_midline_color: var(--constant-midlines-color);
+  --constant_midline_thickness: var(--constant-midlines-thickness);
+  --contantmidlines_color: var(--constant-midlines-color);
+  --contantmidlines_thickness: var(--constant-midlines-thickness);
 }
 
 body {

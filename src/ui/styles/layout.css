@@ -414,6 +414,32 @@
   z-index: 1;
 }
 
+.board-constant-mid-line-horizontal,
+.constant-midline-horizontal {
+  position: absolute;
+  top: 216px;
+  left: 0;
+  width: 100%;
+  height: 0;
+  border-top: var(--constant-midlines-thickness, 2px) dotted var(--constant-midlines-color, rgba(0, 0, 0, 0.4));
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.board-constant-mid-line-vertical,
+.constant-midline-vertical {
+  position: absolute;
+  top: 0;
+  left: 216px;
+  width: 0;
+  height: 100%;
+  border-left: var(--constant-midlines-thickness, 2px) dotted var(--constant-midlines-color, rgba(0, 0, 0, 0.4));
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .board-mid-line-horizontal {
   position: absolute;
   top: 216px;
@@ -423,7 +449,7 @@
   border-top: var(--midline-border-width, 1.5px) var(--midline-border-style, dotted) var(--team-a-color);
   transform: translateY(-50%);
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 
 .board-mid-line-vertical {
@@ -435,7 +461,7 @@
   border-left: var(--midline-border-width, 1.5px) var(--midline-border-style, dotted) var(--team-b-color);
   transform: translateX(-50%);
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 
 .sq.active-piece-sq::before {

@@ -41,6 +41,8 @@ export class BoardUI {
   private edgeGlowElement: HTMLElement | null = null;
   private midHorizontalElement: HTMLElement | null = null;
   private midVerticalElement: HTMLElement | null = null;
+  private constantMidHorizontalElement: HTMLElement | null = null;
+  private constantMidVerticalElement: HTMLElement | null = null;
 
   constructor(
     container: HTMLElement,
@@ -308,6 +310,15 @@ export class BoardUI {
     const hillMark = document.createElement('div');
     hillMark.className = 'hill-mark-2x2';
     this.boardGrid.appendChild(hillMark);
+
+    // Constant Midlines (Horizontal and Vertical)
+    this.constantMidHorizontalElement = document.createElement('div');
+    this.constantMidHorizontalElement.className = 'board-constant-mid-line-horizontal constant-midline-horizontal';
+    this.boardGrid.appendChild(this.constantMidHorizontalElement);
+
+    this.constantMidVerticalElement = document.createElement('div');
+    this.constantMidVerticalElement.className = 'board-constant-mid-line-vertical constant-midline-vertical';
+    this.boardGrid.appendChild(this.constantMidVerticalElement);
 
     // Mid Horizontal Center Line (Team A color)
     this.midHorizontalElement = document.createElement('div');

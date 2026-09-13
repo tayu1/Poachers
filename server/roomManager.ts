@@ -281,7 +281,17 @@ export function getPublicRoomsSummary(): PublicRoomSummary[] {
 }
 
 export function broadcastPublicRooms(io: Server<ClientToServerEvents, ServerToClientEvents>): void {
-  io.emit('public_rooms_update', getPublicRoomsSummary());
+  const summary = getPublicRoomsSummary();
+  if (!io.sockets?.sockets) return;
+  for (const [, socket] of io.sockets.sockets) {
+    const isPlaying = Array.from(socket.rooms).some(r => {
+      const room = rooms.get(r);
+      return room && room.status === 'playing';
+    });
+    if (!isPlaying) {
+      socket.emit('public_rooms_update', summary);
+    }
+  }
 }
 
 export function serializeRoomState(room: ServerRoom): RoomState {
@@ -300,15 +310,15 @@ export function serializeRoomState(room: ServerRoom): RoomState {
 
   return {
     roomCode: room.roomCode,
-    hostPlayerId: room.hostPlayerId,
-    seats: room.seats,
+    hostPlayerId: room.hostPlayerId || '',
+    seats: { ...room.seats },
     players: playersObj,
     gameStarted: room.gameStarted,
     status: room.status,
     autoCardPick: room.autoCardPick,
     isPublic: room.isPublic,
-    turnTimeLimit: room.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT,
-    startingPlayerIds: room.startingPlayerIds ?? []
+    turnTimeLimit: room.turnTimeLimit,
+    startingPlayerIds: room.startingPlayerIds
   };
 }
 
@@ -320,7 +330,16 @@ export function sanitizeGameStateForClient(
   recipientSeats: PlayerSeat | PlayerSeat[] | null
 ): any {
   if (!state) return null;
-  if (recipientSeats === null) return state;
+  if (recipientSeats === null) {
+    return {
+      ...state,
+      board: state.board instanceof Uint8Array ? Array.from(state.board) : state.board,
+      threatMap: undefined,
+      regionOdds: undefined,
+      deadPoolCounts: state.deadPoolCounts instanceof Uint8Array ? Array.from(state.deadPoolCounts) : state.deadPoolCounts,
+      deck: []
+    };
+  }
 
   const allowedSeats = new Set<PlayerSeat>(
     Array.isArray(recipientSeats) ? recipientSeats : [recipientSeats]
@@ -343,9 +362,10 @@ export function sanitizeGameStateForClient(
   return {
     ...state,
     board: state.board instanceof Uint8Array ? Array.from(state.board) : state.board,
-    threatMap: state.threatMap instanceof Uint8Array ? Array.from(state.threatMap) : state.threatMap,
+    threatMap: undefined,
+    regionOdds: undefined,
     deadPoolCounts: state.deadPoolCounts instanceof Uint8Array ? Array.from(state.deadPoolCounts) : state.deadPoolCounts,
-    deck: state.deck ? state.deck.map(() => HIDDEN_CARD) : [],
+    deck: [],
     players: sanitizedPlayers
   };
 }
@@ -362,7 +382,7 @@ export function emitGameStateToRoom(
   const hasHumanOnline = Array.from(room.players.values()).some(p => p.isOnline);
   if (!hasHumanOnline) {
     io.to(room.roomCode).emit('game_state_update', {
-      gameState: room.gameState,
+      gameState: sanitizeGameStateForClient(room.gameState, []),
       logs: room.logs,
       history: includeHistory && room.history ? room.history.map(h => sanitizeGameStateForClient(h, [])) : undefined
     });
