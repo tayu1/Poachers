@@ -24,5 +24,5 @@ export const PIECE_ANIMATION_TIME_MS = 250;
 // Piece movement animation curve: cubic-bezier(x1, y1, x2, y2)
 // - Higher y1 (e.g. 0.3 to 0.6) = more explosive / aggressive launch
 // - Lower x2 (e.g. 0.0 to 0.2) = snappier stop; higher x2 (e.g. 0.4) = longer coasting settle
-export const PIECE_ANIMATION_EASING = 'cubic-bezier(0.1, 0.6, 0.25, 1)';
+export const PIECE_ANIMATION_EASING = 'cubic-bezier(0.3, 0.8, 0.3, 1)';
 

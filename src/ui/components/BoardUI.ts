@@ -8,6 +8,7 @@ export class BoardUI {
   private container: HTMLElement;
   private onSquareClick: (index: number) => void;
   private onPieceDrop: (fromIndex: number, toIndex: number) => void;
+  private lastAnimatedMoveKey: string | null = null;
   private lastLiveAnimatedMoveId: string | null = null;
   private displayedArrowMove: LastMove | null = null;
   private arrowTimer: any = null;
@@ -701,9 +702,7 @@ export class BoardUI {
       } else {
         const activeAnim = this.activeAnimations.get(index);
         const isOriginMidFlight = activeAnim !== undefined && activeAnim.isOrigin && Date.now() < activeAnim.expiresAt;
-        const isOriginStart = animatableFromIndex !== null && animatableTargetIndex !== null && index === animatableFromIndex;
-
-        if (isOriginStart) {
+        if (animatableFromIndex !== null && animatableTargetIndex !== null && index === animatableFromIndex) {
           // Origin piece flight: keep already-rasterized SVG visible and animate forward to target square
           const targetCol = getCol(animatableTargetIndex);
           const targetRow = getRow(animatableTargetIndex);
