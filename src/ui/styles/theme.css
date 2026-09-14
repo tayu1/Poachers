@@ -18,25 +18,24 @@
   /* ==========================================================================
      SET 2: GAME SCREEN (Background, Texture & Board Glass Controls)
      ========================================================================== */
-  --game-bg-color: #062b21;
+  --game-bg-color: #003532;
   /* 🎨 Game Screen Background Color */
-  --game-texture-color: #063929;
+  --game-texture-color: #00413b;
   /* 🎨 Game Texture Symbol Color */
   --game-texture-opacity: 1;
   /* 👁️ Game Texture Opacity (0.0 to 1.0) */
   --game-texture-size: 300px;
   /* 📐 Game Texture Size (e.g. 240px = smaller/denser symbols) */
-  --board-glass-blur: 5px;
+  --board-glass-blur: 8px;
   /* 🌫️ Board Glass Panel Blur (e.g. 5px = crisp & subtle) */
-  --board-glass-bg: rgba(0, 41, 58, 0.25);
+  --board-glass-bg: rgba(0, 0, 0, 0.168);
   /* 🪟 Board Glass Section Background (Translucent neutral glass) */
   --board-glass-border: rgba(255, 255, 255, 0);
-  --board-glass-shadow: 0 0 50px rgba(0, 0, 0, 0.5), inset 1px 0 1px rgba(255, 255, 255, 0.08), inset -1px 0 1px rgba(255, 255, 255, 0.08);
-  --game-menu-glass-bg: rgba(0, 41, 58, 0.25);
+  --game-menu-glass-bg: rgba(0, 0, 0, 0.218);
   /* 🪟 Game Screen Sidebars / Menus Glass Background */
-  --game-menu-glass-blur: 8px;
+  --game-menu-glass-blur: 5px;
   /* 🌫️ Game Screen Sidebars / Menus Glass Blur Radius */
-  --game-menu-glass-border: rgba(255, 255, 255, 0.12);
+  --game-menu-glass-border: rgba(255, 255, 255, 0.273);
   /* 🖼️ Game Screen Sidebars / Menus Border & Separation Line Color */
   --game-menu-glass-shadow: none;
   /* 🌑 Game Screen Sidebars / Menus Shadow */
@@ -57,8 +56,8 @@
   --font-body: 'Inter', sans-serif;
 
   /* Board & Square Colors */
-  --board-light: rgb(168, 106, 52);
-  --board-dark: rgb(124, 71, 24);
+  --board-light: rgb(181, 108, 43);
+  --board-dark: rgb(139, 74, 17);
   --hill-border-color: rgb(255, 255, 255);
   --hill-border-width: 2px;
   --hill-border-style: dotted;

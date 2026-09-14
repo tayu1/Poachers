@@ -599,18 +599,22 @@ export class BoardUI {
           const deltaY = (fromRow - row) * 54;
 
           img.style.transition = 'none';
-          img.style.transform = `translate(${deltaX}px, ${deltaY}px) rotate(-${store.boardRotationAngle}deg)`;
+          img.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0) rotate(-${store.boardRotationAngle}deg)`;
           img.style.willChange = 'transform';
           img.style.zIndex = '20';
 
-          void img.offsetWidth;
+          if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
+            void window.getComputedStyle(img).transform;
+          } else {
+            void img.offsetWidth;
+          }
 
           const targetAngle = store.boardRotationAngle;
           if (PIECE_ANIMATION_TIME_MS > 0) {
             requestAnimationFrame(() => {
               if (!img.isConnected) return;
               img.style.transition = `transform ${PIECE_ANIMATION_TIME_MS}ms cubic-bezier(0.25, 0.8, 0.25, 1)`;
-              img.style.transform = `translate(0px, 0px) rotate(-${targetAngle}deg)`;
+              img.style.transform = `translate3d(0px, 0px, 0) rotate(-${targetAngle}deg)`;
 
               const handleTransitionEnd = () => {
                 this.activeAnimations.delete(index);
@@ -665,7 +669,7 @@ export class BoardUI {
           const ghost = document.createElement('img');
           ghost.src = capturedPieceSrcForGhost;
           ghost.className = 'captured-piece-ghost';
-          ghost.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
+          ghost.style.transform = `rotate(-${store.boardRotationAngle}deg) translateZ(0)`;
           const ghostDuration = Math.max(0, Math.round(PIECE_ANIMATION_TIME_MS * 0.93));
           ghost.style.transition = `opacity ${ghostDuration}ms ease-out, transform ${ghostDuration}ms ease-out`;
           sq.appendChild(ghost);
@@ -674,7 +678,7 @@ export class BoardUI {
           requestAnimationFrame(() => {
             if (!ghost.isConnected) return;
             ghost.style.opacity = '0';
-            ghost.style.transform = `rotate(-${targetAngle}deg) scale(0.5)`;
+            ghost.style.transform = `rotate(-${targetAngle}deg) scale(0.5) translateZ(0)`;
             setTimeout(() => {
               if (ghost.parentElement) {
                 ghost.remove();

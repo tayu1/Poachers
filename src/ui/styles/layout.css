@@ -51,7 +51,6 @@
   border-right: 1px solid var(--board-glass-border, rgba(56, 189, 248, 0.22));
   border-top: none;
   border-bottom: none;
-  box-shadow: 0 0 50px rgba(0, 0, 0, 0.6), inset 1px 0 1px rgba(255, 255, 255, 0.08), inset -1px 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .board-layout-container {
@@ -554,6 +553,9 @@
   position: relative;
   z-index: 2;
   transition: none;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .captured-piece-ghost {
@@ -569,6 +571,9 @@
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .piece-team-a.active-highlight,

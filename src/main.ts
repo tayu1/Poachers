@@ -118,9 +118,15 @@ function updateBoardScale(): void {
   const availableWidth = Math.max(280, window.innerWidth - 16);
   const scale = Math.min(1, availableWidth / naturalWidth);
 
-  container.style.transform = `scale(${scale}) translateZ(0)`;
-  container.style.transformOrigin = 'top center';
-  centerArea.style.height = `${Math.round(naturalHeight * scale) + 24}px`;
+  if (scale >= 0.99) {
+    container.style.transform = '';
+    container.style.transformOrigin = '';
+    centerArea.style.height = '';
+  } else {
+    container.style.transform = `scale(${scale}) translateZ(0)`;
+    container.style.transformOrigin = 'top center';
+    centerArea.style.height = `${Math.round(naturalHeight * scale) + 24}px`;
+  }
 }
 
 let resizeRafId: number | null = null;
