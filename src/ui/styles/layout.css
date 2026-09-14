@@ -44,13 +44,32 @@
   width: 100%;
   height: 100vh;
   box-sizing: border-box;
-  background: var(--board-glass-bg, rgba(10, 17, 34, 0.70));
-  backdrop-filter: blur(var(--board-glass-blur, 5px));
-  -webkit-backdrop-filter: blur(var(--board-glass-blur, 5px));
-  border-left: 1px solid var(--board-glass-border, rgba(56, 189, 248, 0.22));
-  border-right: 1px solid var(--board-glass-border, rgba(56, 189, 248, 0.22));
-  border-top: none;
-  border-bottom: none;
+  background: var(--board-glass-bg, var(--game-bg-color));
+  border: none;
+  box-shadow: none;
+}
+
+/* Blurred border separation between center area and sidebars */
+.center-area::before,
+.center-area::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--board-border-blur-line, rgba(255, 255, 255, 0.18));
+  box-shadow: 0 0 var(--board-border-blur-radius, 14px) 2px var(--board-border-blur-line, rgba(255, 255, 255, 0.18));
+  filter: blur(1.5px);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.center-area::before {
+  left: 0;
+}
+
+.center-area::after {
+  right: 0;
 }
 
 .board-layout-container {
@@ -553,9 +572,6 @@
   position: relative;
   z-index: 2;
   transition: none;
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
 }
 
 .captured-piece-ghost {
@@ -571,9 +587,6 @@
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
 }
 
 .piece-team-a.active-highlight,
@@ -1027,11 +1040,27 @@
     align-items: center;
     justify-content: flex-start;
     overflow: visible;
-    border-left: none;
-    border-right: none;
-    border-top: 1px solid var(--board-glass-border, rgba(56, 189, 248, 0.22));
-    border-bottom: 1px solid var(--board-glass-border, rgba(56, 189, 248, 0.22));
+    border: none;
     padding: 12px 0;
+    box-shadow: none;
+  }
+
+  .center-area::before {
+    top: 0;
+    bottom: auto;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 2px;
+  }
+
+  .center-area::after {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 2px;
   }
 
   .board-layout-container {

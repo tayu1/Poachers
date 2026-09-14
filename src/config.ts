@@ -19,5 +19,10 @@ export const POST_COMBAT_DELAY_MS = 2900;
 export const CARD_ANIMATION_TIME_MS = 350;
 
 // Piece movement animation duration (in milliseconds)
-export const PIECE_ANIMATION_TIME_MS = 350;
+export const PIECE_ANIMATION_TIME_MS = 250;
+
+// Piece movement animation curve: cubic-bezier(x1, y1, x2, y2)
+// - Higher y1 (e.g. 0.3 to 0.6) = more explosive / aggressive launch
+// - Lower x2 (e.g. 0.0 to 0.2) = snappier stop; higher x2 (e.g. 0.4) = longer coasting settle
+export const PIECE_ANIMATION_EASING = 'cubic-bezier(0.1, 0.6, 0.25, 1)';
 

@@ -317,6 +317,46 @@ describe('Drag-and-Drop & Click Piece Movement', () => {
     (boardUI as any).handlePointerDown({ isPrimary: true, button: 0, pointerId: 1, clientX: 100, clientY: 100 }, 11);
     expect((boardUI as any).activeDrag).toBeNull();
   });
+
+  it('smoothly settles drag avatar into square center when dropped with valid bounding rect', () => {
+    const onDrop = vi.fn();
+    const onClick = vi.fn();
+    const mockContainer: any = { innerHTML: '', appendChild: vi.fn(), contains: vi.fn(() => true) };
+    const boardUI = new BoardUI(mockContainer, onClick, onDrop);
+
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+
+    boardUI.render(state, store);
+
+    // Provide mock getBoundingClientRect on target square
+    const squares = (boardUI as any).squareElements;
+    squares[19].getBoundingClientRect = () => ({
+      left: 100,
+      top: 200,
+      width: 54,
+      height: 54,
+      right: 154,
+      bottom: 254
+    });
+
+    // Start drag on square 11
+    (boardUI as any).handlePointerDown({ isPrimary: true, button: 0, pointerId: 1, clientX: 100, clientY: 100 }, 11);
+    (boardUI as any).onWindowPointerMove({ pointerId: 1, clientX: 120, clientY: 120, preventDefault: vi.fn() });
+
+    const avatar = (boardUI as any).dragAvatar as HTMLImageElement;
+    expect(avatar.style.display).toBe('block');
+
+    // Trigger drop settle on square 19
+    (boardUI as any).settleDragAvatar(11, 19);
+
+    // Target center is 100 + 27 = 127, 200 + 27 = 227
+    expect(avatar.style.left).toBe('127px');
+    expect(avatar.style.top).toBe('227px');
+    expect(avatar.style.transition).toContain('110ms');
+    expect(avatar.style.transition).toContain('cubic-bezier(0.2, 0.0, 0.2, 1)');
+  });
 });
 
 

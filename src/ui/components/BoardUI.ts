@@ -1,4 +1,4 @@
-import { HILL_SQUARE_INDICES, PLAYER_TEAMS, getCol, getRow, PIECE_ANIMATION_TIME_MS } from '../../core/constants';
+import { HILL_SQUARE_INDICES, PLAYER_TEAMS, getCol, getRow, PIECE_ANIMATION_TIME_MS, PIECE_ANIMATION_EASING } from '../../core/constants';
 import { getValidPromotionOptions } from '../../core/engine';
 import { isPieceControllable } from '../../core/moves';
 import { GameState, LastMove, Move, PieceType, PlayerSeat, getPieceType, pieceToChar, Pc, decEnd, ActionInt } from '../../core/types';
@@ -8,12 +8,11 @@ export class BoardUI {
   private container: HTMLElement;
   private onSquareClick: (index: number) => void;
   private onPieceDrop: (fromIndex: number, toIndex: number) => void;
-  private lastAnimatedMoveKey: string | null = null;
   private lastLiveAnimatedMoveId: string | null = null;
   private displayedArrowMove: LastMove | null = null;
   private arrowTimer: any = null;
   private lastDroppedMove: { fromIndex: number; toIndex: number; timestamp: number } | null = null;
-  private activeAnimations: Map<number, { fromIndex: number; targetIndex: number; moveId: string; expiresAt: number }> = new Map();
+  private activeAnimations: Map<number, { fromIndex: number; targetIndex: number; moveId: string; expiresAt: number; isOrigin?: boolean }> = new Map();
 
   // Cached state references for active drag resolution
   private latestState: GameState | null = null;
@@ -206,11 +205,12 @@ export class BoardUI {
         toIndex = parseInt(sqElem.dataset.index, 10);
       }
 
-      this.cleanupDragVisuals(fromIndex);
-
       if (toIndex !== null && toIndex !== fromIndex) {
         this.lastDroppedMove = { fromIndex, toIndex, timestamp: Date.now() };
         this.onPieceDrop(fromIndex, toIndex);
+        this.settleDragAvatar(fromIndex, toIndex);
+      } else {
+        this.settleDragAvatar(fromIndex, null);
       }
 
       setTimeout(() => {
@@ -220,6 +220,45 @@ export class BoardUI {
       this.suppressNextClick = false;
     }
   };
+
+  private settleDragAvatar(fromIndex: number, toIndex: number | null): void {
+    if (this.currentHoverIndex !== null && this.squareElements[this.currentHoverIndex]) {
+      this.squareElements[this.currentHoverIndex].classList.remove('drop-target-hover');
+      this.currentHoverIndex = null;
+    }
+
+    const avatar = this.dragAvatar;
+    if (!avatar || avatar.style.display === 'none') {
+      this.cleanupDragVisuals(fromIndex);
+      return;
+    }
+
+    const destSq = toIndex !== null ? this.squareElements[toIndex] : this.squareElements[fromIndex];
+    const rect = destSq && typeof destSq.getBoundingClientRect === 'function' ? destSq.getBoundingClientRect() : null;
+
+    if (rect && rect.width > 0 && rect.height > 0) {
+      const targetCenterX = rect.left + rect.width / 2;
+      const targetCenterY = rect.top + rect.height / 2;
+      const duration = toIndex !== null ? 110 : 140;
+
+      avatar.style.transition = `left ${duration}ms cubic-bezier(0.2, 0.0, 0.2, 1), top ${duration}ms cubic-bezier(0.2, 0.0, 0.2, 1)`;
+      avatar.style.left = `${targetCenterX}px`;
+      avatar.style.top = `${targetCenterY}px`;
+
+      let hasCleanedUp = false;
+      const finishSettle = () => {
+        if (hasCleanedUp) return;
+        hasCleanedUp = true;
+        avatar.removeEventListener('transitionend', finishSettle);
+        this.cleanupDragVisuals(fromIndex);
+      };
+
+      avatar.addEventListener('transitionend', finishSettle);
+      setTimeout(finishSettle, duration + 25);
+    } else {
+      this.cleanupDragVisuals(fromIndex);
+    }
+  }
 
   private onWindowPointerCancel = (e: PointerEvent): void => {
     if (!this.activeDrag || e.pointerId !== this.activeDrag.pointerId) return;
@@ -237,6 +276,7 @@ export class BoardUI {
   private cleanupDragVisuals(fromIndex: number): void {
     if (this.dragAvatar) {
       this.dragAvatar.style.display = 'none';
+      this.dragAvatar.style.transition = 'none';
     }
     if (this.squareElements[fromIndex]) {
       this.squareElements[fromIndex].classList.remove('drag-source');
@@ -491,6 +531,23 @@ export class BoardUI {
         }
       }
 
+      if (animatableTargetIndex !== null && animatableFromIndex !== null) {
+        const expiresAt = Date.now() + PIECE_ANIMATION_TIME_MS;
+        this.activeAnimations.set(animatableTargetIndex, {
+          fromIndex: animatableFromIndex,
+          targetIndex: animatableTargetIndex,
+          moveId: moveId || '',
+          expiresAt
+        });
+        this.activeAnimations.set(animatableFromIndex, {
+          fromIndex: animatableFromIndex,
+          targetIndex: animatableTargetIndex,
+          moveId: moveId || '',
+          expiresAt,
+          isOrigin: true
+        });
+      }
+
       if (animatableTargetIndex === null) {
         if (this.arrowTimer) clearTimeout(this.arrowTimer);
         this.displayedArrowMove = state.lastMove;
@@ -584,15 +641,9 @@ export class BoardUI {
         img.style.display = 'block';
 
         const activeAnim = this.activeAnimations.get(index);
-        const isMidFlight = activeAnim !== undefined && Date.now() < activeAnim.expiresAt;
+        const isMidFlight = activeAnim !== undefined && !activeAnim.isOrigin && Date.now() < activeAnim.expiresAt;
 
         if (animatableTargetIndex !== null && animatableFromIndex !== null && index === animatableTargetIndex) {
-          this.activeAnimations.set(index, {
-            fromIndex: animatableFromIndex,
-            targetIndex: index,
-            moveId: moveId || '',
-            expiresAt: Date.now() + PIECE_ANIMATION_TIME_MS
-          });
           const fromRow = getRow(animatableFromIndex);
           const fromCol = getCol(animatableFromIndex);
           const deltaX = (fromCol - col) * 54;
@@ -601,23 +652,27 @@ export class BoardUI {
           img.style.transition = 'none';
           img.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0) rotate(-${store.boardRotationAngle}deg)`;
           img.style.willChange = 'transform';
-          img.style.zIndex = '20';
-
-          if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
-            void window.getComputedStyle(img).transform;
-          } else {
-            void img.offsetWidth;
-          }
+          img.style.zIndex = '21';
 
           const targetAngle = store.boardRotationAngle;
           if (PIECE_ANIMATION_TIME_MS > 0) {
             requestAnimationFrame(() => {
               if (!img.isConnected) return;
-              img.style.transition = `transform ${PIECE_ANIMATION_TIME_MS}ms cubic-bezier(0.25, 0.8, 0.25, 1)`;
+              img.style.transition = `transform ${PIECE_ANIMATION_TIME_MS}ms ${PIECE_ANIMATION_EASING}`;
               img.style.transform = `translate3d(0px, 0px, 0) rotate(-${targetAngle}deg)`;
 
               const handleTransitionEnd = () => {
                 this.activeAnimations.delete(index);
+                if (animatableFromIndex !== null) {
+                  this.activeAnimations.delete(animatableFromIndex);
+                  const originImg = this.pieceImgElements[animatableFromIndex];
+                  if (originImg && state.board[animatableFromIndex] === 0) {
+                    originImg.style.display = 'none';
+                    originImg.style.transition = 'none';
+                    originImg.style.willChange = '';
+                    originImg.style.zIndex = '';
+                  }
+                }
                 img.style.transition = 'none';
                 img.style.transform = `rotate(-${targetAngle}deg)`;
                 img.style.willChange = '';
@@ -644,9 +699,62 @@ export class BoardUI {
           img.style.zIndex = '';
         }
       } else {
-        img.style.display = 'none';
-        img.style.transition = 'none';
-        this.activeAnimations.delete(index);
+        const activeAnim = this.activeAnimations.get(index);
+        const isOriginMidFlight = activeAnim !== undefined && activeAnim.isOrigin && Date.now() < activeAnim.expiresAt;
+        const isOriginStart = animatableFromIndex !== null && animatableTargetIndex !== null && index === animatableFromIndex;
+
+        if (isOriginStart) {
+          // Origin piece flight: keep already-rasterized SVG visible and animate forward to target square
+          const targetCol = getCol(animatableTargetIndex);
+          const targetRow = getRow(animatableTargetIndex);
+          const flightDeltaX = (targetCol - col) * 54;
+          const flightDeltaY = (targetRow - row) * 54;
+          const targetAngle = store.boardRotationAngle;
+
+          const movingPiece = state.board[animatableTargetIndex];
+          const pieceSrc = this.getPieceSVGFilename(movingPiece);
+          if (!img.dataset.pieceSrc && pieceSrc) {
+            img.dataset.pieceSrc = pieceSrc;
+            img.src = pieceSrc;
+          }
+          img.style.display = 'block';
+          img.style.transition = 'none';
+          img.style.transform = `translate3d(0px, 0px, 0) rotate(-${targetAngle}deg)`;
+          img.style.willChange = 'transform';
+          img.style.zIndex = '20';
+
+          if (PIECE_ANIMATION_TIME_MS > 0) {
+            requestAnimationFrame(() => {
+              if (!img.isConnected) return;
+              img.style.transition = `transform ${PIECE_ANIMATION_TIME_MS}ms ${PIECE_ANIMATION_EASING}`;
+              img.style.transform = `translate3d(${flightDeltaX}px, ${flightDeltaY}px, 0) rotate(-${targetAngle}deg)`;
+
+              const handleOriginEnd = () => {
+                this.activeAnimations.delete(index);
+                img.style.display = 'none';
+                img.style.transition = 'none';
+                img.style.transform = `rotate(-${targetAngle}deg)`;
+                img.style.willChange = '';
+                img.style.zIndex = '';
+                img.removeEventListener('transitionend', handleOriginEnd);
+              };
+              img.addEventListener('transitionend', handleOriginEnd);
+            });
+          } else {
+            this.activeAnimations.delete(index);
+            img.style.display = 'none';
+            img.style.transition = 'none';
+            img.style.transform = `rotate(-${targetAngle}deg)`;
+            img.style.willChange = '';
+            img.style.zIndex = '';
+          }
+        } else if (isOriginMidFlight) {
+          // Origin piece is actively flying; do not hide or disrupt it during intermediate server updates
+        } else {
+          img.style.display = 'none';
+          img.style.transition = 'none';
+          this.activeAnimations.delete(index);
+        }
       }
 
       // In-place marker removal, preserving active captured ghost elements
@@ -669,7 +777,7 @@ export class BoardUI {
           const ghost = document.createElement('img');
           ghost.src = capturedPieceSrcForGhost;
           ghost.className = 'captured-piece-ghost';
-          ghost.style.transform = `rotate(-${store.boardRotationAngle}deg) translateZ(0)`;
+          ghost.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
           const ghostDuration = Math.max(0, Math.round(PIECE_ANIMATION_TIME_MS * 0.93));
           ghost.style.transition = `opacity ${ghostDuration}ms ease-out, transform ${ghostDuration}ms ease-out`;
           sq.appendChild(ghost);
@@ -678,7 +786,7 @@ export class BoardUI {
           requestAnimationFrame(() => {
             if (!ghost.isConnected) return;
             ghost.style.opacity = '0';
-            ghost.style.transform = `rotate(-${targetAngle}deg) scale(0.5) translateZ(0)`;
+            ghost.style.transform = `rotate(-${targetAngle}deg) scale(0.5)`;
             setTimeout(() => {
               if (ghost.parentElement) {
                 ghost.remove();

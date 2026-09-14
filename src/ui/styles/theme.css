@@ -26,16 +26,22 @@
   /* 👁️ Game Texture Opacity (0.0 to 1.0) */
   --game-texture-size: 300px;
   /* 📐 Game Texture Size (e.g. 240px = smaller/denser symbols) */
-  --board-glass-blur: 8px;
-  /* 🌫️ Board Glass Panel Blur (e.g. 5px = crisp & subtle) */
-  --board-glass-bg: rgba(0, 0, 0, 0.168);
-  /* 🪟 Board Glass Section Background (Translucent neutral glass) */
-  --board-glass-border: rgba(255, 255, 255, 0);
-  --game-menu-glass-bg: rgba(0, 0, 0, 0.218);
+  --board-glass-blur: 0px;
+  /* 🌫️ Board Glass Panel Blur (0px = disabled for solid center) */
+  --board-glass-bg: var(--game-bg-color);
+  /* 🪟 Center Board Area Background (Solid game background) */
+  --board-border-blur-color: transparent;
+  /* 🌑 Blurred Border Shadow Color between Center and Sides (transparent = no shadow) */
+  --board-border-blur-line: rgba(255, 255, 255, 0);
+  /* 🌫️ Blurred Border Line Glow between Center and Sides */
+  --board-border-blur-radius: 14px;
+  /* 📐 Blurred Border Blur Radius */
+  --board-glass-border: var(--board-border-blur-line);
+  --game-menu-glass-bg: #00252372;
   /* 🪟 Game Screen Sidebars / Menus Glass Background */
-  --game-menu-glass-blur: 5px;
-  /* 🌫️ Game Screen Sidebars / Menus Glass Blur Radius */
-  --game-menu-glass-border: rgba(255, 255, 255, 0.273);
+  --game-menu-glass-blur: 0px;
+  /* 🌫️ Game Screen Sidebars / Menus Glass Blur Radius (0px = no blur) */
+  --game-menu-glass-border: rgba(255, 255, 255, 0.367);
   /* 🖼️ Game Screen Sidebars / Menus Border & Separation Line Color */
   --game-menu-glass-shadow: none;
   /* 🌑 Game Screen Sidebars / Menus Shadow */

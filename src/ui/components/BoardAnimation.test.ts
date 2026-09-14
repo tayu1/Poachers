@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GameStore } from '../../store/store';
 import { BoardUI } from './BoardUI';
 import { PlayerSeat, Pc } from '../../core/types';
-import { PIECE_ANIMATION_TIME_MS } from '../../config';
+import { PIECE_ANIMATION_TIME_MS, PIECE_ANIMATION_EASING } from '../../config';
 
 class MockElement {
   public tagName: string;
@@ -713,6 +713,28 @@ describe('BoardUI Move and Combat Animations', () => {
     // Ghost must NOT be wiped out prematurely by the server re-render
     ghost = squares[18]?.children.find(c => c.className.includes('captured-piece-ghost'));
     expect(ghost).toBeTruthy();
+  });
+
+  it('animates origin piece forward alongside destination piece using cubic-bezier(0.2, 0.0, 0.2, 1.0) without pop-in', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.turnCount = 2;
+    state.board[11] = 0;
+    state.board[19] = Pc.A_PAWN;
+    state.lastMove = { fromIndex: 11, toIndex: 19, type: 'move', moveId: 'origin_flight_test' };
+    state.pendingCombat = null;
+
+    boardUI.render(state, store);
+
+    const squares = container.querySelectorAll('.sq');
+    const img11 = squares[11]?.children.find(c => c.tagName === 'img');
+    const img19 = squares[19]?.children.find(c => c.tagName === 'img');
+
+    expect(img11).toBeTruthy();
+    expect(img19).toBeTruthy();
+    expect(img11?.style.display).toBe('block');
+    expect(img11?.style.transition).toContain(PIECE_ANIMATION_EASING);
+    expect(img19?.style.transition).toContain(PIECE_ANIMATION_EASING);
   });
 });
 
