@@ -469,7 +469,7 @@ export class TurnManager {
     while (state.pendingRefills.length > 0 && this.store.botSeats[state.pendingRefills[0].seat]) {
       this.checkAndTriggerAutoRefill(state);
       state = this.store.getState();
-      if (state.isGameOver || this.phase === TurnPhase.COMBAT_DELAY || this.store.isCombatDelaying) return;
+      if (state.isGameOver || (this.phase as TurnPhase) === TurnPhase.COMBAT_DELAY || this.store.isCombatDelaying) return;
     }
 
     const effectiveSeat = state.pendingRefills.length > 0 ? state.pendingRefills[0].seat : state.activePlayer;
