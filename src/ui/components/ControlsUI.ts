@@ -7,6 +7,8 @@ export class ControlsUI {
   private container: HTMLElement;
   private onRotate: () => void;
   private onResign: () => void;
+  private isConfirmingResign: boolean = false;
+  private actionBtn: HTMLButtonElement | null = null;
 
   constructor(
     container: HTMLElement,
@@ -16,6 +18,36 @@ export class ControlsUI {
     this.container = container;
     this.onRotate = onRotate;
     this.onResign = onResign;
+  }
+
+  private handleOutsideClick = (e: Event): void => {
+    if (this.actionBtn && (e.target === this.actionBtn || (this.actionBtn.contains && this.actionBtn.contains(e.target as Node)))) {
+      return;
+    }
+    this.resetResignConfirmation();
+  };
+
+  private attachOutsideClickListener(): void {
+    this.detachOutsideClickListener();
+    if (typeof document !== 'undefined') {
+      document.addEventListener?.('pointerdown', this.handleOutsideClick, true);
+      document.addEventListener?.('click', this.handleOutsideClick, true);
+    }
+  }
+
+  private detachOutsideClickListener(): void {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener?.('pointerdown', this.handleOutsideClick, true);
+      document.removeEventListener?.('click', this.handleOutsideClick, true);
+    }
+  }
+
+  public resetResignConfirmation(): void {
+    this.isConfirmingResign = false;
+    if (this.actionBtn && this.actionBtn.innerText !== 'Menu') {
+      this.actionBtn.innerText = 'Resign';
+    }
+    this.detachOutsideClickListener();
   }
 
   public render(state: GameState, store: GameStore): void {
@@ -91,7 +123,12 @@ export class ControlsUI {
 
     const isFinished = state.isGameOver || store.isReplaying;
 
+    if (isFinished) {
+      this.resetResignConfirmation();
+    }
+
     const actionBtn = document.createElement('button');
+    actionBtn.id = 'btn-action-controls';
     actionBtn.style.flex = '1';
     actionBtn.style.padding = '8px';
     actionBtn.style.background = isFinished ? '#2563eb' : '#ef4444';
@@ -100,8 +137,24 @@ export class ControlsUI {
     actionBtn.style.borderRadius = '4px';
     actionBtn.style.cursor = 'pointer';
     actionBtn.style.fontWeight = 'bold';
-    actionBtn.innerText = isFinished ? 'Menu' : 'Resign';
-    actionBtn.addEventListener('click', this.onResign);
+    actionBtn.innerText = isFinished ? 'Menu' : (this.isConfirmingResign ? 'Resign?!' : 'Resign');
+    this.actionBtn = actionBtn;
+
+    actionBtn.addEventListener('click', () => {
+      if (isFinished) {
+        this.onResign();
+        return;
+      }
+
+      if (this.isConfirmingResign) {
+        this.resetResignConfirmation();
+        this.onResign();
+      } else {
+        this.isConfirmingResign = true;
+        actionBtn.innerText = 'Resign?!';
+        this.attachOutsideClickListener();
+      }
+    });
 
     btnRow.appendChild(rotateBtn);
     btnRow.appendChild(actionBtn);

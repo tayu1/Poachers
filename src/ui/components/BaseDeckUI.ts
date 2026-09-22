@@ -1,8 +1,9 @@
 import { getValidPromotionOptions } from '../../core/engine';
-import { formatCombatAnnouncementText } from '../../core/notation';
+import { formatCombatAnnouncementText, getSeatCode } from '../../core/notation';
 import { Card, GameState, PieceType, PlayerSeat, getPieceType } from '../../core/types';
 import { GameStore } from '../../store/store';
 import { buildPieceRow } from './CapturesUI';
+import { CardDragManager } from './CardDragManager';
 
 interface BaseCardElementHolder {
   cardEl: HTMLElement;
@@ -14,12 +15,15 @@ export class BaseDeckUI {
   private container: HTMLElement;
   private onBaseCardClick: (index: number) => void;
   private onPromoteClick: (piece: PieceType | number) => void;
+  private onPassCardClick?: () => void;
+  private cardDragManager?: CardDragManager;
 
   // Cached DOM elements
   private mainWrapper: HTMLElement | null = null;
   private combatWrapper: HTMLElement | null = null;
   private combatText: HTMLElement | null = null;
   private cardsRow: HTMLElement | null = null;
+  private passBtn: HTMLButtonElement | null = null;
   private promoWrapper: HTMLElement | null = null;
   private cardHolders: BaseCardElementHolder[] = [];
   private cardTargetIndices: number[] = [];
@@ -27,11 +31,15 @@ export class BaseDeckUI {
   constructor(
     container: HTMLElement,
     onBaseCardClick: (index: number) => void,
-    onPromoteClick: (piece: PieceType | number) => void
+    onPromoteClick: (piece: PieceType | number) => void,
+    onPassCardClick?: () => void,
+    cardDragManager?: CardDragManager
   ) {
     this.container = container;
     this.onBaseCardClick = onBaseCardClick;
     this.onPromoteClick = onPromoteClick;
+    this.onPassCardClick = onPassCardClick;
+    this.cardDragManager = cardDragManager;
   }
 
   private initDOMStructure(): void {
@@ -70,8 +78,21 @@ export class BaseDeckUI {
     this.promoWrapper.style.paddingLeft = '8px';
     this.promoWrapper.style.borderLeft = '1px solid var(--panel-border)';
 
+    this.passBtn = document.createElement('button');
+    this.passBtn.className = 'pass-card-btn';
+    this.passBtn.textContent = '➦';
+    this.passBtn.title = 'Pass card to teammate';
+    this.passBtn.style.display = 'none';
+    this.passBtn.addEventListener('click', (e: MouseEvent) => {
+      e.stopPropagation();
+      if (this.onPassCardClick) {
+        this.onPassCardClick();
+      }
+    });
+
     this.mainWrapper.appendChild(this.combatWrapper);
     this.mainWrapper.appendChild(this.cardsRow);
+    this.cardsRow.appendChild(this.passBtn);
     this.cardsRow.appendChild(this.promoWrapper);
 
     this.container.appendChild(this.mainWrapper);
@@ -84,6 +105,7 @@ export class BaseDeckUI {
 
     const cardEl = document.createElement('div');
     cardEl.className = 'trench-card';
+    cardEl.style.touchAction = 'none';
 
     const valEl = document.createElement('div');
     valEl.className = 'card-val-top';
@@ -95,10 +117,20 @@ export class BaseDeckUI {
     cardEl.appendChild(suitEl);
 
     cardEl.addEventListener('click', () => {
+      if (this.cardDragManager?.isSuppressingClick()) return;
       const targetIdx = this.cardTargetIndices[idx];
       if (targetIdx !== undefined) {
         this.onBaseCardClick(targetIdx);
       }
+    });
+
+    cardEl.addEventListener('pointerdown', (e: PointerEvent) => {
+      const targetIdx = this.cardTargetIndices[idx];
+      if (targetIdx === undefined) return;
+      this.cardDragManager?.handlePointerDown(e, cardEl, {
+        type: 'base',
+        cardIndex: targetIdx
+      });
     });
 
     const holder: BaseCardElementHolder = { cardEl, valEl, suitEl };
@@ -140,6 +172,7 @@ export class BaseDeckUI {
 
     if (this.combatWrapper) this.combatWrapper.style.display = 'none';
     if (this.cardsRow) this.cardsRow.style.display = 'flex';
+    if (this.passBtn && (state.pendingCombat || store.isCombatDelaying)) this.passBtn.style.display = 'none';
 
     const activePlayerSeat = state.pendingRefills.length > 0
       ? state.pendingRefills[0].seat
@@ -170,8 +203,17 @@ export class BaseDeckUI {
       this.cardTargetIndices[idx] = originalIdx;
       const holder = this.getOrCreateCardHolder(idx);
 
-      if (!holder.cardEl.parentNode && this.cardsRow && this.promoWrapper) {
-        this.cardsRow.insertBefore(holder.cardEl, this.promoWrapper);
+      holder.cardEl.dataset.cardType = 'base';
+      holder.cardEl.dataset.cardIndex = String(originalIdx);
+
+      if (!holder.cardEl.parentNode && this.cardsRow) {
+        if (this.passBtn) {
+          this.cardsRow.insertBefore(holder.cardEl, this.passBtn);
+        } else if (this.promoWrapper) {
+          this.cardsRow.insertBefore(holder.cardEl, this.promoWrapper);
+        } else {
+          this.cardsRow.appendChild(holder.cardEl);
+        }
       }
       holder.cardEl.style.display = 'block';
 
@@ -217,6 +259,30 @@ export class BaseDeckUI {
     for (let i = sortedCards.length; i < this.cardHolders.length; i++) {
       if (this.cardHolders[i]) {
         this.cardHolders[i].cardEl.style.display = 'none';
+      }
+    }
+
+    const isPlayerTurnNow = !state.isGameOver && !store.isReplaying && !store.isCombatDelaying &&
+      !state.setupState?.inSetup && state.pendingRefills.length === 0 &&
+      !isBotTurn && isMySeatOrLocal && (state.activePlayer === activePlayerSeat);
+
+    const teammateSeat = ((activePlayerSeat + 2) % 4) as PlayerSeat;
+    const teammateState = state.players[teammateSeat];
+    const teammateHasSpace = Boolean(teammateState && teammateState.baseDeck.length < 5);
+
+    const hasSelectedBaseCard = store.selectedBaseCardIndex !== null &&
+      Boolean(activePlayerState.baseDeck[store.selectedBaseCardIndex]);
+
+    const canPass = isPlayerTurnNow && !state.hasSwappedThisTurn && hasSelectedBaseCard && teammateHasSpace;
+
+    if (this.passBtn) {
+      if (canPass) {
+        this.passBtn.style.display = 'inline-flex';
+        this.passBtn.className = `pass-card-btn ${activePlayerState.team === 'A' ? 'team-a' : 'team-b'}`;
+        const teammateCode = getSeatCode(teammateSeat);
+        this.passBtn.title = `Pass card to teammate (${teammateCode})`;
+      } else {
+        this.passBtn.style.display = 'none';
       }
     }
 

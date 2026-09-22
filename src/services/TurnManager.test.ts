@@ -219,6 +219,30 @@ describe('TurnManager State Machine', () => {
     expect(store.getState().lastMove).toEqual(expect.objectContaining({ fromIndex: 8, toIndex: 16, type: 'move' }));
   });
 
+  it('should record a frame and add "passed card" logbook entry for CARD_PASS', () => {
+    const store = new GameStore();
+    const mockOverlays: any = {
+      showGameOver: vi.fn(),
+      hideAll: vi.fn()
+    };
+
+    const tm = new TurnManager(store, mockOverlays);
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+
+    // Give South room to receive a card (< 5 cards)
+    state.players[PlayerSeat.SOUTH].baseDeck = state.players[PlayerSeat.SOUTH].baseDeck.slice(0, 3);
+
+    tm.dispatchAction({ type: 'CARD_PASS', input1: 0, origin: 0 });
+
+    expect(store.logs.length).toBe(1);
+    expect(store.logs[0].text).toBe('passed card');
+    expect(state.hasSwappedThisTurn).toBe(true);
+    expect(state.activePlayer).toBe(PlayerSeat.NORTH);
+    expect(state.players[PlayerSeat.SOUTH].baseDeck.length).toBe(4);
+  });
+
   it('should associate combat log entry with the resolved combat frame and add "card refill" log entry for post-combat', () => {
     vi.useFakeTimers();
     const store = new GameStore();

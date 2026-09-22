@@ -299,11 +299,123 @@ export class InputHandler {
     }
   }
 
+  public handleCardDrop(
+    from: { type: 'trench'; seat: PlayerSeat; cardIndex: number } | { type: 'base'; cardIndex: number },
+    to: { type: 'trench'; seat: PlayerSeat; cardIndex: number } | { type: 'base'; cardIndex: number }
+  ): boolean {
+    const state = this.store.getState();
+    if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying) return false;
+
+    // Per user requirement: drop target must strictly be a Trench card
+    if (to.type !== 'trench') return false;
+
+    // Refill stage
+    if (state.pendingRefills.length > 0) {
+      if (from.type === 'base') {
+        const refill = state.pendingRefills[0];
+        if (!this.isMyTurn(refill.seat)) return false;
+        if (to.seat === refill.seat && to.cardIndex === refill.slot) {
+          this.turnManager.dispatchAction({
+            type: 'REFILL_TRENCH',
+            input1: refill.slot,
+            input2: from.cardIndex
+          });
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // Setup stage
+    if (state.setupState?.inSetup) {
+      if (from.type === 'base') {
+        const activeSeat =
+          ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(
+            s => !state.setupState.setupCompletedSeats.includes(s)
+          ) ?? state.activePlayer;
+        if (!this.isMyTurn(activeSeat)) return false;
+        const targetSlot = state.players[activeSeat]?.trenchCards.findIndex(c => c === null);
+        if (to.seat === activeSeat && to.cardIndex === targetSlot) {
+          executeTrenchSingleCardSelect(state, activeSeat, from.cardIndex, this.store.botSeats);
+          this.store.triggerUIUpdate();
+          this.turnManager.syncTurn(this.store.getState());
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // Normal game turn - Card Swap
+    if (state.hasSwappedThisTurn) return false;
+    const activeSeat = state.activePlayer;
+    if (!this.isMyTurn(activeSeat)) return false;
+
+    // Target Trench card MUST belong to the active player
+    if (to.seat !== activeSeat) return false;
+
+    // Trench-to-Trench check
+    if (from.type === 'trench') {
+      if (from.seat !== activeSeat) return false;
+      if (from.cardIndex === to.cardIndex) return false;
+    }
+
+    const player = state.players[activeSeat];
+    if (!player) return false;
+
+    // Verify source card validity
+    if (from.type === 'trench') {
+      const c = player.trenchCards[from.cardIndex];
+      if (!c || c.id === 'hidden' || c.rank <= 0) return false;
+    } else {
+      const c = player.baseDeck[from.cardIndex];
+      if (!c || c.id === 'hidden' || c.rank <= 0) return false;
+    }
+
+    // Verify target card validity
+    const tc = player.trenchCards[to.cardIndex];
+    if (tc && (tc.id === 'hidden' || tc.rank <= 0)) return false;
+
+    const slot1 = from.type === 'trench' ? from.cardIndex : 3 + from.cardIndex;
+    const slot2 = to.cardIndex;
+
+    this.executeCardSwap(slot1, slot2);
+    this.store.selectTrenchCard(null);
+    this.store.selectBaseCard(null);
+    return true;
+  }
+
   public executeCardSwap(slot1: number, slot2: number): void {
     const state = this.store.getState();
     if (state.hasSwappedThisTurn) return;
 
     this.turnManager.dispatchAction({ type: 'CARD_SWAP', input1: slot1, input2: slot2 });
+  }
+
+  public handlePassCard(): void {
+    const state = this.store.getState();
+    if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
+    if (state.hasSwappedThisTurn) return;
+
+    const activeSeat = state.activePlayer;
+    if (!this.isMyTurn(activeSeat)) return;
+
+    const selectedBase = this.store.selectedBaseCardIndex;
+    if (selectedBase === null) return;
+
+    const activePlayerState = state.players[activeSeat];
+    const card = activePlayerState?.baseDeck[selectedBase];
+    if (!card || card.id === 'hidden' || card.rank <= 0) return;
+
+    const teammateSeat = ((activeSeat + 2) % 4) as PlayerSeat;
+    const teammateState = state.players[teammateSeat];
+    if (!teammateState || teammateState.baseDeck.length >= 5) return;
+
+    this.store.selectBaseCard(null);
+    this.turnManager.dispatchAction({
+      type: 'CARD_PASS',
+      input1: selectedBase,
+      origin: selectedBase
+    });
   }
 
   public handleResign(): void {

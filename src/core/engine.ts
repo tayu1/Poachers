@@ -1168,6 +1168,60 @@ export function executeCardSwapAction(
   };
 }
 
+export function executeCardPassAction(
+  state: GameState,
+  cardIndex: number,
+  options?: ApplyActionOptions
+): TurnActionResult {
+  const reqType = getRequestType(options);
+  const isFastOrHeadless = reqType === BotRequestType.FAST_CALC || reqType === BotRequestType.HEADLESS;
+
+  if (state.hasSwappedThisTurn) {
+    throw new Error('Card swap already used this turn');
+  }
+
+  const activeSeat = state.activePlayer;
+  const activePlayer = state.players[activeSeat];
+  if (!activePlayer || cardIndex < 0 || cardIndex >= activePlayer.baseDeck.length) {
+    throw new Error('Invalid card selected to pass');
+  }
+
+  const teammateSeat = ((activeSeat + 2) % 4) as PlayerSeat;
+  const teammate = state.players[teammateSeat];
+  if (!teammate) {
+    throw new Error('Teammate not found');
+  }
+
+  if (teammate.baseDeck.length >= 5) {
+    throw new Error('Teammate base deck is full (max 5 cards)');
+  }
+
+  const [passedCard] = activePlayer.baseDeck.splice(cardIndex, 1);
+  if (!passedCard) {
+    throw new Error('No card found at selected index');
+  }
+  teammate.baseDeck.push(passedCard);
+  state.hasSwappedThisTurn = true;
+
+  const skipOdds = options?.skipOddsRecompute ?? (reqType !== BotRequestType.UI_GAME);
+  if (!skipOdds) {
+    state.regionOdds = computeRegionProbabilities(state);
+  }
+
+  if (!state.threatMap || state.threatMap.length !== 4096) {
+    state.threatMap = generateFullThreatMap(state.board);
+  }
+  state.threatenedKings = getThreatenedKings(state.board, state.threatMap);
+
+  const seatCode = getSeatCode(state.activePlayer);
+  const teammateCode = getSeatCode(teammateSeat);
+  return {
+    logText: isFastOrHeadless ? '' : `${seatCode} : Passed card to ${teammateCode}.`,
+    isGameOver: state.isGameOver,
+    winnerTeam: state.winnerTeam
+  };
+}
+
 export function executeSetBunkerAction(
   state: GameState,
   p1: number,
@@ -1320,6 +1374,10 @@ export function applyAction(
     case ActionType.CARD_SWAP:
     case 'CARD_SWAP': {
       return executeCardSwapAction(state, p1, p2, options);
+    }
+    case ActionType.CARD_PASS:
+    case 'CARD_PASS': {
+      return executeCardPassAction(state, p1, options);
     }
     case ActionType.TRENCH_SELECT:
     case 'TRENCH_SELECT': {

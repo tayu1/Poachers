@@ -95,12 +95,6 @@
   justify-content: center;
 }
 
-.public-cards-divider {
-  width: 30px;
-  height: 1px;
-  background: var(--panel-border);
-  margin: 2px 0;
-}
 
 .mobile-bottom-menu-bar {
   display: none;
@@ -356,7 +350,7 @@
   display: grid;
   grid-template-columns: repeat(8, 54px);
   grid-template-rows: repeat(8, 54px);
-  border: 2px solid var(--panel-border);
+  border: var(--board-border, none);
   border-radius: 4px;
   overflow: hidden;
   position: relative;
@@ -701,6 +695,10 @@
   font-weight: 700;
   transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.25s ease, filter 0.25s ease;
   box-sizing: border-box;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
 }
 
 .trench-card,
@@ -875,6 +873,30 @@
   outline: calc(var(--swap-card-border-width, 3.5px) - var(--card-border-width, 2px)) solid var(--team-b-color) !important;
 }
 
+.trench-card.drag-source {
+  opacity: 0.35 !important;
+  filter: grayscale(30%) !important;
+}
+
+.trench-card.drop-target-hover {
+  outline: var(--chosen-swap-card-border-width, 3.5px) solid var(--chosen-swap-card-border-color, #fff6c6) !important;
+  outline-offset: 1px !important;
+  box-shadow: 0 0 14px rgba(255, 246, 198, 0.75) !important;
+  z-index: 25 !important;
+}
+
+.dragged-card-avatar {
+  position: fixed;
+  width: var(--card-width, 42px);
+  height: var(--card-height, 56px);
+  pointer-events: none;
+  z-index: 10000;
+  transform: translate(-50%, -50%) scale(1.08);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: none;
+  will-change: transform, left, top;
+}
+
 .trench-card.winning-card-highlight,
 .public-card.winning-card-highlight {
   outline-width: var(--winning-card-border-width, 3.5px) !important;
@@ -930,9 +952,9 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 9, 18, 0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--game-end-backdrop-bg, var(--end-game-backdrop-bg, rgba(5, 9, 18, 0.72)));
+  backdrop-filter: blur(var(--game-end-backdrop-blur, var(--end-game-backdrop-blur, 8px)));
+  -webkit-backdrop-filter: blur(var(--game-end-backdrop-blur, var(--end-game-backdrop-blur, 8px)));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -969,7 +991,7 @@
 }
 
 .overlay-card {
-  background: var(--lobby-modal-bg, rgba(10, 17, 34, 0.75));
+  background: var(--game-end-bg-color, rgba(10, 17, 34, 0.75));
   backdrop-filter: blur(var(--lobby-modal-blur, 12px));
   -webkit-backdrop-filter: blur(var(--lobby-modal-blur, 12px));
   border: 1px solid rgba(56, 189, 248, 0.25);
@@ -1009,8 +1031,6 @@
   box-shadow: 0 0 16px rgba(6, 182, 212, 0.5) !important;
 }
 
-.sq,
-.trench-card,
 .public-card,
 .btn,
 .board-grid {
@@ -1098,12 +1118,6 @@
     justify-content: center;
   }
 
-  .public-cards-divider {
-    width: 1px !important;
-    height: 30px !important;
-    background: var(--panel-border) !important;
-    margin: 0 4px !important;
-  }
 
   .right-sidebar {
     order: 2;

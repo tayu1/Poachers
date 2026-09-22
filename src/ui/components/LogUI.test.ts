@@ -79,11 +79,21 @@ class MockElement {
     this.lastScrollIntoViewOptions = options;
   }
 
+  public contains(other: any): boolean {
+    if (other === this) return true;
+    for (const child of this.children) {
+      if (child.contains && child.contains(other)) return true;
+    }
+    return false;
+  }
+
   public addEventListener(event: string, handler: (e: any) => void): void {
     if (!this.listeners[event]) this.listeners[event] = [];
     this.listeners[event].push(handler);
   }
 }
+
+const docListeners: Record<string, ((e: any) => void)[]> = {};
 
 // Setup global document mock
 (globalThis as any).document = {
@@ -91,7 +101,16 @@ class MockElement {
   getElementById: (_id: string) => null,
   body: new MockElement('body'),
   head: new MockElement('head'),
-  addEventListener: () => {}
+  addEventListener: (event: string, handler: (e: any) => void) => {
+    if (!docListeners[event]) docListeners[event] = [];
+    docListeners[event].push(handler);
+  },
+  removeEventListener: (event: string, handler: (e: any) => void) => {
+    if (docListeners[event]) {
+      docListeners[event] = docListeners[event].filter(h => h !== handler);
+    }
+  },
+  _listeners: docListeners
 };
 
 describe('LogUI and ControlsUI requirements', () => {
@@ -232,6 +251,67 @@ describe('LogUI and ControlsUI requirements', () => {
     const rulesBtn = headerRow.children[1];
     expect(rulesBtn.innerText).toContain('RULES');
     expect(rulesBtn.className).toContain('btn-show-rules');
+  });
+
+  it('should require two clicks on Resign button ("Resign" -> "Resign?!") to trigger resignation', () => {
+    const container = new MockElement('div') as unknown as HTMLElement;
+    let resigned = false;
+    const controlsUI = new ControlsUI(container, () => {}, () => {
+      resigned = true;
+    });
+
+    controlsUI.render(store.getState(), store);
+
+    const panel = (container as any).children[0] as MockElement;
+    const btnRow = panel.children[2] as MockElement;
+    const actionBtn = btnRow.children[1] as MockElement;
+
+    expect(actionBtn.innerText).toBe('Resign');
+
+    // First click: changes text to "Resign?!", does NOT resign
+    (actionBtn as any).listeners['click'][0]();
+    expect(actionBtn.innerText).toBe('Resign?!');
+    expect(resigned).toBe(false);
+
+    // Second click: triggers onResign
+    (actionBtn as any).listeners['click'][0]();
+    expect(resigned).toBe(true);
+  });
+
+  it('should return Resign button to normal if any other place is clicked', () => {
+    const container = new MockElement('div') as unknown as HTMLElement;
+    let resigned = false;
+    const controlsUI = new ControlsUI(container, () => {}, () => {
+      resigned = true;
+    });
+
+    controlsUI.render(store.getState(), store);
+
+    const panel = (container as any).children[0] as MockElement;
+    const btnRow = panel.children[2] as MockElement;
+    const actionBtn = btnRow.children[1] as MockElement;
+    const otherElement = new MockElement('div');
+
+    expect(actionBtn.innerText).toBe('Resign');
+
+    // First click: changes text to "Resign?!"
+    (actionBtn as any).listeners['click'][0]();
+    expect(actionBtn.innerText).toBe('Resign?!');
+    expect(resigned).toBe(false);
+
+    // Outside click occurs on otherElement
+    const outsideClickHandlers = (docListeners['click'] || []).slice();
+    expect(outsideClickHandlers.length).toBeGreaterThan(0);
+    outsideClickHandlers.forEach(handler => handler({ target: otherElement }));
+
+    // Button should revert to normal "Resign"
+    expect(actionBtn.innerText).toBe('Resign');
+    expect(resigned).toBe(false);
+
+    // Now clicking it again should require confirmation again (first click -> "Resign?!")
+    (actionBtn as any).listeners['click'][0]();
+    expect(actionBtn.innerText).toBe('Resign?!');
+    expect(resigned).toBe(false);
   });
 
   it('should scroll log container internally on new moves without calling scrollIntoView on window/ancestors', () => {

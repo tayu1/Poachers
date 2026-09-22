@@ -2,6 +2,7 @@ import { Card, GameState, PlayerSeat } from '../../core/types';
 import { GameStore } from '../../store/store';
 import { getTrenchCardIndexForSquare } from '../../core/cards';
 import { CARD_ANIMATION_TIME_MS } from '../../config';
+import { CardDragManager } from './CardDragManager';
 
 export interface TRENCHContainers {
   north: HTMLElement;
@@ -42,6 +43,7 @@ interface SlotElementHolder {
 export class TrenchCardsUI {
   private containers: TRENCHContainers;
   private onCardClick: (seat: PlayerSeat, cardIndex: number) => void;
+  private cardDragManager?: CardDragManager;
   private slotHolders: Map<number, SlotElementHolder> = new Map();
   private slotClickTargets: Map<number, { seat: PlayerSeat; cardIndex: number }> = new Map();
   private lastCardKeys: Map<number, string> = new Map();
@@ -50,9 +52,14 @@ export class TrenchCardsUI {
   private hasRenderedOnce = false;
   private isInitialized = false;
 
-  constructor(containers: TRENCHContainers, onCardClick: (seat: PlayerSeat, cardIndex: number) => void) {
+  constructor(
+    containers: TRENCHContainers,
+    onCardClick: (seat: PlayerSeat, cardIndex: number) => void,
+    cardDragManager?: CardDragManager
+  ) {
     this.containers = containers;
     this.onCardClick = onCardClick;
+    this.cardDragManager = cardDragManager;
   }
 
   private clearSlotAnimation(slotIdx: number, holder: SlotElementHolder): void {
@@ -107,6 +114,7 @@ export class TrenchCardsUI {
     const createSlotHolder = (slotIdx: number): SlotElementHolder => {
       const cardEl = document.createElement('div');
       cardEl.className = 'trench-card card-empty';
+      cardEl.style.touchAction = 'none';
 
       const slotBayEl = document.createElement('div');
       slotBayEl.className = 'card-slot-bay';
@@ -127,10 +135,21 @@ export class TrenchCardsUI {
       cardEl.appendChild(innerEl);
 
       cardEl.addEventListener('click', () => {
+        if (this.cardDragManager?.isSuppressingClick()) return;
         const target = this.slotClickTargets.get(slotIdx);
         if (target) {
           this.onCardClick(target.seat, target.cardIndex);
         }
+      });
+
+      cardEl.addEventListener('pointerdown', (e: PointerEvent) => {
+        const target = this.slotClickTargets.get(slotIdx);
+        if (!target) return;
+        this.cardDragManager?.handlePointerDown(e, cardEl, {
+          type: 'trench',
+          seat: target.seat,
+          cardIndex: target.cardIndex
+        });
       });
 
       const holder: SlotElementHolder = { cardEl, slotBayEl, innerEl, valEl, suitEl };
@@ -281,6 +300,11 @@ export class TrenchCardsUI {
 
       const player = state.players[ref.seat];
       const actualCard = player.trenchCards[ref.cardIndex];
+
+      holder.cardEl.dataset.cardType = 'trench';
+      holder.cardEl.dataset.seat = String(ref.seat);
+      holder.cardEl.dataset.cardIndex = String(ref.cardIndex);
+      holder.cardEl.dataset.slotIdx = String(slotIdx);
 
       const isRefillTargetSlot = isRefillStage && Boolean(
         state.pendingRefills?.some(pr => pr.seat === ref.seat && pr.slot === ref.cardIndex)

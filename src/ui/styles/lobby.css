@@ -622,9 +622,9 @@
 .rules-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(5, 9, 18, 0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--rules-backdrop-bg, rgba(5, 9, 18, 0.72));
+  backdrop-filter: blur(var(--rules-backdrop-blur, 8px));
+  -webkit-backdrop-filter: blur(var(--rules-backdrop-blur, 8px));
   z-index: 2000;
   display: flex;
   align-items: center;
@@ -636,7 +636,7 @@
 }
 
 .rules-modal {
-  background: var(--lobby-modal-bg, rgba(10, 17, 34, 0.78));
+  background: var(--rules-bg-color, rgba(10, 17, 34, 0.78));
   backdrop-filter: blur(var(--lobby-modal-blur, 12px));
   -webkit-backdrop-filter: blur(var(--lobby-modal-blur, 12px));
   color: #e2e8f0;
@@ -681,8 +681,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 0 auto 24px auto;
+  margin: 0 auto 20px auto;
   width: 100%;
+  cursor: pointer;
 }
 
 .rules-pic {
@@ -692,6 +693,95 @@
   border: 1px solid #334155;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   display: block;
+  cursor: zoom-in;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rules-pic:hover {
+  transform: scale(1.01);
+  box-shadow: 0 10px 28px rgba(14, 165, 233, 0.25);
+}
+
+/* Image Lightbox for Rules Diagram with Touch Zoom & Pan */
+.rules-image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.rules-image-lightbox.hidden {
+  display: none !important;
+}
+
+.rules-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 8, 16, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.rules-lightbox-controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3002;
+  display: flex;
+  align-items: center;
+}
+
+.rules-lightbox-close {
+  background: #dc2626;
+  color: white;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.5);
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.rules-lightbox-close:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.rules-lightbox-viewport {
+  position: relative;
+  z-index: 3001;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.rules-lightbox-img {
+  max-width: 95vw;
+  max-height: 88vh;
+  max-height: 88dvh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  transform-origin: center center;
+  will-change: transform;
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.rules-lightbox-img:active {
+  cursor: grabbing;
 }
 
 .rules-content h2 {
@@ -773,4 +863,86 @@
 
 .btn-show-rules:active {
   transform: translateY(0);
+}
+
+/* Mobile & Tablet Vertical View for Rules Modal */
+@media (max-width: 768px), (max-width: 1024px) and (orientation: portrait) {
+  .rules-backdrop {
+    padding: 0;
+    margin: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .rules-modal {
+    width: 100vw;
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    padding: 14px 12px 20px 12px;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .rules-content {
+    padding-right: 0;
+    padding-bottom: 36px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox: hide scrollbar */
+    -ms-overflow-style: none; /* IE/Edge: hide scrollbar */
+  }
+
+  .rules-content::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, iOS: hide scrollbar */
+    width: 0;
+    height: 0;
+  }
+
+  .rules-content h1 {
+    font-size: 22px;
+    margin-top: 4px;
+    margin-bottom: 14px;
+    padding-right: 80px; /* Prevent overlap with the close button */
+    text-align: left;
+  }
+
+  .rules-content h2 {
+    font-size: 18px;
+    margin-top: 18px;
+    margin-bottom: 8px;
+  }
+
+  .rules-content h3 {
+    font-size: 15px;
+    margin-top: 14px;
+    margin-bottom: 6px;
+  }
+
+  .rules-content p {
+    font-size: 13.5px;
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+
+  .rules-close-btn {
+    top: 10px;
+    right: 10px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .rules-lightbox-controls {
+    top: 10px;
+    right: 10px;
+  }
+
+  .rules-lightbox-close {
+    font-size: 12px;
+    padding: 5px 12px;
+  }
 }

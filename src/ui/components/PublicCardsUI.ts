@@ -87,12 +87,6 @@ export class PublicCardsUI {
     wrapper.className = 'public-cards-container';
 
     for (let i = 0; i < 5; i++) {
-      if (i === 3) {
-        const divider = document.createElement('div');
-        divider.className = 'public-cards-divider';
-        wrapper.appendChild(divider);
-      }
-
       const cardEl = document.createElement('div');
       cardEl.className = 'public-card';
 

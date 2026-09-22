@@ -515,12 +515,12 @@ io.on('connection', (socket) => {
         }, POST_COMBAT_DELAY_MS);
       }, TURN_RIVER_DELAY_MS);
     } else {
-      if (action.type === 'CARD_SWAP') {
+      if (action.type === 'CARD_SWAP' || action.type === 'CARD_PASS') {
         const swapIdx = recordRoomSnapshot(room);
         room.logs.push({
           turnNumber: turnNum,
           seat: seatCode,
-          text: 'card swap',
+          text: action.type === 'CARD_PASS' ? 'passed card' : 'card swap',
           historyIndex: swapIdx
         });
       } else if (action.type === 'MOVE' || action.type === 'PROMOTION' || action.type === 'SKIP_TURN' || action.type === 'SET_BUNKER') {
@@ -549,7 +549,7 @@ io.on('connection', (socket) => {
         io.to(code).emit('room_state_update', serializeRoomState(room));
         broadcastPublicRooms(io);
       }
-      if (!room.gameState.isGameOver && action.type !== 'CARD_SWAP') {
+      if (!room.gameState.isGameOver && action.type !== 'CARD_SWAP' && action.type !== 'CARD_PASS') {
         startTurnTimeout(room, io);
       }
       emitGameStateToRoom(io, room);

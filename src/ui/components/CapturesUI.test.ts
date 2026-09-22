@@ -21,6 +21,7 @@ class MockElement {
   public title: string = '';
   public innerHTML: string = '';
   public attributes: Record<string, string> = {};
+  public textContent: string = '';
   private listeners: Record<string, ((e: any) => void)[]> = {};
 
   constructor(tagName: string) {
@@ -72,13 +73,32 @@ class MockElement {
   }
 
   public querySelector(selector: string): MockElement | null {
+    if (selector.startsWith('.')) {
+      const cls = selector.slice(1);
+      if (this.className.split(/\s+/).includes(cls)) return this;
+      for (const child of this.children) {
+        const found = child.querySelector(selector);
+        if (found) return found;
+      }
+      return null;
+    }
+    if (selector === 'button' && this.tagName.toLowerCase() === 'button') return this;
     if (selector === 'img' && this.tagName.toLowerCase() === 'img') return this;
     for (const child of this.children) {
       if (selector === 'img' && child.tagName.toLowerCase() === 'img') return child;
+      if (selector === 'button' && child.tagName.toLowerCase() === 'button') return child;
       const found = child.querySelector(selector);
       if (found) return found;
     }
     return null;
+  }
+
+  public click(): void {
+    if (this.listeners['click']) {
+      for (const l of this.listeners['click']) {
+        l({ stopPropagation: () => {} });
+      }
+    }
   }
 
   public querySelectorAll(selector: string): MockElement[] {
@@ -191,6 +211,70 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
     for (const img of imgs) {
       expect(img.src).toMatch(/\/assets\/w_/);
     }
+  });
+
+  it('BaseDeckUI renders pass button when a card is selected and teammate has < 5 cards', () => {
+    const container = document.createElement('div') as unknown as MockElement;
+    const onPassSpy = vi.fn();
+    const baseDeckUI = new BaseDeckUI(container as unknown as HTMLElement, () => {}, () => {}, onPassSpy);
+    const state = createInitialGameState({ skipSetup: true });
+    const store = new GameStore();
+    store.botSeats[PlayerSeat.NORTH] = false;
+
+    // Active player is North, teammate is South
+    state.activePlayer = PlayerSeat.NORTH;
+    // South has only 3 cards (< 5)
+    state.players[PlayerSeat.SOUTH].baseDeck = state.players[PlayerSeat.SOUTH].baseDeck.slice(0, 3);
+    // North selects card index 0
+    store.selectedBaseCardIndex = 0;
+
+    baseDeckUI.render(state, store);
+
+    const passBtn = container.querySelector('.pass-card-btn');
+    expect(passBtn).not.toBeNull();
+    expect(passBtn?.style.display).toBe('inline-flex');
+    expect(passBtn?.textContent).toBe('➦');
+
+    // Click pass button
+    passBtn?.click();
+    expect(onPassSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('BaseDeckUI hides pass button when teammate already has 5 cards', () => {
+    const container = document.createElement('div') as unknown as MockElement;
+    const baseDeckUI = new BaseDeckUI(container as unknown as HTMLElement, () => {}, () => {});
+    const state = createInitialGameState({ skipSetup: true });
+    const store = new GameStore();
+    store.botSeats[PlayerSeat.NORTH] = false;
+
+    state.activePlayer = PlayerSeat.NORTH;
+    // South already has 5 cards
+    expect(state.players[PlayerSeat.SOUTH].baseDeck.length).toBe(5);
+    // North selects card
+    store.selectedBaseCardIndex = 0;
+
+    baseDeckUI.render(state, store);
+
+    const passBtn = container.querySelector('.pass-card-btn');
+    expect(passBtn?.style.display).toBe('none');
+  });
+
+  it('BaseDeckUI hides pass button when swap was already used this turn', () => {
+    const container = document.createElement('div') as unknown as MockElement;
+    const baseDeckUI = new BaseDeckUI(container as unknown as HTMLElement, () => {}, () => {});
+    const state = createInitialGameState({ skipSetup: true });
+    const store = new GameStore();
+    store.botSeats[PlayerSeat.NORTH] = false;
+
+    state.activePlayer = PlayerSeat.NORTH;
+    state.players[PlayerSeat.SOUTH].baseDeck = state.players[PlayerSeat.SOUTH].baseDeck.slice(0, 3);
+    store.selectedBaseCardIndex = 0;
+    state.hasSwappedThisTurn = true;
+
+    baseDeckUI.render(state, store);
+
+    const passBtn = container.querySelector('.pass-card-btn');
+    expect(passBtn?.style.display).toBe('none');
   });
 
   it('CapturesUI highlights Team A box border with #f59e0b when Team A is active', () => {

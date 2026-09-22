@@ -61,8 +61,11 @@ export class TurnManager {
     const state = this.store.getState();
 
     const isCardSwap = typeof action === 'number'
-      ? (action >>> 20) === ActionType.CARD_SWAP
+      ? ((action >>> 20) & 0xF) === ActionType.CARD_SWAP
       : action.type === 'CARD_SWAP' || action.type === ActionType.CARD_SWAP;
+    const isCardPass = typeof action === 'number'
+      ? ((action >>> 20) & 0xF) === ActionType.CARD_PASS
+      : action.type === 'CARD_PASS' || action.type === ActionType.CARD_PASS;
 
     if (this.store.isMultiplayer) {
       const gameAction = typeof action === 'number' ? actionIntToGameAction(action) : action;
@@ -77,7 +80,7 @@ export class TurnManager {
         (state.board[toIdx] & 7) === 5 || (state.board[fromIdx] & 7) === 5
       ));
       const isBunker = gameAction.type === 'SET_BUNKER' || gameAction.type === ActionType.SET_BUNKER;
-      const isOptimisticEligible = isRegularMove || isKingCapture || isBunker || isCardSwap;
+      const isOptimisticEligible = isRegularMove || isKingCapture || isBunker || isCardSwap || isCardPass;
 
       if (isOptimisticEligible && !state.isGameOver && this.phase !== TurnPhase.COMBAT_DELAY) {
         const turnNum = state.turnCount;
@@ -91,12 +94,12 @@ export class TurnManager {
           deferPostCombat
         });
 
-        if (isCardSwap) {
+        if (isCardSwap || isCardPass) {
           this.store.recordSnapshot();
           this.store.addLogEntry({
             turnNumber: turnNum,
             seat,
-            text: 'card swap'
+            text: isCardPass ? 'passed card' : 'card swap'
           });
           this.store.triggerUIUpdate();
           return;
@@ -141,13 +144,13 @@ export class TurnManager {
       deferPostCombat
     });
 
-    if (isCardSwap) {
+    if (isCardSwap || isCardPass) {
       this.phase = TurnPhase.AWAITING_INPUT;
       this.store.recordSnapshot();
       this.store.addLogEntry({
         turnNumber: turnNum,
         seat,
-        text: 'card swap'
+        text: isCardPass ? 'passed card' : 'card swap'
       });
       this.store.triggerUIUpdate();
       this.syncTurn(this.store.getState());

@@ -7,6 +7,7 @@ import { socketClient } from './net/socketClient';
 import { store } from './store/store';
 import { InputHandler } from './services/InputHandler';
 import { TurnManager } from './services/TurnManager';
+import { CardDragManager } from './ui/components/CardDragManager';
 import { BaseDeckUI } from './ui/components/BaseDeckUI';
 import { BoardUI } from './ui/components/BoardUI';
 import { CapturesUI } from './ui/components/CapturesUI';
@@ -35,6 +36,9 @@ const overlaysUI = new OverlaysUI(document.getElementById('modal-overlay')!);
 // 2. Initialize Coordination Services & Sockets
 const turnManager = new TurnManager(store, overlaysUI);
 const inputHandler = new InputHandler(store, turnManager);
+const cardDragManager = new CardDragManager(store, (from, to) =>
+  inputHandler.handleCardDrop(from, to)
+);
 
 socketClient.connect();
 
@@ -52,13 +56,16 @@ const trenchUI = new TrenchCardsUI(
     south: document.getElementById('trench-south')!,
     west: document.getElementById('trench-west')!
   },
-  (seat: PlayerSeat, cardIndex: number) => inputHandler.handleTrenchCardClick(seat, cardIndex)
+  (seat: PlayerSeat, cardIndex: number) => inputHandler.handleTrenchCardClick(seat, cardIndex),
+  cardDragManager
 );
 
 const baseDeckUI = new BaseDeckUI(
   document.getElementById('base-deck-panel')!,
   (index: number) => inputHandler.handleBaseCardClick(index),
-  (piece) => inputHandler.handlePromotePawn(piece)
+  (piece) => inputHandler.handlePromotePawn(piece),
+  () => inputHandler.handlePassCard(),
+  cardDragManager
 );
 
 const publicCardsUI = new PublicCardsUI(document.getElementById('flop-panel')!);

@@ -2,13 +2,13 @@
 
 ![Poachers Rules Overview](/assets/rules_pic.webp)
 
-Poachers is a 4-2 players, 2-teams  (North-South vs. East-West) turn-based board game.
+Poachers is a 2–4 Player, 2-Team (North-South vs. East-West) Turn-Based Board Game.
 
-**Objective:** Win by capturing **Both** of the opposing team's Kings. (or by capturing all their pieces except one king).
+**Objective:** Win by capturing **Both** opposing Kings (or by capturing all enemy pieces except one King).
 
 ## Board & Control
 
-**Team MidLine:** You control your team's pieces that are on *your half of the board*. If you move a piece across the center line - control is transferred to your teammate. (Each team has its own mid line)
+**Team MidLine:** You control your team's pieces on *your half of the board*. If you move a piece across the center line - control transfers to your teammate. (Each team has its own midline)
 
 **The Hill:** A 2x2 area in the center of the board. Used for *Card Refills* and *Pawn Promotions*.
 
@@ -18,34 +18,34 @@ Poachers is a 4-2 players, 2-teams  (North-South vs. East-West) turn-based board
 
 **Rooks, Bishops, Knights:** Move like in Chess.
 
-**Kings:** Move like in chess. Can't touch enemy king. Can't cross the team midline (each player has 1 king max).
+**Kings:** Move like in Chess. Can't touch enemy King. Can't cross the team midline (each player has 1 King max).
 
 ## Card System (Poker Mechanics)
 
-**Setup:** Each player start with 3 Position-Cards, used for resolving Attacks, And additional 5 cards For Changing or refilling.
+**Setup:** Each player starts with 3 Position-Cards (used for resolving attacks), and 5 Card in his Private deck (max 5 cards).
 
-**Pre-turn Swap:** Before your move, you may Swap a Trench card Position-Cards with another, or with a card from your deck.
+**Pre-Turn Swap:** Before your move, you may swap a Position-Card with another, or with a card from your deck. or Pass a card from your deck to your Teammate.
 
-**End-turn Hill Bonus:** After your turn ends, *if you have a piece standing on your half of the Hill* - you get 1 card.
+**End-Turn Hill Bonus:** After your turn ends, *if you have a piece standing on your half of the Hill* - you get 1 card.
 
 ## Resolving Attacks
 
-**Attack on King or by King:** result in immidiate capture without Cards involved.
+**Attack on King or by King:** Results in immediate capture without cards involved.
 
-**Other piece on piece attacks:** Resolved via a Poker hand:
+**Other Piece-on-Piece Attacks:** Resolved via a Poker hand:
 Best 5-card poker hand wins. The pool consists of:
 
-**5 Public Cards:** 3 are always face-up (Flop), 2 more are revealed for Attack resolution.
+**5 Public Cards:** 3 Crads always face-up (Flop), 2 more Cards are revealed for attack resolution.
 
-**Position Cards:** Each team uses their 2 Position-Cards corresponding to the Attacked Square coordinates (row and column).
+**Position Cards:** Each team uses their 2 Position-Cards corresponding to the attacked square coordinates (row or column).
 
-**Attacker Wins Hand:** A Capture. and Defender's card goes to attacker.
+**Attacker Wins Hand:** A capture, and Defender's card goes to Attacker.
 
 **Attacker Loses Hand:** Attacker move is blocked (Rooks/Bishops slide to touch the defender).
 
 **Poker Hand Draw:** Attacker wins by default.
 
-**Cleanup and Refill:** Used Cards are discarded. 3 new public cards are opened. Players refill their empty Position-Cards slots and turn passes.
+**Cleanup and Refill:** Used cards are discarded. 3 new public cards are opened. Players refill empty Position-Card slots and turn passes.
 
 ## Special Mechanics
 
@@ -53,19 +53,19 @@ Best 5-card poker hand wins. The pool consists of:
 
 **Bunkered Pieces** - (shown as a circle over the piece) initially set to the side pawns of each player.
 
-Bunkered pieces cannot move or attack, until the bunker is released.
+Bunkered pieces cannot move or attack until the bunker is released.
 
-**Combat:** when attacking bunkered pieces: Attack is resolved normally as explained, but the *Attacking piece is Captured in any case.*
+**Combat:** When attacking bunkered pieces: Attack resolves normally as explained, but the *Attacking piece is captured in any case.*
 
-**Changing Bunkered pieces** (counts as a turn):
+**Changing Bunkered Pieces** (counts as a turn):
 
-Click a Bunkered piece *Twice* to enter "Set Bunker Mode":
+Click a bunkered piece *twice* to enter "Set Bunker Mode":
 Click another piece in your control ( *but not on the Hill* ) to transfer the bunker mode / Click the bunkered piece a 3rd time to release it without transferring / Click outside to cancel.
 
-### Pawn Promotion / Resurrect Captured pieces
+### Pawn Promotion / Resurrect Captured Pieces
 
 Possible when you have a Pawn on *your half of the Center Hill.*
 
-Resurrect your Captured pieces by clicking them, and then clicking on the Hill Pawn (this counts as a turn).
+Resurrect your captured pieces by clicking them, and then clicking on the Hill Pawn (this counts as a turn).
 
-**Restrictions to pawn poromotions:** 1 King per player half. Kings can't touch enemy kings. No 2 Same Team Bishops on the same colored square.
+**Restrictions to Pawn Promotions:** 1 King per player half. Kings can't touch enemy Kings. No 2 same-team Bishops on the same colored square.

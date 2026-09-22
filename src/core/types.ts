@@ -149,14 +149,14 @@ export enum ActionType {
   REFILL_TRENCH = 4,
   SKIP_TURN = 5,
   RESIGN = 6,
-  TRENCH_SELECT = 7
+  TRENCH_SELECT = 7,
+  CARD_PASS = 8
 }
 
-export type GameActionType = ActionType | 'MOVE' | 'PROMOTION' | 'CARD_SWAP' | 'SKIP_TURN' | 'TRENCH_SELECT' | 'REFILL_TRENCH' | 'RESIGN' | 'SET_BUNKER';
+export type GameActionType = ActionType | 'MOVE' | 'PROMOTION' | 'CARD_SWAP' | 'SKIP_TURN' | 'TRENCH_SELECT' | 'REFILL_TRENCH' | 'RESIGN' | 'SET_BUNKER' | 'CARD_PASS';
 
 export interface GameAction {
-  type: GameActionType;
-  /** Primary origin field: fromIndex (MOVE) | hillIndex (PROMOTION) | targetIndex (SET_BUNKER) | slot1 (CARD_SWAP) | trenchSlot (REFILL) */
+  /** Primary origin field: fromIndex (MOVE) | hillIndex (PROMOTION) | targetIndex (SET_BUNKER) | slot1 (CARD_SWAP) | cardIndex (CARD_PASS) | trenchSlot (REFILL) */
   origin?: number;
   /** Primary end/target field: toIndex (MOVE) | sourceIndex (SET_BUNKER) | slot2 (CARD_SWAP) | baseCardIndex (REFILL) */
   end?: number | null;
@@ -167,25 +167,26 @@ export interface GameAction {
   input1?: number | string | null;
   /** Legacy input2 field for backward compatibility */
   input2?: number | null | [number, number, number];
+  type: GameActionType;
 }
 
 /**
  * 32-bit Integer Action encoding
- * Bits:  [22:20] type   [19:14] origin   [13:8] end   [7:4] pieceCode   [3:0] reserved
- *        3 bits         6 bits           6 bits       4 bits            4 bits
+ * Bits:  [23:20] type   [19:14] origin   [13:8] end   [7:4] pieceCode   [3:0] reserved
+ *        4 bits         6 bits           6 bits       4 bits            4 bits
  */
 export type ActionInt = number;
 
 export function encodeAction(type: number, origin: number, end: number, pieceCode: number = 0): ActionInt {
   return (type << 20) | (origin << 14) | (end << 8) | (pieceCode & 0xFF);
 }
-export function decType(a: ActionInt): number { return (a >>> 20) & 7; }
+export function decType(a: ActionInt): number { return (a >>> 20) & 0xF; }
 export function decOrigin(a: ActionInt): number { return (a >>> 14) & 0x3F; }
 export function decEnd(a: ActionInt): number { return (a >>> 8) & 0x3F; }
 export function decPiece(a: ActionInt): number { return a & 0xFF; }
 
 export function actionIntToGameAction(a: ActionInt): GameAction {
-  const typeInt = (a >>> 20) & 7;
+  const typeInt = (a >>> 20) & 0xF;
   const p1 = (a >>> 14) & 0x3F;
   const p2 = (a >>> 8) & 0x3F;
   const meta = a & 0xFF;
@@ -199,6 +200,8 @@ export function actionIntToGameAction(a: ActionInt): GameAction {
       return { type: 'SET_BUNKER', input1: p1, input2: p2, origin: p1, end: p2 };
     case ActionType.CARD_SWAP:
       return { type: 'CARD_SWAP', input1: p1, input2: p2, origin: p1, end: p2 };
+    case ActionType.CARD_PASS:
+      return { type: 'CARD_PASS', input1: p1, input2: p2, origin: p1, end: p2 };
     case ActionType.REFILL_TRENCH:
       return { type: 'REFILL_TRENCH', input1: p1, input2: p2, origin: p1, end: p2 };
     case ActionType.SKIP_TURN:

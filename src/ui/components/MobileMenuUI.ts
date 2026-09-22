@@ -1,8 +1,8 @@
-export type MobileMenuTab = 'board' | 'status' | 'controls' | 'log' | 'captures' | 'all';
+export type MobileMenuTab = 'board' | 'status' | 'controls' | 'log' | 'captures';
 
 export class MobileMenuUI {
   private container: HTMLElement;
-  private activeTab: MobileMenuTab = 'all';
+  private activeTab: MobileMenuTab = 'board';
 
   private centerArea: HTMLElement | null = null;
   private statusPanel: HTMLElement | null = null;
@@ -22,6 +22,10 @@ export class MobileMenuUI {
     this.leftUnifiedPanel = document.getElementById('unified-left-panel');
     this.rightUnifiedPanel = document.getElementById('unified-right-panel');
     this.render();
+  }
+
+  public getActiveTab(): MobileMenuTab {
+    return this.activeTab;
   }
 
   public setTab(tab: MobileMenuTab): void {
@@ -44,7 +48,7 @@ export class MobileMenuUI {
       return;
     }
 
-    const showAll = this.activeTab === 'all' || this.activeTab === 'board';
+    const showAll = this.activeTab === 'board';
     const showStatus = showAll || this.activeTab === 'status';
     const showCaptures = showAll || this.activeTab === 'captures';
     const showControls = showAll || this.activeTab === 'controls';
@@ -95,8 +99,6 @@ export class MobileMenuUI {
         this.logPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else if (tab === 'captures' && this.capturesPanel) {
         this.capturesPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (tab === 'all' && this.centerArea) {
-        this.centerArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, 20);
   }
@@ -109,8 +111,7 @@ export class MobileMenuUI {
       { id: 'status', label: 'Status', icon: '📊' },
       { id: 'controls', label: 'Controls', icon: '⚙️' },
       { id: 'log', label: 'Log', icon: '📜' },
-      { id: 'captures', label: 'Captures', icon: '♟️' },
-      { id: 'all', label: 'All', icon: '📋' }
+      { id: 'captures', label: 'Captures', icon: '♟️' }
     ];
 
     tabs.forEach(tab => {

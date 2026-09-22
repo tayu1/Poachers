@@ -592,6 +592,61 @@ describe('Core Engine & Combat Integration', () => {
       expect(deck2[3]?.id).toBe('bottom2');
     });
   });
+
+  describe('CARD_PASS Action (Passing base deck card to teammate)', () => {
+    it('should successfully pass a card from active player to teammate when teammate has < 5 cards', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      // Active player is North (Team A), teammate is South (Team A)
+      expect(state.activePlayer).toBe(PlayerSeat.NORTH);
+
+      // Reduce South's baseDeck so South has room (< 5 cards)
+      state.players[PlayerSeat.SOUTH].baseDeck = state.players[PlayerSeat.SOUTH].baseDeck.slice(0, 3);
+      expect(state.players[PlayerSeat.SOUTH].baseDeck.length).toBe(3);
+
+      const northCardToPass = state.players[PlayerSeat.NORTH].baseDeck[1];
+      const initialNorthCount = state.players[PlayerSeat.NORTH].baseDeck.length;
+
+      const result = applyAction(state, { type: 'CARD_PASS', origin: 1 });
+
+      expect(result.logText).toContain('Passed card');
+      expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(initialNorthCount - 1);
+      expect(state.players[PlayerSeat.SOUTH].baseDeck.length).toBe(4);
+      expect(state.players[PlayerSeat.SOUTH].baseDeck[3].id).toBe(northCardToPass.id);
+
+      // It counts as a card swap, not a full turn
+      expect(state.hasSwappedThisTurn).toBe(true);
+      expect(state.activePlayer).toBe(PlayerSeat.NORTH);
+      expect(state.turnCount).toBe(1);
+    });
+
+    it('should throw error if teammate already has 5 or more cards', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      expect(state.players[PlayerSeat.SOUTH].baseDeck.length).toBe(5);
+
+      expect(() => {
+        applyAction(state, { type: 'CARD_PASS', origin: 0 });
+      }).toThrow(/Teammate base deck is full/);
+    });
+
+    it('should throw error if swap has already been used this turn', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      state.players[PlayerSeat.SOUTH].baseDeck = state.players[PlayerSeat.SOUTH].baseDeck.slice(0, 3);
+      state.hasSwappedThisTurn = true;
+
+      expect(() => {
+        applyAction(state, { type: 'CARD_PASS', origin: 0 });
+      }).toThrow(/already used this turn/);
+    });
+
+    it('should throw error for invalid card index', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      state.players[PlayerSeat.SOUTH].baseDeck = state.players[PlayerSeat.SOUTH].baseDeck.slice(0, 3);
+
+      expect(() => {
+        applyAction(state, { type: 'CARD_PASS', origin: 99 });
+      }).toThrow(/Invalid card selected to pass/);
+    });
+  });
 });
 
 
