@@ -1,6 +1,6 @@
-import { HILL_SQUARE_INDICES, PLAYER_TEAMS, getCol, getRow, PIECE_ANIMATION_TIME_MS, PIECE_ANIMATION_EASING } from '../../core/constants';
+import { HILL_SQUARE_INDICES, MAX_BUNKERS_PER_PLAYER, PLAYER_TEAMS, getCol, getRow, PIECE_ANIMATION_TIME_MS, PIECE_ANIMATION_EASING } from '../../core/constants';
 import { getValidPromotionOptions } from '../../core/engine';
-import { isPieceControllable } from '../../core/moves';
+import { getPlayerBunkerCount, isPieceBunkerable, isPieceControllable } from '../../core/moves';
 import { GameState, LastMove, Move, PieceType, PlayerSeat, getPieceType, pieceToChar, Pc, decEnd, ActionInt } from '../../core/types';
 import { GameStore } from '../../store/store';
 
@@ -804,8 +804,8 @@ export class BoardUI {
       }
 
       if (store.isSettingBunker && !isRefillOrSetupStage && isUserTurn) {
-        const p = state.board[index];
-        if (p && isPieceControllable(p, state.activePlayer, index) && !HILL_SQUARE_INDICES.includes(index)) {
+        const currentBunkers = getPlayerBunkerCount(state.board, state.activePlayer);
+        if (currentBunkers < MAX_BUNKERS_PER_PLAYER && isPieceBunkerable(state.board, state.activePlayer, index)) {
           const candidateMarker = document.createElement('div');
           candidateMarker.className = 'bunker-candidate-marker';
           sq.appendChild(candidateMarker);

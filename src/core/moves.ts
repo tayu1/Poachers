@@ -1,4 +1,4 @@
-import { HILL_SQUARE_INDICES, HILL_SQUARES_BY_SEAT, PLAYER_TEAMS, getCol, getRow, toIndex } from './constants';
+import { HILL_SQUARE_INDICES, HILL_SQUARES_BY_SEAT, INITIAL_BOARD_1D, MAX_BUNKERS_PER_PLAYER, PLAYER_TEAMS, getCol, getRow, toIndex } from './constants';
 import { ActionInt, ActionType, Board1D, CellMark, Pc, PlayerSeat, Team, encodeAction } from './types';
 
 export function getPieceTeam(piece: number | null): Team | null {
@@ -32,6 +32,17 @@ export function isSeatKingAlive(board: Board1D, seat: PlayerSeat): boolean {
   return false;
 }
 
+export function getPlayerBunkerCount(board: Board1D, seat: PlayerSeat): number {
+  let count = 0;
+  for (let i = 0; i < 64; i++) {
+    const piece = board[i];
+    if (piece !== Pc.EMPTY && (piece & Pc.BUNKER_BIT) !== 0 && isPieceControllable(piece, seat, i)) {
+      count++;
+    }
+  }
+  return count;
+}
+
 const KNIGHT_OFFSETS = [-17, -15, -10, -6, 6, 10, 15, 17];
 const DIAG_DIRS = [-9, -7, 7, 9];
 const ORTHO_DIRS = [-8, 8, -1, 1];
@@ -45,7 +56,6 @@ export function getLegalMoves1D(
 ): ActionInt[] {
   const pieceCode = board[fromIndex];
   if (pieceCode === Pc.EMPTY) return [];
-  if ((pieceCode & Pc.BUNKER_BIT) !== 0) return []; // Bunkered pieces cannot move
   if (!isPieceControllable(pieceCode, seat, fromIndex)) return [];
 
   const map = (threatMap && threatMap.length === 4096) ? threatMap : generateFullThreatMap(board);
@@ -247,12 +257,20 @@ export function getThreatenedKings(board: Board1D, threatMap?: Uint8Array): numb
   return threatened;
 }
 
+export function isPieceBunkerable(board: Board1D, seat: PlayerSeat, index: number): boolean {
+  if (HILL_SQUARE_INDICES.includes(index)) return false;
+  const piece = board[index];
+  if (piece === Pc.EMPTY || (piece & Pc.BUNKER_BIT) !== 0) return false;
+  return isPieceControllable(piece, seat, index);
+}
+
 export function getLegalBunkerTargets(board: Board1D, seat: PlayerSeat): number[] {
+  if (getPlayerBunkerCount(board, seat) >= MAX_BUNKERS_PER_PLAYER) {
+    return [];
+  }
   const targets: number[] = [];
   for (let i = 0; i < 64; i++) {
-    if (HILL_SQUARE_INDICES.includes(i)) continue;
-    const piece = board[i];
-    if (piece !== Pc.EMPTY && isPieceControllable(piece, seat, i)) {
+    if (isPieceBunkerable(board, seat, i)) {
       targets.push(i);
     }
   }
@@ -283,7 +301,8 @@ export function updateSinglePieceThreats(
   threatMap.fill(0, rowOffset, rowOffset + 64);
 
   const pieceCode = board[origin];
-  if (pieceCode === Pc.EMPTY || (pieceCode & Pc.BUNKER_BIT) !== 0) return;
+  if (pieceCode === Pc.EMPTY) return;
+  const isBunkered = (pieceCode & Pc.BUNKER_BIT) !== 0;
 
   const seat = getControllingSeat(pieceCode, origin);
   if (seat === null) return;
@@ -304,17 +323,19 @@ export function updateSinglePieceThreats(
           }
         }
       }
-      for (let d = 0; d < 4; d++) {
-        const off = DIAG_DIRS[d];
-        const target = origin + off;
-        if (target >= 0 && target < 64 && Math.abs((target & 7) - col) === 1) {
-          const targetPiece = board[target];
-          if (targetPiece === Pc.EMPTY) {
-            threatMap[rowOffset + target] |= CellMark.THREAT;
-          } else if ((targetPiece & 8) !== teamBit) {
-            threatMap[rowOffset + target] |= (CellMark.MOVE | CellMark.THREAT);
-          } else {
-            threatMap[rowOffset + target] |= CellMark.THREAT;
+      if (!isBunkered) {
+        for (let d = 0; d < 4; d++) {
+          const off = DIAG_DIRS[d];
+          const target = origin + off;
+          if (target >= 0 && target < 64 && Math.abs((target & 7) - col) === 1) {
+            const targetPiece = board[target];
+            if (targetPiece === Pc.EMPTY) {
+              threatMap[rowOffset + target] |= CellMark.THREAT;
+            } else if ((targetPiece & 8) !== teamBit) {
+              threatMap[rowOffset + target] |= (CellMark.MOVE | CellMark.THREAT);
+            } else {
+              threatMap[rowOffset + target] |= CellMark.THREAT;
+            }
           }
         }
       }
@@ -326,10 +347,16 @@ export function updateSinglePieceThreats(
         const target = origin + KNIGHT_OFFSETS[k];
         if (target >= 0 && target < 64 && Math.abs((target & 7) - col) <= 2) {
           const targetPiece = board[target];
-          if (targetPiece === Pc.EMPTY || (targetPiece & 8) !== teamBit) {
-            threatMap[rowOffset + target] |= (CellMark.MOVE | CellMark.THREAT);
+          if (isBunkered) {
+            if (targetPiece === Pc.EMPTY) {
+              threatMap[rowOffset + target] |= CellMark.MOVE;
+            }
           } else {
-            threatMap[rowOffset + target] |= CellMark.THREAT;
+            if (targetPiece === Pc.EMPTY || (targetPiece & 8) !== teamBit) {
+              threatMap[rowOffset + target] |= (CellMark.MOVE | CellMark.THREAT);
+            } else {
+              threatMap[rowOffset + target] |= CellMark.THREAT;
+            }
           }
         }
       }
@@ -353,16 +380,24 @@ export function updateSinglePieceThreats(
           if (curr < 0 || curr >= 64) break;
 
           const targetPiece = board[curr];
-          if (targetPiece === Pc.EMPTY) {
-            threatMap[rowOffset + curr] |= (CellMark.MOVE | CellMark.THREAT);
-          } else if ((targetPiece & 8) !== teamBit) {
-            threatMap[rowOffset + curr] |= (CellMark.MOVE | CellMark.THREAT);
-            if ((targetPiece & 7) !== 5) {
+          if (isBunkered) {
+            if (targetPiece === Pc.EMPTY) {
+              threatMap[rowOffset + curr] |= CellMark.MOVE;
+            } else {
               break;
             }
           } else {
-            threatMap[rowOffset + curr] |= CellMark.THREAT;
-            break;
+            if (targetPiece === Pc.EMPTY) {
+              threatMap[rowOffset + curr] |= (CellMark.MOVE | CellMark.THREAT);
+            } else if ((targetPiece & 8) !== teamBit) {
+              threatMap[rowOffset + curr] |= (CellMark.MOVE | CellMark.THREAT);
+              if ((targetPiece & 7) !== 5) {
+                break;
+              }
+            } else {
+              threatMap[rowOffset + curr] |= CellMark.THREAT;
+              break;
+            }
           }
         }
       }
@@ -397,12 +432,17 @@ export function updateSinglePieceThreats(
           }
 
           const targetPiece = board[target];
-          const isFriendly = targetPiece !== Pc.EMPTY && (targetPiece & 8) === teamBit;
-
-          if (canStepRowCol && !isFriendly) {
-            threatMap[rowOffset + target] |= (CellMark.MOVE | CellMark.THREAT);
+          if (isBunkered) {
+            if (canStepRowCol && targetPiece === Pc.EMPTY) {
+              threatMap[rowOffset + target] |= CellMark.MOVE;
+            }
           } else {
-            threatMap[rowOffset + target] |= CellMark.THREAT;
+            const isFriendly = targetPiece !== Pc.EMPTY && (targetPiece & 8) === teamBit;
+            if (canStepRowCol && !isFriendly) {
+              threatMap[rowOffset + target] |= (CellMark.MOVE | CellMark.THREAT);
+            } else {
+              threatMap[rowOffset + target] |= CellMark.THREAT;
+            }
           }
         }
       }
@@ -420,35 +460,14 @@ export function generateFullThreatMap(
 ): Uint8Array {
   outMap.fill(0);
   for (let i = 0; i < 64; i++) {
-    if (board[i] !== Pc.EMPTY && (board[i] & Pc.BUNKER_BIT) === 0) {
+    if (board[i] !== Pc.EMPTY) {
       updateSinglePieceThreats(board, i, outMap);
     }
   }
   return outMap;
 }
 
-const INITIAL_THREAT_MAP_SPARSE: readonly number[] = [
-  128,3, 129,3, 131,2, 138,2, 194,2, 196,2, 202,2, 203,2, 204,2, 267,2,
-  269,2, 331,2, 335,3, 340,3, 342,3, 706,2, 708,2, 722,2, 723,1, 724,2,
-  771,2, 773,2, 787,2, 788,1, 789,2, 1024,3, 1032,3, 1041,2, 1048,2, 1478,3,
-  1485,3, 1501,3, 1510,2, 1552,2, 1553,2, 1561,2, 1568,2, 1569,2, 1616,2, 1618,2,
-  1626,1, 1632,2, 1634,2, 1941,2, 1943,2, 1949,1, 1957,2, 1959,2, 2006,2, 2007,2,
-  2014,2, 2022,2, 2023,2, 2073,2, 2089,2, 2136,2, 2138,2, 2146,1, 2152,2, 2154,2,
-  2461,2, 2463,2, 2469,1, 2477,2, 2479,2, 2526,2, 2542,2, 2585,2, 2594,3, 2610,3,
-  2617,3, 3047,2, 3054,2, 3063,3, 3071,3, 3306,2, 3307,1, 3308,2, 3322,2, 3324,2,
-  3371,2, 3372,1, 3373,2, 3387,2, 3389,2, 3753,3, 3755,3, 3760,3, 3764,2, 3826,2,
-  3827,2, 3828,2, 3834,2, 3836,2, 3891,2, 3893,2, 3957,2, 3964,2, 3966,3, 3967,3
-];
-
-function createInitialThreatMap(): Uint8Array {
-  const map = new Uint8Array(4096);
-  for (let i = 0; i < INITIAL_THREAT_MAP_SPARSE.length; i += 2) {
-    map[INITIAL_THREAT_MAP_SPARSE[i]] = INITIAL_THREAT_MAP_SPARSE[i + 1];
-  }
-  return map;
-}
-
-export const INITIAL_THREAT_MAP: Uint8Array = createInitialThreatMap();
+export const INITIAL_THREAT_MAP: Uint8Array = generateFullThreatMap(INITIAL_BOARD_1D);
 
 /**
  * Differential update of the threatMap after a move affecting fromIdx and/or toIdx.
@@ -479,8 +498,8 @@ export function update_threatMap_by_move(
     const col = sq & 7;
     const row = sq >> 3;
 
-    // 1. Mark piece currently at sq (if any) or clear its row if empty/bunkered
-    if (board[sq] === Pc.EMPTY || (board[sq] & Pc.BUNKER_BIT) !== 0) {
+    // 1. Mark piece currently at sq (if any) or clear its row if empty
+    if (board[sq] === Pc.EMPTY) {
       const rowOffset = sq << 6;
       threatMap.fill(0, rowOffset, rowOffset + 64);
     } else {
@@ -498,7 +517,7 @@ export function update_threatMap_by_move(
         curr += dir;
         if (curr < 0 || curr >= 64) break;
         const p = board[curr];
-        if (p !== Pc.EMPTY && (p & Pc.BUNKER_BIT) === 0) {
+        if (p !== Pc.EMPTY) {
           const pType = p & 7;
           if (pType === 3) {
             markDirty(curr);
@@ -521,7 +540,7 @@ export function update_threatMap_by_move(
         curr += dir;
         if (curr < 0 || curr >= 64) break;
         const p = board[curr];
-        if (p !== Pc.EMPTY && (p & Pc.BUNKER_BIT) === 0) {
+        if (p !== Pc.EMPTY) {
           const pType = p & 7;
           if (pType === 4) {
             markDirty(curr);
@@ -539,7 +558,7 @@ export function update_threatMap_by_move(
       const neighbor = sq + off;
       if (neighbor >= 0 && neighbor < 64 && Math.abs((neighbor & 7) - col) <= 1) {
         const p = board[neighbor];
-        if (p !== Pc.EMPTY && (p & Pc.BUNKER_BIT) === 0) {
+        if (p !== Pc.EMPTY) {
           const pType = p & 7;
           if (pType === 1) {
             markDirty(neighbor);
@@ -553,7 +572,7 @@ export function update_threatMap_by_move(
       const neighbor = sq + KNIGHT_OFFSETS[k];
       if (neighbor >= 0 && neighbor < 64 && Math.abs((neighbor & 7) - col) <= 2) {
         const p = board[neighbor];
-        if (p !== Pc.EMPTY && (p & Pc.BUNKER_BIT) === 0 && (p & 7) === 2) {
+        if (p !== Pc.EMPTY && (p & 7) === 2) {
           markDirty(neighbor);
         }
       }
@@ -568,7 +587,7 @@ export function update_threatMap_by_move(
         if (c < 0 || c >= 8) continue;
         const neighbor = (r << 3) | c;
         const p = board[neighbor];
-        if (p !== Pc.EMPTY && (p & Pc.BUNKER_BIT) === 0 && (p & 7) === 5) {
+        if (p !== Pc.EMPTY && (p & 7) === 5) {
           markDirty(neighbor);
         }
       }

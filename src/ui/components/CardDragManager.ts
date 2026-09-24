@@ -1,4 +1,5 @@
 import { Card, PlayerSeat } from '../../core/types';
+import { getTrenchSlotTopCard, normalizePlayerTrenchAndBase } from '../../core/cards';
 import { GameStore } from '../../store/store';
 
 export type CardRef =
@@ -85,28 +86,29 @@ export class CardDragManager {
     const activeSeat = state.activePlayer;
     if (!this.isMyTurn(activeSeat)) return false;
 
+    const player = state.players[activeSeat];
+    if (player) {
+      normalizePlayerTrenchAndBase(player);
+    }
+
     if (from.type === 'trench') {
       if (from.seat !== activeSeat) return false;
-      const player = state.players[activeSeat];
-      const card = player?.trenchCards[from.cardIndex];
+      const card = getTrenchSlotTopCard(player, from.cardIndex);
       return Boolean(card && card.id !== 'hidden' && card.rank > 0);
     } else {
-      const player = state.players[activeSeat];
-      const card = player?.baseDeck[from.cardIndex];
+      const card = player?.backupCards[from.cardIndex];
       return Boolean(card && card.id !== 'hidden' && card.rank > 0);
     }
   }
 
   public isValidDropTarget(from: CardRef, to: CardRef): boolean {
-    // Only Trench cards are valid drop destinations (trench-to-trench or base-to-trench)
-    if (to.type !== 'trench') return false;
-
     const state = this.store.getState();
     if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying) return false;
 
     // Refill stage
     if (state.pendingRefills.length > 0) {
       if (from.type !== 'base') return false;
+      if (to.type !== 'trench') return false;
       const refill = state.pendingRefills[0];
       return to.seat === refill.seat && to.cardIndex === refill.slot;
     }
@@ -114,10 +116,8 @@ export class CardDragManager {
     // Setup stage
     if (state.setupState?.inSetup) {
       if (from.type !== 'base') return false;
-      const activeSeat =
-        ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(
-          s => !state.setupState.setupCompletedSeats.includes(s)
-        ) ?? state.activePlayer;
+      if (to.type !== 'trench') return false;
+      const activeSeat = state.pendingRefills[0]?.seat ?? state.activePlayer;
       const targetSlot = state.players[activeSeat]?.trenchCards.findIndex(c => c === null);
       return to.seat === activeSeat && to.cardIndex === targetSlot;
     }
@@ -128,19 +128,22 @@ export class CardDragManager {
     if (!this.isMyTurn(activeSeat)) return false;
 
     // Target Trench card MUST belong to the active player
-    if (to.seat !== activeSeat) return false;
+    if (to.type === 'trench' && to.seat !== activeSeat) return false;
 
-    // If source is trench, it must also belong to active player and must not be the identical slot
-    if (from.type === 'trench') {
-      if (from.seat !== activeSeat) return false;
-      if (from.cardIndex === to.cardIndex) return false;
-    }
+    // Source Trench card MUST belong to the active player
+    if (from.type === 'trench' && from.seat !== activeSeat) return false;
+
+    // Identical slot cannot be dropped onto itself
+    if (from.type === to.type && from.cardIndex === to.cardIndex) return false;
 
     const player = state.players[activeSeat];
     if (!player) return false;
+    normalizePlayerTrenchAndBase(player);
 
-    // Verify target card is not hidden/corrupt
-    const targetCard = player.trenchCards[to.cardIndex];
+    // Verify target card is not hidden/corrupt if non-empty
+    const targetCard = to.type === 'trench'
+      ? getTrenchSlotTopCard(player, to.cardIndex)
+      : player.backupCards[to.cardIndex];
     if (targetCard && (targetCard.id === 'hidden' || targetCard.rank <= 0)) return false;
 
     return true;
@@ -310,12 +313,12 @@ export class CardDragManager {
 
     if (from.type === 'trench') {
       const player = state.players[from.seat];
-      card = player?.trenchCards[from.cardIndex];
+      card = getTrenchSlotTopCard(player, from.cardIndex);
       team = player?.team ?? 'A';
     } else {
-      const activeSeat = state.pendingRefills.length > 0 ? state.pendingRefills[0].seat : state.activePlayer;
+      const activeSeat = state.pendingRefills[0]?.seat ?? state.activePlayer;
       const player = state.players[activeSeat];
-      card = player?.baseDeck[from.cardIndex];
+      card = player?.backupCards[from.cardIndex];
       team = player?.team ?? 'A';
     }
 

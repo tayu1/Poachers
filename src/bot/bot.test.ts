@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialGameState } from '../core/engine';
+import { createInitialGameState, getAllLegalActions, applyAction } from '../core/engine';
 import { generateFullThreatMap } from '../core/moves';
 import {
   DEFAULT_BOT_PROFILE,
@@ -7,7 +7,8 @@ import {
   getBestBotAction,
   greedyRolloutScore,
   evaluateActionTopK,
-  getTopKMoves
+  getTopKMoves,
+  formatActionInt
 } from './bot';
 import { ActionType, PlayerSeat } from '../core/types';
 import { runHeadlessGame } from './simulation';
@@ -456,6 +457,111 @@ describe('Next-Gen Bot Search & Evaluation Engine', () => {
     expect(action).not.toBeNull();
     expect(action?.logSummary).toContain('Candidates:');
     expect(action?.logSummary).toContain('Final:');
+  });
+
+  it('should choose to refill an empty trench slot from baseDeck on pre-turn swap', () => {
+    const state = createInitialGameState({ skipSetup: true });
+    state.activePlayer = PlayerSeat.NORTH;
+    state.turnCount = 2;
+    state.hasSwappedThisTurn = false;
+
+    // Slot 1 is empty
+    state.players[PlayerSeat.NORTH].trenchCards[1] = null;
+    // Base deck has cards
+    state.players[PlayerSeat.NORTH].baseDeck = [
+      { id: 'C_AS', rank: 14, suit: 'S' },
+      { id: 'C_KD', rank: 13, suit: 'D' }
+    ];
+
+    const candidate = getBestBotAction(state, DEFAULT_BOT_PROFILE);
+    expect(candidate).not.toBeNull();
+    const action = candidate!.action;
+    expect(action.type === 'CARD_SWAP' || action.type === ActionType.CARD_SWAP).toBe(true);
+    // Should swap slot 1 (empty slot) with a base card (>= 3)
+    const p1 = typeof action === 'number' ? (action >>> 14) & 0x3F : (action.input1 ?? action.origin);
+    const p2 = typeof action === 'number' ? (action >>> 8) & 0x3F : (action.input2 ?? action.end);
+    expect([p1, p2]).toContain(1);
+    expect(Math.max(Number(p1), Number(p2))).toBeGreaterThanOrEqual(3);
+  });
+
+  it('should never produce base-base card swaps (only trench-trench or trench-base)', () => {
+    const state = createInitialGameState({ skipSetup: true });
+    state.activePlayer = PlayerSeat.NORTH;
+    state.turnCount = 2;
+    state.hasSwappedThisTurn = false;
+
+    const candidate = getBestBotAction(state, DEFAULT_BOT_PROFILE);
+    if (candidate && (candidate.action.type === 'CARD_SWAP' || candidate.action.type === ActionType.CARD_SWAP)) {
+      const p1 = typeof candidate.action === 'number'
+        ? (candidate.action >>> 14) & 0x3F
+        : (candidate.action.input1 ?? candidate.action.origin);
+      const p2 = typeof candidate.action === 'number'
+        ? (candidate.action >>> 8) & 0x3F
+        : (candidate.action.input2 ?? candidate.action.end);
+      // At least one slot must be a trench slot (< 3)
+      expect(Math.min(Number(p1), Number(p2))).toBeLessThan(3);
+    }
+  });
+
+  it('should include moves for bunkered pieces in legal actions and unbunker them when moved', () => {
+    const state = createInitialGameState({ skipSetup: true });
+    state.activePlayer = PlayerSeat.NORTH;
+    state.hasSwappedThisTurn = true; // Bypass swap
+
+    // Verify North initially has bunkered flank pawns at squares 10 and 13
+    expect((state.board[10] & 16)).toBe(16);
+    expect((state.board[13] & 16)).toBe(16);
+
+    // getAllLegalActions should include moves for the bunkered pawns
+    const allActions = getAllLegalActions(state, PlayerSeat.NORTH);
+    const movesFrom10 = allActions.filter(a => ((a >>> 14) & 0x3F) === 10);
+    const movesFrom13 = allActions.filter(a => ((a >>> 14) & 0x3F) === 13);
+    expect(movesFrom10.length).toBeGreaterThan(0);
+    expect(movesFrom13.length).toBeGreaterThan(0);
+
+    // Target squares for bunkered pawn 10 are empty squares 9 (b7) and 18 (c6)
+    const targetsFrom10 = movesFrom10.map(a => (a >>> 8) & 0x3F);
+    expect(targetsFrom10).toContain(18);
+
+    // When a bunkered piece move is executed, the piece moves and unbunkers
+    const bunkeredMove = movesFrom10.find(a => ((a >>> 8) & 0x3F) === 18)!;
+    const result = applyAction(state, bunkeredMove);
+    expect(state.board[10]).toBe(0);
+    expect(state.board[18]).toBe(1); // Unbunkered pawn
+    expect(state.board[18] & 16).toBe(0); // Bunker bit removed!
+  });
+
+  it('should choose to move a bunkered piece when it is the best legal move', () => {
+    const state = createInitialGameState({ skipSetup: true });
+    state.activePlayer = PlayerSeat.NORTH;
+    state.hasSwappedThisTurn = true;
+
+    // Isolate: North King at 0 with no legal moves, bunkered pawn at 19
+    state.board.fill(0);
+    state.board[19] = 1 | 16; // North bunkered pawn (17)
+    // Fill North half so all other pieces are completely blocked
+    for (let i = 0; i < 40; i++) {
+      state.board[i] = 1;
+    }
+    state.board[0] = 5;       // North King at a8 (surrounded by 1, 8, 9)
+    state.board[19] = 1 | 16; // North bunkered pawn at d6
+    state.board[26] = 3;      // Friendly Bishop at c5 (cannot move orthogonally to 27)
+    state.board[28] = 3;      // Friendly Bishop at e5 (cannot move orthogonally to 27)
+    state.board[27] = 0;      // Square 27 (Hill) is empty for pawn 19 to step onto!
+    state.board[59] = 5 | 8;  // South enemy King
+    state.threatMap = generateFullThreatMap(state.board);
+
+    const candidate = getBestBotAction(state, {
+      ...DEFAULT_BOT_PROFILE,
+      depth: 2,
+      topK: 4,
+      randomnessMargin: 0
+    });
+
+    expect(candidate).not.toBeNull();
+    expect(candidate!.action.type).toBe('MOVE');
+    expect(candidate!.action.origin).toBe(19);
+    expect(candidate!.action.end).toBe(27); // Steps onto the Hill!
   });
 });
 

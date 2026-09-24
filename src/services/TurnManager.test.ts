@@ -231,8 +231,10 @@ describe('TurnManager State Machine', () => {
     state.setupState.inSetup = false;
     state.activePlayer = PlayerSeat.NORTH;
 
-    // Give South room to receive a card (< 5 cards)
-    state.players[PlayerSeat.SOUTH].baseDeck = state.players[PlayerSeat.SOUTH].baseDeck.slice(0, 3);
+    // Give South room to receive a card (< 3 cards) by removing one card
+    state.players[PlayerSeat.SOUTH].baseDeck.pop();
+    state.players[PlayerSeat.SOUTH].backupCards[2] = null;
+    expect(state.players[PlayerSeat.SOUTH].baseDeck.length).toBe(2);
 
     tm.dispatchAction({ type: 'CARD_PASS', input1: 0, origin: 0 });
 
@@ -240,7 +242,30 @@ describe('TurnManager State Machine', () => {
     expect(store.logs[0].text).toBe('passed card');
     expect(state.hasSwappedThisTurn).toBe(true);
     expect(state.activePlayer).toBe(PlayerSeat.NORTH);
-    expect(state.players[PlayerSeat.SOUTH].baseDeck.length).toBe(4);
+    expect(state.players[PlayerSeat.SOUTH].baseDeck.length).toBe(3);
+  });
+
+  it('should immediately fill teammate empty trench slot for CARD_PASS', () => {
+    const store = new GameStore();
+    const mockOverlays: any = {
+      showGameOver: vi.fn(),
+      hideAll: vi.fn()
+    };
+
+    const tm = new TurnManager(store, mockOverlays);
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+
+    // South has an empty trench slot (e.g. Center slot 1)
+    state.players[PlayerSeat.SOUTH].trenchCards[1] = null;
+    const northCard = state.players[PlayerSeat.NORTH].backupCards[0]!;
+
+    tm.dispatchAction({ type: 'CARD_PASS', input1: 0, origin: 0 });
+
+    expect(state.players[PlayerSeat.SOUTH].trenchCards[1]?.id).toBe(northCard.id);
+    expect(state.hasSwappedThisTurn).toBe(true);
+    expect(store.logs[0].text).toBe('passed card');
   });
 
   it('should associate combat log entry with the resolved combat frame and add "card refill" log entry for post-combat', () => {

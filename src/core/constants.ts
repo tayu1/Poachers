@@ -49,7 +49,8 @@ export const HILL_SQUARES_BY_SEAT: Record<PlayerSeat, number[]> = {
   [PlayerSeat.WEST]: [27, 35]
 };
 
-export const MAX_BASE_DECK_SIZE = 5;
+export const MAX_BASE_DECK_SIZE = 3;
+export const MAX_BUNKERS_PER_PLAYER = 2;
 
 // Initial bunkered piece indices per player seat (both flank pawns)
 export const INITIAL_BUNKER_INDICES_BY_SEAT: Record<PlayerSeat, number[]> = {

@@ -1,7 +1,8 @@
 import { executeTrenchSingleCardSelect, getValidPromotionOptions } from '../core/engine';
-import { HILL_SQUARE_INDICES } from '../core/constants';
-import { getLegalMoves1D, isPieceControllable } from '../core/moves';
-import { getPieceType, PieceType, PlayerSeat } from '../core/types';
+import { getTrenchSlotTopCard } from '../core/cards';
+import { HILL_SQUARE_INDICES, MAX_BUNKERS_PER_PLAYER } from '../core/constants';
+import { getLegalMoves1D, getPlayerBunkerCount, isPieceBunkerable, isPieceControllable } from '../core/moves';
+import { getPieceType, PieceType, PlayerSeat, Card } from '../core/types';
 import { socketClient } from '../net/socketClient';
 import { GameStore } from '../store/store';
 import { TurnManager } from './TurnManager';
@@ -50,52 +51,20 @@ export class InputHandler {
       return;
     }
 
-    const activeBunkerIndices: number[] = [];
-    for (let i = 0; i < 64; i++) {
-      const p = state.board[i];
-      if (p !== 0 && (p & 16) !== 0 && isPieceControllable(p, state.activePlayer, i)) {
-        activeBunkerIndices.push(i);
-      }
-    }
     const piece = state.board[index];
 
-    // 1. Handle Set Bunker Mode
+    // 1. Handle Set Bunker Mode (from Bunker Button)
     if (this.store.isSettingBunker) {
-      const sourceBunker = this.store.sourceBunkerIndex;
-      if (index === sourceBunker) {
-        // 3rd click on current bunkered piece -> Remove bunker
-        this.store.setSettingBunker(false);
-        this.store.selectSquare(null, []);
-        this.executeSetBunker(sourceBunker!, 0);
-        return;
-      } else if (piece && isPieceControllable(piece, state.activePlayer, index) && !HILL_SQUARE_INDICES.includes(index)) {
-        // Clicked a target piece controlled by player -> assign bunker
-        this.store.setSettingBunker(false);
-        this.store.selectSquare(null, []);
-        this.executeSetBunker(sourceBunker!, index);
-        return;
-      } else {
-        // Cancel bunker mode
-        this.store.setSettingBunker(false);
-        this.store.selectSquare(null, []);
-        return;
+      this.store.setSettingBunker(false);
+      this.store.selectSquare(null, []);
+      const currentBunkers = getPlayerBunkerCount(state.board, state.activePlayer);
+      if (currentBunkers < MAX_BUNKERS_PER_PLAYER && isPieceBunkerable(state.board, state.activePlayer, index)) {
+        this.executeSetBunker(index);
       }
+      return;
     }
 
-    // 2. Handle Clicking Bunkered Piece
-    if (activeBunkerIndices.includes(index)) {
-      if (this.store.selectedSquare === index) {
-        this.store.setSettingBunker(true, index);
-        return;
-      } else {
-        this.store.selectPromotionPiece(null);
-        this.store.setSettingBunker(false);
-        this.store.selectSquare(index, []);
-        return;
-      }
-    }
-
-    // 3. Handle Pawn Promotion if a lost piece was selected
+    // 2. Handle Pawn Promotion if a lost piece was selected
     if (this.store.selectedPromotionPiece !== null) {
       const selType = getPieceType(this.store.selectedPromotionPiece);
       const promoOptions = getValidPromotionOptions(state, state.activePlayer);
@@ -185,34 +154,44 @@ export class InputHandler {
     );
   }
 
-  public executeSetBunker(originIndex: number, endIndex: number | null = 0): void {
+  public handleBunkerButtonClick(): void {
+    const state = this.store.getState();
+    if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
+    if (!this.isMyTurn(state.activePlayer)) return;
+
+    const currentBunkers = getPlayerBunkerCount(state.board, state.activePlayer);
+    if (currentBunkers >= MAX_BUNKERS_PER_PLAYER) {
+      if (this.store.isSettingBunker) {
+        this.store.setSettingBunker(false);
+      }
+      return;
+    }
+
+    this.store.selectSquare(null, []);
+    this.store.selectPromotionPiece(null);
+    this.store.setSettingBunker(!this.store.isSettingBunker);
+  }
+
+  public executeSetBunker(targetIndex: number): void {
     const state = this.store.getState();
     if (state.setupState?.inSetup || state.pendingRefills.length > 0 || this.store.isCombatDelaying) return;
     if (!this.isMyTurn(state.activePlayer)) return;
 
-    this.turnManager.dispatchAction({ type: 'SET_BUNKER', input1: originIndex, input2: endIndex ?? 0 });
+    this.turnManager.dispatchAction({ type: 'SET_BUNKER', input1: targetIndex });
   }
 
   public handleBaseCardClick(index: number): void {
     const state = this.store.getState();
     if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying) return;
 
-    const activeSeat = state.pendingRefills.length > 0
-      ? state.pendingRefills[0].seat
-      : (state.setupState?.inSetup
-          ? (
-              ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s) && (this.store.mySeats?.includes(s) || this.store.mySeat === s)) ??
-              ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s)) ??
-              state.activePlayer
-            )
-          : state.activePlayer);
+    const activeSeat = state.pendingRefills[0]?.seat ?? state.activePlayer;
 
     const isMyTurn = this.isMyTurn(activeSeat);
     if (!isMyTurn) return;
 
     const activePlayerState = state.players[activeSeat];
-    const card = activePlayerState?.baseDeck[index];
-    if (!card || card.id === 'hidden' || card.rank <= 0) return;
+    const card = activePlayerState?.backupCards[index];
+    if (card && (card.id === 'hidden' || card.rank <= 0)) return;
 
     if (state.setupState?.inSetup) {
       executeTrenchSingleCardSelect(state, activeSeat, index, this.store.botSeats);
@@ -233,6 +212,7 @@ export class InputHandler {
 
     const baseSlot = 3 + index;
     const selectedLcr = this.store.selectedTrenchCardIndex;
+    const selectedBase = this.store.selectedBaseCardIndex;
 
     if (selectedLcr !== null) {
       this.executeCardSwap(selectedLcr, baseSlot);
@@ -241,8 +221,18 @@ export class InputHandler {
       return;
     }
 
+    if (selectedBase !== null) {
+      if (selectedBase === index) {
+        this.store.selectBaseCard(null);
+      } else {
+        this.executeCardSwap(3 + selectedBase, baseSlot);
+        this.store.selectBaseCard(null);
+      }
+      return;
+    }
+
     if (!state.hasSwappedThisTurn) {
-      this.store.selectBaseCard(this.store.selectedBaseCardIndex === index ? null : index);
+      this.store.selectBaseCard(index);
     }
   }
 
@@ -255,7 +245,7 @@ export class InputHandler {
     if (!isMyTurn) return;
 
     const playerState = state.players[seat];
-    const card = playerState?.trenchCards[cardIndex];
+    const card = getTrenchSlotTopCard(playerState, cardIndex);
     if (card && (card.id === 'hidden' || card.rank <= 0)) return;
 
     const selectedBase = this.store.selectedBaseCardIndex;
@@ -306,12 +296,9 @@ export class InputHandler {
     const state = this.store.getState();
     if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying) return false;
 
-    // Per user requirement: drop target must strictly be a Trench card
-    if (to.type !== 'trench') return false;
-
     // Refill stage
     if (state.pendingRefills.length > 0) {
-      if (from.type === 'base') {
+      if (from.type === 'base' && to.type === 'trench') {
         const refill = state.pendingRefills[0];
         if (!this.isMyTurn(refill.seat)) return false;
         if (to.seat === refill.seat && to.cardIndex === refill.slot) {
@@ -328,7 +315,7 @@ export class InputHandler {
 
     // Setup stage
     if (state.setupState?.inSetup) {
-      if (from.type === 'base') {
+      if (from.type === 'base' && to.type === 'trench') {
         const activeSeat =
           ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(
             s => !state.setupState.setupCompletedSeats.includes(s)
@@ -350,33 +337,34 @@ export class InputHandler {
     const activeSeat = state.activePlayer;
     if (!this.isMyTurn(activeSeat)) return false;
 
-    // Target Trench card MUST belong to the active player
-    if (to.seat !== activeSeat) return false;
+    // Target card MUST belong to the active player
+    if (to.type === 'trench' && to.seat !== activeSeat) return false;
 
-    // Trench-to-Trench check
-    if (from.type === 'trench') {
-      if (from.seat !== activeSeat) return false;
-      if (from.cardIndex === to.cardIndex) return false;
-    }
+    // Source Trench card MUST belong to active player
+    if (from.type === 'trench' && from.seat !== activeSeat) return false;
+
+    if (from.type === to.type && from.cardIndex === to.cardIndex) return false;
 
     const player = state.players[activeSeat];
     if (!player) return false;
 
     // Verify source card validity
     if (from.type === 'trench') {
-      const c = player.trenchCards[from.cardIndex];
+      const c = getTrenchSlotTopCard(player, from.cardIndex);
       if (!c || c.id === 'hidden' || c.rank <= 0) return false;
     } else {
-      const c = player.baseDeck[from.cardIndex];
+      const c = player.backupCards[from.cardIndex];
       if (!c || c.id === 'hidden' || c.rank <= 0) return false;
     }
 
-    // Verify target card validity
-    const tc = player.trenchCards[to.cardIndex];
+    // Verify target card validity (if non-null)
+    const tc = to.type === 'trench'
+      ? getTrenchSlotTopCard(player, to.cardIndex)
+      : player.backupCards[to.cardIndex];
     if (tc && (tc.id === 'hidden' || tc.rank <= 0)) return false;
 
     const slot1 = from.type === 'trench' ? from.cardIndex : 3 + from.cardIndex;
-    const slot2 = to.cardIndex;
+    const slot2 = to.type === 'trench' ? to.cardIndex : 3 + to.cardIndex;
 
     this.executeCardSwap(slot1, slot2);
     this.store.selectTrenchCard(null);
@@ -399,16 +387,37 @@ export class InputHandler {
     const activeSeat = state.activePlayer;
     if (!this.isMyTurn(activeSeat)) return;
 
-    const selectedBase = this.store.selectedBaseCardIndex;
+    const activePlayerState = state.players[activeSeat];
+    if (!activePlayerState) return;
+
+    let selectedBase = this.store.selectedBaseCardIndex;
+    if (selectedBase === null || !activePlayerState.backupCards[selectedBase]) {
+      // If no card is selected, pick highest rank card from active player's backupCards
+      let bestIdx = -1;
+      let highestRank = -1;
+      for (let i = 0; i < 3; i++) {
+        const c = activePlayerState.backupCards[i];
+        if (c && c.id !== 'hidden' && c.rank > highestRank) {
+          highestRank = c.rank;
+          bestIdx = i;
+        }
+      }
+      if (bestIdx !== -1) {
+        selectedBase = bestIdx;
+      }
+    }
     if (selectedBase === null) return;
 
-    const activePlayerState = state.players[activeSeat];
-    const card = activePlayerState?.baseDeck[selectedBase];
+    const card = activePlayerState.backupCards[selectedBase];
     if (!card || card.id === 'hidden' || card.rank <= 0) return;
 
     const teammateSeat = ((activeSeat + 2) % 4) as PlayerSeat;
     const teammateState = state.players[teammateSeat];
-    if (!teammateState || teammateState.baseDeck.length >= 5) return;
+    if (!teammateState) return;
+
+    const teammateCardCount = teammateState.trenchCards.filter(c => c !== null).length +
+      teammateState.backupCards.filter(c => c !== null).length;
+    if (teammateCardCount >= 6) return;
 
     this.store.selectBaseCard(null);
     this.turnManager.dispatchAction({

@@ -137,8 +137,9 @@ export interface EvaluatedHand {
 export interface PlayerState {
   seat: PlayerSeat;
   team: Team;
-  baseDeck: Card[];
-  trenchCards: [Card | null, Card | null, Card | null]; // TRENCH
+  baseDeck: Card[]; // Active reserve cards
+  trenchCards: [Card | null, Card | null, Card | null]; // TRENCH (Top/Active cards: 0=Left, 1=Center, 2=Right)
+  backupCards: [Card | null, Card | null, Card | null]; // Reserve (3 slots: 0=Left, 1=Center, 2=Right)
 }
 
 export enum ActionType {
@@ -158,7 +159,7 @@ export type GameActionType = ActionType | 'MOVE' | 'PROMOTION' | 'CARD_SWAP' | '
 export interface GameAction {
   /** Primary origin field: fromIndex (MOVE) | hillIndex (PROMOTION) | targetIndex (SET_BUNKER) | slot1 (CARD_SWAP) | cardIndex (CARD_PASS) | trenchSlot (REFILL) */
   origin?: number;
-  /** Primary end/target field: toIndex (MOVE) | sourceIndex (SET_BUNKER) | slot2 (CARD_SWAP) | baseCardIndex (REFILL) */
+  /** Primary end/target field: toIndex (MOVE) | slot2 (CARD_SWAP) | baseCardIndex (REFILL) */
   end?: number | null;
   /** Auxiliary piece field: piece to promote to ('R', 'N', 'B', 'K') or piece being moved */
   piece?: PieceType | number;

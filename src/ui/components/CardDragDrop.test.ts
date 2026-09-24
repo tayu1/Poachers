@@ -224,7 +224,7 @@ describe('Card Drag-and-Drop Swapping', () => {
     });
   });
 
-  it('rejects drag drops when the destination is not a Trench card', () => {
+  it('successfully swaps a Trench card into a Base card slot via handleCardDrop', () => {
     const state = store.getState();
     state.setupState.inSetup = false;
     state.activePlayer = PlayerSeat.NORTH;
@@ -232,14 +232,18 @@ describe('Card Drag-and-Drop Swapping', () => {
 
     const dispatchSpy = vi.spyOn(turnManager, 'dispatchAction');
 
-    // Attempting to drop onto a base card (disallowed: per user spec, destinations are strictly trench)
+    // Dropping trench slot 0 onto base slot 1 (3 + 1 = 4)
     const result = inputHandler.handleCardDrop(
       { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 },
       { type: 'base', cardIndex: 1 }
     );
 
-    expect(result).toBe(false);
-    expect(dispatchSpy).not.toHaveBeenCalled();
+    expect(result).toBe(true);
+    expect(dispatchSpy).toHaveBeenCalledWith({
+      type: 'CARD_SWAP',
+      input1: 0,
+      input2: 4
+    });
   });
 
   it('rejects drag drop of trench card onto itself (same index and seat)', () => {
@@ -320,7 +324,7 @@ describe('Card Drag-and-Drop Swapping', () => {
     const dispatchSpy = vi.spyOn(turnManager, 'dispatchAction');
 
     const result = inputHandler.handleCardDrop(
-      { type: 'base', cardIndex: 2 },
+      { type: 'base', cardIndex: 0 },
       { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 1 }
     );
 
@@ -328,7 +332,7 @@ describe('Card Drag-and-Drop Swapping', () => {
     expect(dispatchSpy).toHaveBeenCalledWith({
       type: 'REFILL_TRENCH',
       input1: 1,
-      input2: 2
+      input2: 0
     });
   });
 
@@ -446,5 +450,175 @@ describe('Card Drag-and-Drop Swapping', () => {
     expect(baseCards[0].dataset.cardType).toBe('base');
     expect(baseCards[0].dataset.cardIndex).toBeDefined();
     expect(baseCards[0].style.touchAction).toBe('none');
+  });
+
+  it('allows dragging base card to empty trench slot during pre-turn swap', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.hasSwappedThisTurn = false;
+    state.pendingRefills = [];
+
+    // North has slot 1 empty
+    state.players[PlayerSeat.NORTH].trenchCards[1] = null;
+
+    const dispatchSpy = vi.spyOn(turnManager, 'dispatchAction');
+
+    // Drag base card 0 to empty trench slot 1
+    expect(cardDragManager.canDragCard({ type: 'base', cardIndex: 0 })).toBe(true);
+    expect(cardDragManager.isValidDropTarget(
+      { type: 'base', cardIndex: 0 },
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 1 }
+    )).toBe(true);
+
+    const result = inputHandler.handleCardDrop(
+      { type: 'base', cardIndex: 0 },
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 1 }
+    );
+
+    expect(result).toBe(true);
+    expect(dispatchSpy).toHaveBeenCalledWith({
+      type: 'CARD_SWAP',
+      input1: 3, // Base card index offset by 3
+      input2: 1  // Empty trench slot 1
+    });
+  });
+
+  it('allows dragging filled trench card to empty trench slot during pre-turn swap', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.hasSwappedThisTurn = false;
+    state.pendingRefills = [];
+
+    // North has slot 2 empty, slot 0 has card
+    state.players[PlayerSeat.NORTH].trenchCards[0] = { id: 'C_AS', rank: 14, suit: 'S' };
+    state.players[PlayerSeat.NORTH].trenchCards[2] = null;
+    if (state.players[PlayerSeat.NORTH].backupCards) {
+      state.players[PlayerSeat.NORTH].backupCards[2] = null;
+    }
+
+    const dispatchSpy = vi.spyOn(turnManager, 'dispatchAction');
+
+    expect(cardDragManager.canDragCard({ type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 })).toBe(true);
+    expect(cardDragManager.canDragCard({ type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 2 })).toBe(false); // Empty slot cannot be dragged
+    expect(cardDragManager.isValidDropTarget(
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 },
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 2 }
+    )).toBe(true);
+
+    const result = inputHandler.handleCardDrop(
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 },
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 2 }
+    );
+
+    expect(result).toBe(true);
+    expect(dispatchSpy).toHaveBeenCalledWith({
+      type: 'CARD_SWAP',
+      input1: 0,
+      input2: 2
+    });
+  });
+
+  it('allows dragging from slot of 1 (no cards over it) and allows dragging base card onto it to put card on top open (base->1 fill)', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.hasSwappedThisTurn = false;
+    state.pendingRefills = [];
+
+    // Trench slot 1 has 1 card (in backupCards, topCard is null), and base card 0 has a card
+    state.players[PlayerSeat.NORTH].trenchCards[1] = null;
+    state.players[PlayerSeat.NORTH].backupCards = [{ id: 'base_0', rank: 7, suit: 'D' }, { id: 'backup_1', rank: 10, suit: 'H' }, null];
+
+    const dispatchSpy = vi.spyOn(turnManager, 'dispatchAction');
+
+    // Card in slot of 1 has no card over it, so it CAN be dragged!
+    expect(cardDragManager.canDragCard({ type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 1 })).toBe(true);
+
+    expect(cardDragManager.isValidDropTarget(
+      { type: 'base', cardIndex: 0 },
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 1 }
+    )).toBe(true);
+
+    const result = inputHandler.handleCardDrop(
+      { type: 'base', cardIndex: 0 },
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 1 }
+    );
+
+    expect(result).toBe(true);
+    expect(dispatchSpy).toHaveBeenCalledWith({
+      type: 'CARD_SWAP',
+      input1: 3, // Base card 0 offset by 3
+      input2: 1
+    });
+  });
+
+  it('allows dragging base card to trench slot with 2 cards (swaps top card, base->2 swap) during pre-turn swap', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.hasSwappedThisTurn = false;
+    state.pendingRefills = [];
+
+    // Trench slot 0 has top card AND backup card
+    state.players[PlayerSeat.NORTH].trenchCards[0] = { id: 'top_0', rank: 12, suit: 'S' };
+    state.players[PlayerSeat.NORTH].backupCards = [{ id: 'backup_0', rank: 5, suit: 'D' }, null, null];
+
+    const dispatchSpy = vi.spyOn(turnManager, 'dispatchAction');
+
+    expect(cardDragManager.isValidDropTarget(
+      { type: 'base', cardIndex: 0 },
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 }
+    )).toBe(true);
+
+    const result = inputHandler.handleCardDrop(
+      { type: 'base', cardIndex: 0 },
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 }
+    );
+
+    expect(result).toBe(true);
+    expect(dispatchSpy).toHaveBeenCalledWith({
+      type: 'CARD_SWAP',
+      input1: 3, // Base card 0 offset by 3
+      input2: 0
+    });
+  });
+
+  it('allows dragging between trench slots: 2->2 swap, 1->2 swap, 2->1 fill, 1->1 swap', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.hasSwappedThisTurn = false;
+    state.pendingRefills = [];
+
+    // Slot 0 has 2 cards, Slot 1 has 1 card, Slot 2 has 2 cards
+    state.players[PlayerSeat.NORTH].trenchCards[0] = { id: 'top_0', rank: 10, suit: 'H' };
+    state.players[PlayerSeat.NORTH].backupCards = [
+      { id: 'under_0', rank: 5, suit: 'D' },
+      { id: 'single_1', rank: 8, suit: 'C' },
+      { id: 'under_2', rank: 6, suit: 'S' }
+    ];
+    state.players[PlayerSeat.NORTH].trenchCards[1] = null;
+    state.players[PlayerSeat.NORTH].trenchCards[2] = { id: 'top_2', rank: 14, suit: 'S' };
+
+    // All slots with cards can be dragged because top cards have no cards over them
+    expect(cardDragManager.canDragCard({ type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 })).toBe(true);
+    expect(cardDragManager.canDragCard({ type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 1 })).toBe(true);
+    expect(cardDragManager.canDragCard({ type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 2 })).toBe(true);
+
+    // All trench slots are valid drop targets
+    expect(cardDragManager.isValidDropTarget(
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 },
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 1 }
+    )).toBe(true); // 2 -> 1
+    expect(cardDragManager.isValidDropTarget(
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 1 },
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 2 }
+    )).toBe(true); // 1 -> 2
+    expect(cardDragManager.isValidDropTarget(
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 },
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 2 }
+    )).toBe(true); // 2 -> 2
   });
 });

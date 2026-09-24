@@ -42,9 +42,7 @@ export class GameStore {
   public selectedBaseCardIndex: number | null = null;
   public selectedTrenchCardIndex: number | null = null;
   public selectedPromotionPiece: PieceType | number | null = null;
-  public selectedDraftIndices: number[] = [];
   public isSettingBunker: boolean = false;
-  public sourceBunkerIndex: number | null = null;
   public boardRotationAngle: number = 0; // 0, 90, 180, 270 degrees
   public isReplaying: boolean = false;
   private _isCombatDelaying: boolean = false;
@@ -458,9 +456,8 @@ export class GameStore {
     this.notify();
   }
 
-  public setSettingBunker(isSetting: boolean, sourceIndex: number | null = null): void {
+  public setSettingBunker(isSetting: boolean): void {
     this.isSettingBunker = isSetting;
-    this.sourceBunkerIndex = isSetting ? sourceIndex : null;
     this.notify();
   }
 
@@ -597,7 +594,7 @@ export class GameStore {
     this.selectedBaseCardIndex = null;
     this.selectedTrenchCardIndex = null;
     this.selectedPromotionPiece = null;
-    this.selectedDraftIndices = [];
+    this.isSettingBunker = false;
     this.isReplaying = false;
     resetGlobalMoveSeq();
     this.notify();

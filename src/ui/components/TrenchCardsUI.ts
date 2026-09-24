@@ -1,6 +1,6 @@
 import { Card, GameState, PlayerSeat } from '../../core/types';
 import { GameStore } from '../../store/store';
-import { getTrenchCardIndexForSquare } from '../../core/cards';
+import { getTrenchCardIndexForSquare, normalizePlayerTrenchAndBase } from '../../core/cards';
 import { CARD_ANIMATION_TIME_MS } from '../../config';
 import { CardDragManager } from './CardDragManager';
 
@@ -35,6 +35,7 @@ const CLOCKWISE_PERIMETER_SLOTS: PerimeterSlotRef[] = [
 interface SlotElementHolder {
   cardEl: HTMLElement;
   slotBayEl: HTMLElement;
+  underEl: HTMLElement;
   innerEl: HTMLElement;
   valEl: HTMLElement;
   suitEl: HTMLElement;
@@ -119,6 +120,10 @@ export class TrenchCardsUI {
       const slotBayEl = document.createElement('div');
       slotBayEl.className = 'card-slot-bay';
 
+      const underEl = document.createElement('div');
+      underEl.className = 'card-under-face card-back face-down';
+      underEl.style.display = 'none';
+
       const innerEl = document.createElement('div');
       innerEl.className = 'card-inner-face';
 
@@ -132,6 +137,7 @@ export class TrenchCardsUI {
       innerEl.appendChild(suitEl);
 
       cardEl.appendChild(slotBayEl);
+      cardEl.appendChild(underEl);
       cardEl.appendChild(innerEl);
 
       cardEl.addEventListener('click', () => {
@@ -152,7 +158,7 @@ export class TrenchCardsUI {
         });
       });
 
-      const holder: SlotElementHolder = { cardEl, slotBayEl, innerEl, valEl, suitEl };
+      const holder: SlotElementHolder = { cardEl, slotBayEl, underEl, innerEl, valEl, suitEl };
       this.slotHolders.set(slotIdx, holder);
       return holder;
     };
@@ -250,6 +256,12 @@ export class TrenchCardsUI {
       this.initDOMStructure();
     }
 
+    for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST]) {
+      if (state.players && state.players[seat]) {
+        normalizePlayerTrenchAndBase(state.players[seat]);
+      }
+    }
+
     const rotationStep = Math.floor((store.boardRotationAngle % 360) / 90);
     const isDrafting = Boolean(state.setupState?.inSetup);
     const isRefillStage = state.pendingRefills.length > 0;
@@ -299,7 +311,23 @@ export class TrenchCardsUI {
       this.slotClickTargets.set(slotIdx, { seat: ref.seat, cardIndex: ref.cardIndex });
 
       const player = state.players[ref.seat];
-      const actualCard = player.trenchCards[ref.cardIndex];
+      const topCard = player.trenchCards[ref.cardIndex];
+      const backupCard = player.backupCards ? player.backupCards[ref.cardIndex] : null;
+
+      const isCombatParticipant = Boolean(state.pendingCombat)
+        ? (player.team === 'A' ? ref.cardIndex === teamACombatSlot : ref.cardIndex === teamBCombatSlot)
+        : true;
+
+      // When there is a top card, it is shown on top, and any backup card is underneath (closed).
+      // A card can be in base position i only if trench i is full; otherwise it jumps from base i to trench i.
+      const actualCard = topCard;
+      const hasBackup = Boolean(topCard !== null && backupCard !== null);
+
+      if (hasBackup) {
+        holder.underEl.style.display = 'block';
+      } else {
+        holder.underEl.style.display = 'none';
+      }
 
       holder.cardEl.dataset.cardType = 'trench';
       holder.cardEl.dataset.seat = String(ref.seat);
@@ -318,11 +346,8 @@ export class TrenchCardsUI {
       const isWinning = actualCard !== null && winningCardIds.has(actualCard.id);
       const isStrongGreen = (isDrafting && ref.seat === activeSeat && ref.cardIndex === draftTargetSlotIdx) ||
                             (isRefillStage && ref.seat === activeSeat && (ref.cardIndex === state.pendingRefills[0].slot || (isEmptySlot && isRefillTargetSlot)));
-      const isMildSwap = isSwapAvailable && ref.seat === state.activePlayer;
+      const isMildSwap = isSwapAvailable && ref.seat === state.activePlayer && actualCard !== null;
 
-      const isCombatParticipant = Boolean(state.pendingCombat)
-        ? (player.team === 'A' ? ref.cardIndex === teamACombatSlot : ref.cardIndex === teamBCombatSlot)
-        : true;
       const isDimmed = Boolean(state.pendingCombat) && !isCombatParticipant;
 
       let highlightClass = '';
@@ -338,7 +363,7 @@ export class TrenchCardsUI {
         highlightClass = `${highlightClass} card-dimmed`.trim();
       }
 
-      const cardKey = isEmptySlot ? 'empty' : (isFaceDown ? `facedown-${actualCard.id}` : actualCard.id);
+      const cardKey = isEmptySlot ? (hasBackup ? 'backup-only' : 'empty') : (isFaceDown ? `facedown-${actualCard.id}` : actualCard.id);
       const prevKey = this.lastCardKeys.get(slotIdx);
       const isCardChanged = prevKey !== undefined && prevKey !== cardKey;
 
@@ -347,8 +372,9 @@ export class TrenchCardsUI {
       const selectedClass = isSelected ? ' selected' : '';
       const emptyClass = isEmptySlot ? ' card-empty' : '';
       const faceDownClass = isFaceDown ? ' card-back face-down' : '';
+      const backupClass = hasBackup ? ' has-backup' : '';
 
-      holder.cardEl.className = `trench-card ${teamClass}${emptyClass}${faceDownClass} ${colorClass}${selectedClass} ${highlightClass}`.trim();
+      holder.cardEl.className = `trench-card ${teamClass}${emptyClass}${faceDownClass} ${colorClass}${selectedClass} ${highlightClass}${backupClass}`.trim();
 
       // Confined 2-phase swap animation: slide out old card to the right, delay, then slide in new card from the right
       if (canAnimate && isCardChanged && !isEmptySlot && prevKey !== 'empty') {

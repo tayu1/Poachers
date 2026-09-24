@@ -309,5 +309,148 @@ describe('Card Switch Animation (Trench Cards)', () => {
 
     vi.useRealTimers();
   });
+
+  it('TrenchCardsUI correctly retains has-backup class and toggles underEl when backup cards exist', () => {
+    const trenchUI = new TrenchCardsUI(containers, () => {});
+    const state = store.getState();
+    state.setupState.inSetup = false;
+
+    // Slot 0 has a backup card; Slot 1 does not
+    state.players[PlayerSeat.NORTH].trenchCards[0] = { id: 'C_10_H', suit: 'H', rank: 10 };
+    state.players[PlayerSeat.NORTH].trenchCards[1] = { id: 'C_11_S', suit: 'S', rank: 11 };
+    state.players[PlayerSeat.NORTH].backupCards = [{ id: 'C_5_D', suit: 'D', rank: 5 }, null, null];
+
+    trenchUI.render(state, store);
+
+    const northSlots = (containers.north as unknown as MockElement).querySelectorAll('.trench-card');
+    const slot0 = northSlots[0];
+    const slot1 = northSlots[1];
+
+    expect(slot0.classList.contains('has-backup')).toBe(true);
+    const under0 = slot0.querySelector('.card-under-face');
+    expect(under0).toBeTruthy();
+    expect((under0 as any).style.display).toBe('block');
+
+    expect(slot1.classList.contains('has-backup')).toBe(false);
+    const under1 = slot1.querySelector('.card-under-face');
+    expect(under1).toBeTruthy();
+    expect((under1 as any).style.display).toBe('none');
+  });
+
+  it('TrenchCardsUI automatically replaces top card with backup card (open face-up) when top card is used', () => {
+    vi.useFakeTimers();
+    const trenchUI = new TrenchCardsUI(containers, () => {});
+    const state = store.getState();
+    state.setupState.inSetup = false;
+
+    // Slot 0 top card was used (topCard is null), backup card exists
+    state.players[PlayerSeat.NORTH].trenchCards[0] = null;
+    state.players[PlayerSeat.NORTH].backupCards = [{ id: 'C_9_H', suit: 'H', rank: 9 }, null, null];
+
+    trenchUI.render(state, store);
+
+    const northSlots = (containers.north as unknown as MockElement).querySelectorAll('.trench-card');
+    const slot0 = northSlots[0];
+
+    // Backup card automatically replaces top trench card: open face-up, not empty, no under card facing down
+    expect(slot0.classList.contains('card-empty')).toBe(false);
+    expect(slot0.classList.contains('has-backup')).toBe(false);
+    const under0 = slot0.querySelector('.card-under-face');
+    const inner0 = slot0.querySelector('.card-inner-face');
+    expect((under0 as any).style.display).toBe('none');
+    expect((inner0 as any).style.display).toBe('block');
+    expect(inner0.querySelector('.card-val-top')?.textContent).toBe('9');
+
+    // When a top card is added over it, underEl becomes visible (closed underneath) and innerEl displays top card
+    state.players[PlayerSeat.NORTH].trenchCards[0] = { id: 'C_10_S', suit: 'S', rank: 10 };
+    state.players[PlayerSeat.NORTH].backupCards[0] = { id: 'C_9_H', suit: 'H', rank: 9 };
+    trenchUI.render(state, store);
+
+    // Fast-forward animation
+    vi.advanceTimersByTime(CARD_ANIMATION_TIME_MS * 2);
+
+    expect(slot0.classList.contains('card-empty')).toBe(false);
+    expect(slot0.classList.contains('has-backup')).toBe(true);
+    expect((under0 as any).style.display).toBe('block');
+    expect((inner0 as any).style.display).toBe('block');
+    expect(inner0.querySelector('.card-val-top')?.textContent).toBe('10');
+
+    // When the top card is used again (becomes null), backup card replaces it face-up, underEl hidden
+    state.players[PlayerSeat.NORTH].trenchCards[0] = null;
+    trenchUI.render(state, store);
+    vi.advanceTimersByTime(CARD_ANIMATION_TIME_MS * 2);
+
+    expect(slot0.classList.contains('card-empty')).toBe(false);
+    expect(slot0.classList.contains('has-backup')).toBe(false);
+    expect((under0 as any).style.display).toBe('none');
+    expect((inner0 as any).style.display).toBe('block');
+    expect(inner0.querySelector('.card-val-top')?.textContent).toBe('9');
+
+    vi.useRealTimers();
+  });
+
+  it('TrenchCardsUI correctly matches closed under cards to each player base backup slots (North, East, South, West)', () => {
+    const trenchUI = new TrenchCardsUI(containers, () => {});
+    const state = store.getState();
+    state.setupState.inSetup = false;
+
+    // Give each player top cards in their 3 slots
+    for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST]) {
+      state.players[seat].trenchCards = [
+        { id: `T_${seat}_0`, suit: 'H', rank: 10 },
+        { id: `T_${seat}_1`, suit: 'S', rank: 11 },
+        { id: `T_${seat}_2`, suit: 'D', rank: 12 }
+      ];
+    }
+
+    // Configure distinct backup slots for all 4 seats:
+    // North: backup in slot 0 only
+    state.players[PlayerSeat.NORTH].backupCards = [{ id: 'N_0', suit: 'H', rank: 5 }, null, null];
+    // East: backup in slot 1 only
+    state.players[PlayerSeat.EAST].backupCards = [null, { id: 'E_1', suit: 'S', rank: 6 }, null];
+    // South: backup in slot 2 only
+    state.players[PlayerSeat.SOUTH].backupCards = [null, null, { id: 'S_2', suit: 'D', rank: 7 }];
+    // West: backup in slot 0 and 2
+    state.players[PlayerSeat.WEST].backupCards = [{ id: 'W_0', suit: 'C', rank: 8 }, null, { id: 'W_2', suit: 'H', rank: 9 }];
+
+    trenchUI.render(state, store);
+
+    const getUnderDisplays = (container: MockElement) => {
+      const slots = container.querySelectorAll('.trench-card');
+      return Array.from(slots).map(slot => {
+        const under = slot.querySelector('.card-under-face');
+        const hasBackup = slot.classList.contains('has-backup');
+        return { display: (under as any).style.display, hasBackup, cardIndex: slot.dataset.cardIndex };
+      });
+    };
+
+    const northData = getUnderDisplays(containers.north as unknown as MockElement);
+    const eastData = getUnderDisplays(containers.east as unknown as MockElement);
+    const southData = getUnderDisplays(containers.south as unknown as MockElement);
+    const westData = getUnderDisplays(containers.west as unknown as MockElement);
+
+    // North slots 0, 1, 2
+    expect(northData.find(d => d.cardIndex === '0')?.display).toBe('block');
+    expect(northData.find(d => d.cardIndex === '0')?.hasBackup).toBe(true);
+    expect(northData.find(d => d.cardIndex === '1')?.display).toBe('none');
+    expect(northData.find(d => d.cardIndex === '2')?.display).toBe('none');
+
+    // East slots 0, 1, 2
+    expect(eastData.find(d => d.cardIndex === '0')?.display).toBe('none');
+    expect(eastData.find(d => d.cardIndex === '1')?.display).toBe('block');
+    expect(eastData.find(d => d.cardIndex === '1')?.hasBackup).toBe(true);
+    expect(eastData.find(d => d.cardIndex === '2')?.display).toBe('none');
+
+    // South slots 0, 1, 2
+    expect(southData.find(d => d.cardIndex === '0')?.display).toBe('none');
+    expect(southData.find(d => d.cardIndex === '1')?.display).toBe('none');
+    expect(southData.find(d => d.cardIndex === '2')?.display).toBe('block');
+    expect(southData.find(d => d.cardIndex === '2')?.hasBackup).toBe(true);
+
+    // West slots 0, 1, 2
+    expect(westData.find(d => d.cardIndex === '0')?.display).toBe('block');
+    expect(westData.find(d => d.cardIndex === '1')?.display).toBe('none');
+    expect(westData.find(d => d.cardIndex === '2')?.display).toBe('block');
+  });
 });
 

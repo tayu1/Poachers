@@ -65,7 +65,8 @@ const baseDeckUI = new BaseDeckUI(
   (index: number) => inputHandler.handleBaseCardClick(index),
   (piece) => inputHandler.handlePromotePawn(piece),
   () => inputHandler.handlePassCard(),
-  cardDragManager
+  cardDragManager,
+  () => inputHandler.handleBunkerButtonClick()
 );
 
 const publicCardsUI = new PublicCardsUI(document.getElementById('flop-panel')!);

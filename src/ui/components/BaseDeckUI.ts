@@ -1,6 +1,9 @@
 import { getValidPromotionOptions } from '../../core/engine';
+import { MAX_BUNKERS_PER_PLAYER } from '../../core/constants';
+import { getPlayerBunkerCount } from '../../core/moves';
 import { formatCombatAnnouncementText, getSeatCode } from '../../core/notation';
 import { Card, GameState, PieceType, PlayerSeat, getPieceType } from '../../core/types';
+import { normalizePlayerTrenchAndBase } from '../../core/cards';
 import { GameStore } from '../../store/store';
 import { buildPieceRow } from './CapturesUI';
 import { CardDragManager } from './CardDragManager';
@@ -16,6 +19,7 @@ export class BaseDeckUI {
   private onBaseCardClick: (index: number) => void;
   private onPromoteClick: (piece: PieceType | number) => void;
   private onPassCardClick?: () => void;
+  private onBunkerClick?: () => void;
   private cardDragManager?: CardDragManager;
 
   // Cached DOM elements
@@ -23,6 +27,7 @@ export class BaseDeckUI {
   private combatWrapper: HTMLElement | null = null;
   private combatText: HTMLElement | null = null;
   private cardsRow: HTMLElement | null = null;
+  private bunkerBtn: HTMLButtonElement | null = null;
   private passBtn: HTMLButtonElement | null = null;
   private promoWrapper: HTMLElement | null = null;
   private cardHolders: BaseCardElementHolder[] = [];
@@ -33,13 +38,15 @@ export class BaseDeckUI {
     onBaseCardClick: (index: number) => void,
     onPromoteClick: (piece: PieceType | number) => void,
     onPassCardClick?: () => void,
-    cardDragManager?: CardDragManager
+    cardDragManager?: CardDragManager,
+    onBunkerClick?: () => void
   ) {
     this.container = container;
     this.onBaseCardClick = onBaseCardClick;
     this.onPromoteClick = onPromoteClick;
     this.onPassCardClick = onPassCardClick;
     this.cardDragManager = cardDragManager;
+    this.onBunkerClick = onBunkerClick;
   }
 
   private initDOMStructure(): void {
@@ -54,6 +61,7 @@ export class BaseDeckUI {
     this.mainWrapper.style.gap = '4px';
     this.mainWrapper.style.width = '100%';
     this.mainWrapper.style.height = '100%';
+    this.mainWrapper.style.position = 'relative';
 
     this.combatWrapper = document.createElement('div');
     this.combatWrapper.className = 'combat-announcement-wrapper';
@@ -90,9 +98,22 @@ export class BaseDeckUI {
       }
     });
 
+    this.bunkerBtn = document.createElement('button');
+    this.bunkerBtn.className = 'bunker-action-btn';
+    this.bunkerBtn.innerHTML = '<span class="bunker-btn-icon">⛊</span>';
+    this.bunkerBtn.title = 'Bunker a piece on your half of the board';
+    this.bunkerBtn.style.display = 'none';
+    this.bunkerBtn.addEventListener('click', (e: MouseEvent) => {
+      e.stopPropagation();
+      if (this.onBunkerClick) {
+        this.onBunkerClick();
+      }
+    });
+
     this.mainWrapper.appendChild(this.combatWrapper);
     this.mainWrapper.appendChild(this.cardsRow);
-    this.cardsRow.appendChild(this.passBtn);
+    this.mainWrapper.appendChild(this.bunkerBtn);
+    this.mainWrapper.appendChild(this.passBtn);
     this.cardsRow.appendChild(this.promoWrapper);
 
     this.container.appendChild(this.mainWrapper);
@@ -151,6 +172,7 @@ export class BaseDeckUI {
             this.combatText.innerText = '';
             this.combatWrapper.style.display = 'flex';
             this.cardsRow.style.display = 'none';
+            if (this.bunkerBtn) this.bunkerBtn.style.display = 'none';
           }
           return;
         }
@@ -165,6 +187,7 @@ export class BaseDeckUI {
           this.combatText.innerText = text;
           this.combatWrapper.style.display = 'flex';
           this.cardsRow.style.display = 'none';
+          if (this.bunkerBtn) this.bunkerBtn.style.display = 'none';
         }
         return;
       }
@@ -173,17 +196,13 @@ export class BaseDeckUI {
     if (this.combatWrapper) this.combatWrapper.style.display = 'none';
     if (this.cardsRow) this.cardsRow.style.display = 'flex';
     if (this.passBtn && (state.pendingCombat || store.isCombatDelaying)) this.passBtn.style.display = 'none';
+    if (this.bunkerBtn && (state.pendingCombat || store.isCombatDelaying)) this.bunkerBtn.style.display = 'none';
 
-    const activePlayerSeat = state.pendingRefills.length > 0
-      ? state.pendingRefills[0].seat
-      : (state.setupState?.inSetup
-        ? (
-          ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s) && (store.mySeats?.includes(s) || store.mySeat === s)) ??
-          ([PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST] as PlayerSeat[]).find(s => !state.setupState.setupCompletedSeats.includes(s)) ??
-          state.activePlayer
-        )
-        : state.activePlayer);
+    const activePlayerSeat = state.pendingRefills[0]?.seat ?? state.activePlayer;
     const activePlayerState = state.players[activePlayerSeat];
+    if (activePlayerState) {
+      normalizePlayerTrenchAndBase(activePlayerState);
+    }
     const isBotTurn = store.botSeats[activePlayerSeat];
     const teamClass = activePlayerState.team === 'A' ? 'card-team-a' : 'card-team-b';
 
@@ -191,25 +210,20 @@ export class BaseDeckUI {
     const isRefillStage = state.pendingRefills.length > 0 && !isBotTurn && isMySeatOrLocal;
     const isSwapAvailable = !store.isReplaying && !state.setupState?.inSetup && !state.hasSwappedThisTurn && !isBotTurn && isMySeatOrLocal;
 
-    // Pair each card with its original slot index, then sort high → low by rank for display
-    const sortedCards = activePlayerState.baseDeck
-      .map((c, idx) => ({ card: c, originalIdx: idx }))
-      .filter((entry): entry is { card: Card; originalIdx: number } => Boolean(entry.card))
-      .sort((a, b) => b.card.rank - a.card.rank);
+    // Display exactly 3 fixed positional slots: Left (0), Center (1), Right (2) - not sorted by rank
+    const backupList: (Card | null)[] = activePlayerState.backupCards;
 
-    this.cardTargetIndices = [];
+    this.cardTargetIndices = [0, 1, 2];
 
-    sortedCards.forEach(({ card, originalIdx }, idx) => {
-      this.cardTargetIndices[idx] = originalIdx;
-      const holder = this.getOrCreateCardHolder(idx);
+    for (let slotIdx = 0; slotIdx < 3; slotIdx++) {
+      const card = backupList[slotIdx] ?? null;
+      const holder = this.getOrCreateCardHolder(slotIdx);
 
       holder.cardEl.dataset.cardType = 'base';
-      holder.cardEl.dataset.cardIndex = String(originalIdx);
+      holder.cardEl.dataset.cardIndex = String(slotIdx);
 
       if (!holder.cardEl.parentNode && this.cardsRow) {
-        if (this.passBtn) {
-          this.cardsRow.insertBefore(holder.cardEl, this.passBtn);
-        } else if (this.promoWrapper) {
+        if (this.promoWrapper) {
           this.cardsRow.insertBefore(holder.cardEl, this.promoWrapper);
         } else {
           this.cardsRow.appendChild(holder.cardEl);
@@ -217,9 +231,18 @@ export class BaseDeckUI {
       }
       holder.cardEl.style.display = 'block';
 
-      const isHiddenCard = !card || card.id === 'hidden' || card.rank <= 0;
+      if (!card) {
+        // Empty slot
+        holder.cardEl.className = `trench-card card-empty ${teamClass}`;
+        holder.cardEl.style.cursor = isSwapAvailable ? 'pointer' : 'default';
+        holder.valEl.style.display = 'none';
+        holder.suitEl.style.display = 'none';
+        continue;
+      }
+
+      const isHiddenCard = card.id === 'hidden' || card.rank <= 0;
       const isFaceDown = isBotTurn || !isMySeatOrLocal || isHiddenCard;
-      const isSelected = !isFaceDown && store.selectedBaseCardIndex === originalIdx;
+      const isSelected = !isFaceDown && store.selectedBaseCardIndex === slotIdx;
 
       if (isFaceDown) {
         holder.cardEl.className = `trench-card card-back face-down ${teamClass}`;
@@ -253,10 +276,10 @@ export class BaseDeckUI {
         holder.suitEl.textContent = suitSymbol;
         holder.suitEl.style.display = 'block';
       }
-    });
+    }
 
-    // Hide any unused cached card elements
-    for (let i = sortedCards.length; i < this.cardHolders.length; i++) {
+    // Hide any unused cached card elements (index >= 3)
+    for (let i = 3; i < this.cardHolders.length; i++) {
       if (this.cardHolders[i]) {
         this.cardHolders[i].cardEl.style.display = 'none';
       }
@@ -268,21 +291,38 @@ export class BaseDeckUI {
 
     const teammateSeat = ((activePlayerSeat + 2) % 4) as PlayerSeat;
     const teammateState = state.players[teammateSeat];
-    const teammateHasSpace = Boolean(teammateState && teammateState.baseDeck.length < 5);
+    const teammateCardCount = teammateState
+      ? (teammateState.trenchCards.filter(c => c !== null).length + teammateState.backupCards.filter(c => c !== null).length)
+      : 6;
+    const teammateHasSpace = teammateCardCount < 6;
 
-    const hasSelectedBaseCard = store.selectedBaseCardIndex !== null &&
-      Boolean(activePlayerState.baseDeck[store.selectedBaseCardIndex]);
-
-    const canPass = isPlayerTurnNow && !state.hasSwappedThisTurn && hasSelectedBaseCard && teammateHasSpace;
+    const hasCardsToPass = activePlayerState.backupCards.some(c => c !== null && c.id !== 'hidden' && c.rank > 0);
+    const canPass = isPlayerTurnNow && !state.hasSwappedThisTurn && hasCardsToPass && teammateHasSpace;
 
     if (this.passBtn) {
       if (canPass) {
         this.passBtn.style.display = 'inline-flex';
-        this.passBtn.className = `pass-card-btn ${activePlayerState.team === 'A' ? 'team-a' : 'team-b'}`;
+        const teamCls = activePlayerState.team === 'A' ? 'team-a' : 'team-b';
+        this.passBtn.className = `pass-card-btn ${teamCls}`;
         const teammateCode = getSeatCode(teammateSeat);
         this.passBtn.title = `Pass card to teammate (${teammateCode})`;
       } else {
         this.passBtn.style.display = 'none';
+      }
+    }
+
+    if (this.bunkerBtn) {
+      if (isPlayerTurnNow) {
+        this.bunkerBtn.style.display = 'inline-flex';
+        const teamCls = activePlayerState.team === 'A' ? 'team-a' : 'team-b';
+        const currentBunkers = getPlayerBunkerCount(state.board, activePlayerSeat);
+        const isAtMax = currentBunkers >= MAX_BUNKERS_PER_PLAYER;
+        this.bunkerBtn.className = `bunker-action-btn ${teamCls}${store.isSettingBunker ? ' active' : ''}${isAtMax ? ' disabled' : ''}`;
+        this.bunkerBtn.title = isAtMax
+          ? `Maximum bunkers reached (${currentBunkers}/${MAX_BUNKERS_PER_PLAYER})`
+          : `Bunker a piece on your half (${currentBunkers}/${MAX_BUNKERS_PER_PLAYER})`;
+      } else {
+        this.bunkerBtn.style.display = 'none';
       }
     }
 

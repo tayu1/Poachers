@@ -1,6 +1,6 @@
 import { DEFAULT_BOT_PROFILE, getBestBotAction } from '../bot/bot';
 import { DEFAULT_TURN_TIME_LIMIT, POST_COMBAT_DELAY_MS, TURN_RIVER_DELAY_MS } from '../config';
-import { applyAction, completePostCombat, executeCombatResolution, getRandomLegalAction, executeTrenchSingleCardSelect, GameAction } from '../core/engine';
+import { applyAction, completePostCombat, executeCombatResolution, getRandomLegalAction, executeTrenchSingleCardSelect, GameAction, autoFillEmptySlots } from '../core/engine';
 import { getSeatCode } from '../core/notation';
 import { actionIntToGameAction, ActionType, GameState, PlayerSeat, Team, TurnPhase } from '../core/types';
 import { socketClient } from '../net/socketClient';
@@ -297,6 +297,9 @@ export class TurnManager {
       return;
     }
 
+    // Pre-pre-turn auto slot fill for active player
+    autoFillEmptySlots(state, state.activePlayer);
+
     // Auto-refill for bot seats
     this.checkAndTriggerAutoRefill(state);
 
@@ -334,7 +337,7 @@ export class TurnManager {
       if (player.baseDeck.length > 0) {
         let maxIdx = 0;
         for (let i = 1; i < player.baseDeck.length; i++) {
-          if (player.baseDeck[i].rank > player.baseDeck[maxIdx].rank) {
+          if (player.baseDeck[i] && player.baseDeck[maxIdx] && player.baseDeck[i]!.rank > player.baseDeck[maxIdx]!.rank) {
             maxIdx = i;
           }
         }

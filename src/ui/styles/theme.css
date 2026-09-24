@@ -182,6 +182,21 @@
   --card-border-team-b-color: var(--team-b-color);
   --combat-dimmed-opacity: 0.75;
 
+  /* Double Card Trench Slots: Backup Card Stack Offset Controls */
+  --bco_offset: 8px;
+  --backup-card-offset-north-x: 0px;
+  --backup-card-offset-north-y: calc(-1 * var(--bco_offset, 8px));
+
+  --backup-card-offset-south-x: 0px;
+  --backup-card-offset-south-y: var(--bco_offset, 8px);
+
+  --backup-card-offset-east-x: var(--bco_offset, 8px);
+  --backup-card-offset-east-y: 0px;
+
+  --backup-card-offset-west-x: calc(-1 * var(--bco_offset, 8px));
+  --backup-card-offset-west-y: 0px;
+
+
   /* Chosen Card for Swapping Controls */
   --chosen-swap-card-border-color: #fff6c6;
   --chosen-swap-card-border-width: 2.5px;
@@ -314,15 +329,19 @@ select,
 
 /* Pass Card Button */
 .pass-card-btn {
+  position: absolute;
+  left: 52px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   font-size: 16px;
   line-height: 1;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid var(--panel-border, rgba(148, 163, 184, 0.3));
   background: rgba(15, 23, 42, 0.85);
   color: #cbd5e1;
@@ -330,11 +349,19 @@ select,
   user-select: none;
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  margin-left: 4px;
+  z-index: 2;
+}
+
+.pass-card-btn .pass-btn-icon {
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pass-card-btn:hover {
-  transform: translateY(-1px);
+  transform: translateY(calc(-50% - 1px));
   color: #ffffff;
 }
 
@@ -365,5 +392,95 @@ select,
 }
 
 .pass-card-btn:active {
-  transform: translateY(0);
+  transform: translateY(-50%);
+}
+
+.pass-card-btn.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+  pointer-events: none;
+}
+
+.pass-card-btn.disabled:hover {
+  transform: translateY(-50%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Bunker Action Button */
+.bunker-action-btn {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border, rgba(148, 163, 184, 0.3));
+  background: rgba(15, 23, 42, 0.85);
+  color: #cbd5e1;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+
+.bunker-action-btn .bunker-btn-icon {
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bunker-action-btn:hover {
+  transform: translateY(calc(-50% - 1px));
+  color: #ffffff;
+}
+
+.bunker-action-btn.team-a {
+  border-color: rgba(245, 158, 11, 0.6);
+  color: var(--accent-gold, #f59e0b);
+}
+
+.bunker-action-btn.team-a:hover,
+.bunker-action-btn.team-a.active {
+  background: var(--accent-gold, #f59e0b);
+  color: #0f172a;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+.bunker-action-btn.team-b {
+  border-color: rgba(6, 182, 212, 0.6);
+  color: var(--accent-cyan, #06b6d4);
+}
+
+.bunker-action-btn.team-b:hover,
+.bunker-action-btn.team-b.active {
+  background: var(--accent-cyan, #06b6d4);
+  color: #0f172a;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+}
+
+.bunker-action-btn:active {
+  transform: translateY(-50%);
+}
+
+.bunker-action-btn.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+  pointer-events: none;
+}
+
+.bunker-action-btn.disabled:hover {
+  transform: translateY(-50%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }

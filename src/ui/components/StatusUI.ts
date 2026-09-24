@@ -338,10 +338,14 @@ export class StatusUI {
         el.hillLed.style.opacity = '0.3';
       }
 
-      // Base Deck count
-      const baseDeckCount = playerState?.baseDeck ? playerState.baseDeck.length : 0;
-      el.baseDeckBox.innerText = `${baseDeckCount}`;
-      el.baseDeckBox.title = `Base Deck: ${baseDeckCount} cards`;
+      // Total cards count (Trench cards + Backup cards: 0-6)
+      const trenchCount = playerState?.trenchCards ? playerState.trenchCards.filter(c => c !== null).length : 0;
+      const backupCount = playerState?.backupCards
+        ? playerState.backupCards.filter(c => c !== null).length
+        : (playerState?.baseDeck ? playerState.baseDeck.length : 0);
+      const totalCardCount = trenchCount + backupCount;
+      el.baseDeckBox.innerText = `${totalCardCount}`;
+      el.baseDeckBox.title = `Total Cards: ${totalCardCount} (Trench: ${trenchCount}, Backup: ${backupCount})`;
     });
 
     this.startTimerCountdown(store);

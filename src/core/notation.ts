@@ -278,7 +278,10 @@ export function formatSetBunkerText(originIndex: number, endIndex?: number | nul
   const fromStr = (originIndex !== undefined && originIndex !== null && originIndex !== -1)
     ? indexToAlgebraic(originIndex)
     : '0';
-  const toStr = (endIndex !== undefined && endIndex !== null && endIndex !== -1 && endIndex !== 0)
+  if (endIndex === undefined || endIndex === null || endIndex === originIndex) {
+    return `bunker . ${fromStr}`;
+  }
+  const toStr = (endIndex !== -1 && endIndex !== 0)
     ? indexToAlgebraic(endIndex)
     : '0';
   return `bunker . ${fromStr}->${toStr}`;

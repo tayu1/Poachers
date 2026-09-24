@@ -213,7 +213,7 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
     }
   });
 
-  it('BaseDeckUI renders pass button when a card is selected and teammate has < 5 cards', () => {
+  it('BaseDeckUI renders pass button when a card is selected and teammate has < 3 cards', () => {
     const container = document.createElement('div') as unknown as MockElement;
     const onPassSpy = vi.fn();
     const baseDeckUI = new BaseDeckUI(container as unknown as HTMLElement, () => {}, () => {}, onPassSpy);
@@ -223,8 +223,9 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
 
     // Active player is North, teammate is South
     state.activePlayer = PlayerSeat.NORTH;
-    // South has only 3 cards (< 5)
-    state.players[PlayerSeat.SOUTH].baseDeck = state.players[PlayerSeat.SOUTH].baseDeck.slice(0, 3);
+    // South has 2 cards (< 3)
+    state.players[PlayerSeat.SOUTH].baseDeck = state.players[PlayerSeat.SOUTH].baseDeck.slice(0, 2);
+    state.players[PlayerSeat.SOUTH].backupCards[2] = null;
     // North selects card index 0
     store.selectedBaseCardIndex = 0;
 
@@ -240,7 +241,7 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
     expect(onPassSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('BaseDeckUI hides pass button when teammate already has 5 cards', () => {
+  it('BaseDeckUI hides pass button when teammate already has 3 cards', () => {
     const container = document.createElement('div') as unknown as MockElement;
     const baseDeckUI = new BaseDeckUI(container as unknown as HTMLElement, () => {}, () => {});
     const state = createInitialGameState({ skipSetup: true });
@@ -248,8 +249,8 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
     store.botSeats[PlayerSeat.NORTH] = false;
 
     state.activePlayer = PlayerSeat.NORTH;
-    // South already has 5 cards
-    expect(state.players[PlayerSeat.SOUTH].baseDeck.length).toBe(5);
+    // South already has 3 cards
+    expect(state.players[PlayerSeat.SOUTH].baseDeck.length).toBe(3);
     // North selects card
     store.selectedBaseCardIndex = 0;
 
@@ -275,6 +276,39 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
 
     const passBtn = container.querySelector('.pass-card-btn');
     expect(passBtn?.style.display).toBe('none');
+  });
+
+  it('BaseDeckUI renders bunker button left of base cards on active player turn', () => {
+    const container = document.createElement('div') as unknown as MockElement;
+    let bunkerClicked = false;
+    const baseDeckUI = new BaseDeckUI(
+      container as unknown as HTMLElement,
+      () => {},
+      () => {},
+      undefined,
+      undefined,
+      () => { bunkerClicked = true; }
+    );
+    const state = createInitialGameState({ skipSetup: true });
+    const store = new GameStore();
+    store.botSeats[PlayerSeat.NORTH] = false;
+    state.activePlayer = PlayerSeat.NORTH;
+
+    baseDeckUI.render(state, store);
+
+    const bunkerBtn = container.querySelector('.bunker-action-btn') as HTMLElement;
+    expect(bunkerBtn).not.toBeNull();
+    expect(bunkerBtn.style.display).toBe('inline-flex');
+    expect(bunkerBtn.className).toContain('team-a');
+
+    // Test click handler
+    bunkerBtn.click();
+    expect(bunkerClicked).toBe(true);
+
+    // When store.isSettingBunker is true, it should have the 'active' class
+    store.isSettingBunker = true;
+    baseDeckUI.render(state, store);
+    expect(bunkerBtn.className).toContain('active');
   });
 
   it('CapturesUI highlights Team A box border with #f59e0b when Team A is active', () => {

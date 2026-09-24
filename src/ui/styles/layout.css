@@ -118,8 +118,16 @@
   flex-shrink: 0;
 }
 
-.trench-row-north,
+.trench-row-north {
+  --backup-offset-x: var(--backup-card-offset-north-x, 0px);
+  --backup-offset-y: var(--backup-card-offset-north-y, -8px);
+  width: 432px;
+  height: 58px;
+}
+
 .trench-row-south {
+  --backup-offset-x: var(--backup-card-offset-south-x, 0px);
+  --backup-offset-y: var(--backup-card-offset-south-y, 8px);
   width: 432px;
   height: 58px;
 }
@@ -130,8 +138,16 @@
   justify-content: center;
 }
 
-.trench-col-west,
+.trench-col-west {
+  --backup-offset-x: var(--backup-card-offset-west-x, -8px);
+  --backup-offset-y: var(--backup-card-offset-west-y, 0px);
+  width: 50px;
+  height: 432px;
+}
+
 .trench-col-east {
+  --backup-offset-x: var(--backup-card-offset-east-x, 8px);
+  --backup-offset-y: var(--backup-card-offset-east-y, 0px);
   width: 50px;
   height: 432px;
 }
@@ -690,15 +706,23 @@
   background: var(--bg-card-face, rgb(244, 217, 148));
   border-radius: 4px;
   position: relative;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   font-family: var(--font-heading), 'Outfit', sans-serif;
   font-weight: 700;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.25s ease, filter 0.25s ease;
+  transition: transform 0.2s ease, opacity 0.25s ease, filter 0.25s ease;
   box-sizing: border-box;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
+}
+
+.public-card {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.25s ease, filter 0.25s ease;
+}
+
+.trench-card {
+  box-shadow: none !important;
 }
 
 .trench-card,
@@ -718,16 +742,61 @@
   width: 100%;
   height: 100%;
   background: var(--card-empty-bg, rgba(15, 23, 42, 0.4));
-  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.5);
-  border-radius: 2px;
+  border-radius: 4px;
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
+}
+
+.public-card .card-slot-bay {
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.5);
+}
+
+.trench-card .card-slot-bay {
+  box-shadow: none !important;
 }
 
 .trench-card.card-empty .card-slot-bay,
 .public-card.card-empty .card-slot-bay {
   background: transparent;
-  box-shadow: none;
+  box-shadow: none !important;
+}
+
+/* Double Card Trench Slots: Stacked under/backup card */
+.trench-card.has-backup {
+  overflow: visible !important;
+}
+
+.card-under-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  background-color: #0b1938 !important;
+  background-image: url('/assets/card_back.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: none !important;
+  transform: translate(var(--backup-offset-x, 0px), var(--backup-offset-y, 0px));
+  z-index: 1;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.trench-card.card-empty.has-backup {
+  cursor: default;
+}
+
+.trench-card.card-empty.has-backup .card-slot-bay {
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.trench-card.has-backup .card-inner-face {
+  box-shadow: none !important;
 }
 
 /* Sliding card face element */
@@ -736,7 +805,7 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  border-radius: 2px;
+  border-radius: 4px;
   background: var(--bg-card-face, rgb(244, 217, 148));
   box-sizing: border-box;
   z-index: 2;
@@ -817,14 +886,18 @@
   color: var(--color-card-black, #1e293b);
 }
 
-.trench-card.card-empty,
+.trench-card.card-empty {
+  background: var(--card-empty-bg, rgba(15, 23, 42, 0.4)) !important;
+  border: 1px dashed rgba(255, 255, 255, 0.18) !important;
+  box-shadow: none !important;
+}
+
 .public-card.card-empty {
   background: var(--card-empty-bg, rgba(15, 23, 42, 0.4)) !important;
   border: 1px dashed rgba(255, 255, 255, 0.18) !important;
   box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.5) !important;
 }
 
-.trench-card.card-back,
 .public-card.card-back,
 .public-card.face-down {
   background-color: #0b1938 !important;
@@ -837,19 +910,57 @@
   overflow: hidden;
 }
 
-.trench-card.card-team-a {
+.trench-card.card-back,
+.trench-card.face-down {
+  background-color: #0b1938 !important;
+  background-image: url('/assets/card_back.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  border: none !important;
+  border-radius: 4px;
+  position: relative;
+  box-shadow: none !important;
+}
+
+/* Trench Card Top Z-Level Border & Outline Overlays */
+.trench-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 4;
+  box-sizing: border-box;
+}
+
+.trench-card.card-team-a::after {
   border: var(--card-border-width, 2px) solid var(--card-border-team-a-color, var(--team-a-color));
 }
 
-.trench-card.card-team-b {
+.trench-card.card-team-b::after {
   border: var(--card-border-width, 2px) solid var(--card-border-team-b-color, var(--team-b-color));
 }
 
-.trench-card {
-  cursor: pointer;
+.trench-card.card-empty::after {
+  display: none !important;
 }
 
-.trench-card.selected,
+.trench-card.highlight-strong-green::after {
+  border: 3px solid #22c55e !important;
+}
+
+/* Chosen Card for Swapping: Top z-level outline */
+.trench-card.selected {
+  outline: none !important;
+  transform: scale(1.05);
+  z-index: 5;
+}
+
+.trench-card.selected::after {
+  outline: var(--chosen-swap-card-border-width, 3.5px) solid var(--chosen-swap-card-border-color, #fff6c6) !important;
+  outline-offset: 0px;
+}
+
 .public-card.selected {
   outline: var(--chosen-swap-card-border-width, 3.5px) solid var(--chosen-swap-card-border-color, #fff6c6) !important;
   outline-offset: 0px;
@@ -857,32 +968,72 @@
   z-index: 5;
 }
 
-.trench-card.highlight-strong-green {
-  border: 3px solid #22c55e !important;
-}
-
+/* Available / Possible Cards for Swapping: Top z-level outline */
 .trench-card.highlight-mild-swap {
+  outline: none !important;
+}
+
+.trench-card.highlight-mild-swap::after {
   outline: calc(var(--swap-card-border-width, 3.5px) - var(--card-border-width, 2px)) solid var(--team-a-color);
+  outline-offset: 0px;
 }
 
-.trench-card.card-team-a.highlight-mild-swap {
+.trench-card.card-team-a.highlight-mild-swap::after {
   outline: calc(var(--swap-card-border-width, 3.5px) - var(--card-border-width, 2px)) solid var(--team-a-color) !important;
+  outline-offset: 0px;
 }
 
-.trench-card.card-team-b.highlight-mild-swap {
+.trench-card.card-team-b.highlight-mild-swap::after {
   outline: calc(var(--swap-card-border-width, 3.5px) - var(--card-border-width, 2px)) solid var(--team-b-color) !important;
+  outline-offset: 0px;
 }
 
-.trench-card.drag-source {
+/* Double Card Trench Slots: Drag state */
+.trench-card.has-backup.drag-source::after,
+.trench-card.drag-source:not(.has-backup)::after {
   opacity: 0.35 !important;
   filter: grayscale(30%) !important;
 }
 
+.trench-card.card-team-a,
+.trench-card.card-team-b {
+  border: none;
+}
+
+.trench-card {
+  cursor: pointer;
+}
+
+.trench-card.highlight-strong-green {
+  border: none !important;
+}
+
+.trench-card.drag-source:not(.has-backup) {
+  opacity: 0.35 !important;
+  filter: grayscale(30%) !important;
+}
+
+/* Double Card Trench Slots: Keep backup card fully visible while dragging the top card */
+.trench-card.has-backup.drag-source .card-inner-face {
+  opacity: 0.35 !important;
+  filter: grayscale(30%) !important;
+  box-shadow: none !important;
+}
+
+.trench-card.has-backup.drag-source .card-under-face {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
 .trench-card.drop-target-hover {
-  outline: var(--chosen-swap-card-border-width, 3.5px) solid var(--chosen-swap-card-border-color, #fff6c6) !important;
-  outline-offset: 1px !important;
+  outline: none !important;
   box-shadow: 0 0 14px rgba(255, 246, 198, 0.75) !important;
   z-index: 25 !important;
+}
+
+.trench-card.drop-target-hover::after {
+  outline: var(--chosen-swap-card-border-width, 3.5px) solid var(--chosen-swap-card-border-color, #fff6c6) !important;
+  outline-offset: 1px !important;
 }
 
 .dragged-card-avatar {
@@ -897,7 +1048,27 @@
   will-change: transform, left, top;
 }
 
-.trench-card.winning-card-highlight,
+.trench-card.winning-card-highlight {
+  outline: none !important;
+  box-shadow: none !important;
+  z-index: 10 !important;
+}
+
+.trench-card.winning-card-highlight::after {
+  outline-width: var(--winning-card-border-width, 3.5px) !important;
+  outline-style: solid !important;
+  outline-color: var(--winning-card-border-team-a, #fbbf24) !important;
+  outline-offset: 1.5px !important;
+}
+
+.trench-card.winning-card-highlight.winning-team-a::after {
+  outline-color: var(--winning-card-border-team-a, #fbbf24) !important;
+}
+
+.trench-card.winning-card-highlight.winning-team-b::after {
+  outline-color: var(--winning-card-border-team-b, #22d3ee) !important;
+}
+
 .public-card.winning-card-highlight {
   outline-width: var(--winning-card-border-width, 3.5px) !important;
   outline-style: solid !important;

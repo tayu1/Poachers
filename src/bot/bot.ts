@@ -19,6 +19,7 @@ import {
   LastMove,
   PlayerSeat,
   Team,
+  Card,
   actionIntToGameAction,
   decType,
   decOrigin,
@@ -919,7 +920,7 @@ function getSlotScore(state: GameState, seat: PlayerSeat, trenchIndex: number, t
       : seat === PlayerSeat.EAST ? PlayerSeat.WEST
         : PlayerSeat.EAST;
   const teammate = state.players[teammateSeat];
-  const teammateCard = teammate?.trenchCards[trenchIndex];
+  const teammateCard = teammate?.trenchCards[trenchIndex] ?? (teammate?.backupCards ? teammate.backupCards[trenchIndex] : null);
   const communityCards = state.publicFlop.filter((c: any) => c !== null) as any[];
 
   const pool: any[] = [...communityCards];
@@ -930,7 +931,7 @@ function getSlotScore(state: GameState, seat: PlayerSeat, trenchIndex: number, t
     return getBestHandFrom7CardPool(pool).score;
   }
 
-  let slotScore = testCard ? testCard.rank * 10 : 0;
+  let slotScore = testCard ? (1000 + testCard.rank * 10) : 0;
   if (testCard && teammateCard && testCard.rank === teammateCard.rank) {
     slotScore += 2000000;
   }
@@ -939,7 +940,7 @@ function getSlotScore(state: GameState, seat: PlayerSeat, trenchIndex: number, t
 
 function findBestCardSwap(state: GameState, seat: PlayerSeat): ActionInt | null {
   const player = state.players[seat];
-  const baseCount = player.baseDeck.length;
+  const baseCount = 3;
 
   let bestImprovement = 0;
   let bestSwap: ActionInt | null = null;
@@ -947,8 +948,8 @@ function findBestCardSwap(state: GameState, seat: PlayerSeat): ActionInt | null 
   const trySwap = (slot1: number, slot2: number) => {
     const isPos1 = slot1 < 3;
     const isPos2 = slot2 < 3;
-    const c1 = isPos1 ? player.trenchCards[slot1] : player.baseDeck[slot1 - 3];
-    const c2 = isPos2 ? player.trenchCards[slot2] : player.baseDeck[slot2 - 3];
+    const c1 = isPos1 ? player.trenchCards[slot1] : (player.backupCards ? player.backupCards[slot1 - 3] : player.baseDeck[slot1 - 3]);
+    const c2 = isPos2 ? player.trenchCards[slot2] : (player.backupCards ? player.backupCards[slot2 - 3] : player.baseDeck[slot2 - 3]);
 
     const isValidCard = (c: any) => c && c.id !== 'hidden' && c.rank > 0;
     if (!isValidCard(c1) && !isValidCard(c2)) return;
@@ -957,17 +958,44 @@ function findBestCardSwap(state: GameState, seat: PlayerSeat): ActionInt | null 
     let afterScore = 0;
 
     if (isPos1 && isPos2) {
+      if (c1 === null && c2 === null) return;
       beforeScore += getSlotScore(state, seat, slot1, c1);
       beforeScore += getSlotScore(state, seat, slot2, c2);
 
       afterScore += getSlotScore(state, seat, slot1, c2);
       afterScore += getSlotScore(state, seat, slot2, c1);
     } else if (isPos1 && !isPos2) {
-      beforeScore += getSlotScore(state, seat, slot1, c1);
-      afterScore += getSlotScore(state, seat, slot1, c2);
+      const hasBackup = Boolean(player.backupCards && player.backupCards[slot1]);
+      if (c1 === null) {
+        beforeScore = 0;
+        afterScore = 5000000 + getSlotScore(state, seat, slot1, c2);
+      } else if (!hasBackup) {
+        beforeScore = getSlotScore(state, seat, slot1, c1);
+        afterScore = getSlotScore(state, seat, slot1, c1) + 2500;
+      } else {
+        beforeScore = getSlotScore(state, seat, slot1, c1);
+        afterScore = getSlotScore(state, seat, slot1, c2);
+      }
     } else if (!isPos1 && isPos2) {
-      beforeScore += getSlotScore(state, seat, slot2, c2);
-      afterScore += getSlotScore(state, seat, slot2, c1);
+      const hasBackup = Boolean(player.backupCards && player.backupCards[slot2]);
+      if (c2 === null) {
+        beforeScore = 0;
+        afterScore = 5000000 + getSlotScore(state, seat, slot2, c1);
+      } else if (!hasBackup) {
+        beforeScore = getSlotScore(state, seat, slot2, c2);
+        afterScore = getSlotScore(state, seat, slot2, c2) + 2500;
+      } else {
+        beforeScore = getSlotScore(state, seat, slot2, c2);
+        afterScore = getSlotScore(state, seat, slot2, c1);
+      }
+    } else {
+      const tIdx1 = slot1 - 3;
+      const tIdx2 = slot2 - 3;
+      beforeScore += getSlotScore(state, seat, tIdx1, c1) * 0.5;
+      beforeScore += getSlotScore(state, seat, tIdx2, c2) * 0.5;
+
+      afterScore += getSlotScore(state, seat, tIdx1, c2) * 0.5;
+      afterScore += getSlotScore(state, seat, tIdx2, c1) * 0.5;
     }
 
     const improvement = afterScore - beforeScore;
@@ -1012,7 +1040,7 @@ export function getBestBotAction(
       : state.activePlayer;
     const player = state.players[seat];
     if (player && player.baseDeck.length >= 3) {
-      const indexed = player.baseDeck.map((c, i) => ({ rank: c.rank, index: i }));
+      const indexed = player.baseDeck.filter((c): c is Card => c !== null).map((c, i) => ({ rank: c.rank, index: i }));
       indexed.sort((a, b) => b.rank - a.rank);
       return {
         action: {

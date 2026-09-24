@@ -22,11 +22,15 @@ Poachers is a 2–4 Player, 2-Team (North-South vs. East-West) Turn-Based Board 
 
 ## Card System (Poker Mechanics)
 
-**Setup:** Each player starts with 3 Position-Cards (used for resolving attacks), and 5 Card in his Private deck (max 5 cards).
+**Setup:** Each player starts with 3 Trench Cards (Position Cards used for resolving attacks) and 3 Base Cards (6 cards total per player: Left, Center, Right).
 
-**Pre-Turn Swap:** Before your move, you may swap a Position-Card with another, or with a card from your deck. or Pass a card from your deck to your Teammate.
+**Trench & Base Alignment:** Each Trench slot holds 1 active Trench Card and is backed up 1-to-1 by its corresponding Base Card (Left backs up Left, Center backs up Center, Right backs up Right). A card can be in Base position `i` only if Trench position `i` is full; otherwise, it immediately jumps from Base `i` to Trench `i`. A card is strictly either in the Trench or in the Base, never in both at the same time. When a Trench Card is used in combat, the corresponding Base Card immediately moves up to replace it.
 
-**End-Turn Hill Bonus:** After your turn ends, *if you have a piece standing on your half of the Hill* - you get 1 card.
+**Pre-Turn Swap:** Before your move, you may swap any of your cards (between Trench slots, between Base slots, or Trench <-> Base), or Pass a card from your Base Deck to your Teammate.
+
+**End-Turn Hill Bonus:** After your turn ends, *if you have a piece standing on your half of the Hill* - you get 1 card into an empty Base Deck slot (max 3 Base cards).
+
+**Card Acquisition:** Players get new cards by capturing an opponent's piece in combat (Defender's card goes to Attacker's Base Deck), the End-Turn Hill Bonus, or when a Teammate passes a card to them.
 
 ## Resolving Attacks
 
@@ -35,17 +39,17 @@ Poachers is a 2–4 Player, 2-Team (North-South vs. East-West) Turn-Based Board 
 **Other Piece-on-Piece Attacks:** Resolved via a Poker hand:
 Best 5-card poker hand wins. The pool consists of:
 
-**5 Public Cards:** 3 Crads always face-up (Flop), 2 more Cards are revealed for attack resolution.
+**5 Public Cards:** 3 Cards always face-up (Flop), 2 more Cards are revealed for attack resolution.
 
 **Position Cards:** Each team uses their 2 Position-Cards corresponding to the attacked square coordinates (row or column).
 
-**Attacker Wins Hand:** A capture, and Defender's card goes to Attacker.
+**Attacker Wins Hand:** A capture, and Defender's card goes to Attacker's Base Deck (if space available).
 
 **Attacker Loses Hand:** Attacker move is blocked (Rooks/Bishops slide to touch the defender).
 
 **Poker Hand Draw:** Attacker wins by default.
 
-**Cleanup and Refill:** Used cards are discarded. 3 new public cards are opened. Players refill empty Position-Card slots and turn passes.
+**Cleanup and Discard:** Used cards are discarded back to the deck (except captured Defender card which goes to Attacker). Position cards are immediately replaced by their backup Base Card if available. 3 new public cards are opened and turn passes.
 
 ## Special Mechanics
 

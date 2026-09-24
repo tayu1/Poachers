@@ -89,16 +89,26 @@ export function popBestPokerRefillCard(
   return baseDeck.splice(bestIdx, 1)[0];
 }
 
-export function dealInitialPlayerCards(deck: Card[]): { baseDeck: Card[]; trenchCards: [Card | null, Card | null, Card | null] } {
-  // Start with 3 random trench cards and 5 random base deck cards per player
-  const trench = deck.splice(0, 3);
+export function dealInitialPlayerCards(deck: Card[]): {
+  baseDeck: Card[];
+  trenchCards: [Card | null, Card | null, Card | null];
+  backupCards: [Card | null, Card | null, Card | null];
+} {
+  // Start with 3 trench cards and 3 backup cards (6 cards total per player)
+  const top = deck.splice(0, 3);
   const trenchCards: [Card | null, Card | null, Card | null] = [
-    trench[0] ?? null,
-    trench[1] ?? null,
-    trench[2] ?? null
+    top[0] ?? null,
+    top[1] ?? null,
+    top[2] ?? null
   ];
-  const baseDeck = deck.splice(0, 5);
-  return { baseDeck, trenchCards };
+  const backup = deck.splice(0, 3);
+  const backupCards: [Card | null, Card | null, Card | null] = [
+    backup[0] ?? null,
+    backup[1] ?? null,
+    backup[2] ?? null
+  ];
+  const baseDeck = backupCards.filter((c): c is Card => c !== null);
+  return { baseDeck, trenchCards, backupCards };
 }
 
 /**
@@ -143,45 +153,7 @@ export function dealCommunityCards(deck: Card[]): {
   };
 }
 
-/**
- * Initial trench filling / bot trench auto-picker.
- * Remarked out / retained for reference; players now start directly with 3 random trench cards.
- * (Can be deleted completely later).
- */
-export function autoPickBotTrenches(_player: PlayerState, _strategy: TrenchStrategy = 'ALWAYS_HIGHEST', _publicFlop?: [Card | null, Card | null, Card | null]): void {
-  /*
-  if (_player.baseDeck.length < 3) return;
-  // Sort baseDeck descending by rank
-  _player.baseDeck.sort((a: Card, b: Card) => b.rank - a.rank);
 
-  const communityCards: Card[] = _publicFlop ? _publicFlop.filter((c): c is Card => c !== null) : [];
-
-  if (_strategy === 'MEDIUM_RESERVE_ATTACK' && _player.baseDeck.length >= 5) {
-    const trench = [_player.baseDeck[1], _player.baseDeck[2], _player.baseDeck[3]];
-    _player.baseDeck.splice(1, 3);
-    _player.trenchCards = [trench[0], trench[1], trench[2]];
-  } else if (_strategy === 'CENTER_HEAVY') {
-    const top3 = _player.baseDeck.splice(0, 3);
-    _player.trenchCards = [top3[1], top3[0], top3[2]];
-  } else if ((_strategy === 'POKER_SYNERGY' || _strategy === 'FLOP_PAIR_MATCH') && communityCards.length > 0) {
-    const c1 = popBestPokerRefillCard(_player.baseDeck, communityCards);
-    const c2 = popBestPokerRefillCard(_player.baseDeck, communityCards);
-    const c3 = popBestPokerRefillCard(_player.baseDeck, communityCards);
-    _player.trenchCards = [c2, c1, c3];
-  } else if (_strategy === 'BOT_DEFAULT_DRAFT') {
-    const top3 = _player.baseDeck.splice(0, 3);
-    const isLeft2nd = Math.random() < 0.5;
-    _player.trenchCards = [
-      isLeft2nd ? top3[1] : top3[2],
-      top3[0],
-      isLeft2nd ? top3[2] : top3[1]
-    ];
-  } else {
-    const top3 = _player.baseDeck.splice(0, 3);
-    _player.trenchCards = [top3[0], top3[1], top3[2]];
-  }
-  */
-}
 
 export function getTrenchCardIndexForSquare(targetIndex: number, team: Team): number {
   const row = getRow(targetIndex);
@@ -198,42 +170,76 @@ export function getTrenchCardIndexForSquare(targetIndex: number, team: Team): nu
   }
 }
 
-export function refillTrenchCardsForPlayer(state: GameState, seat: PlayerSeat, strategy: TrenchStrategy = 'ALWAYS_HIGHEST'): void {
+export function refillTrenchCardsForPlayer(state: GameState, seat: PlayerSeat, _strategy: TrenchStrategy = 'ALWAYS_HIGHEST'): void {
   const player = state.players[seat];
-  const teammateSeat = seat === PlayerSeat.NORTH ? PlayerSeat.SOUTH
-    : seat === PlayerSeat.SOUTH ? PlayerSeat.NORTH
-    : seat === PlayerSeat.EAST ? PlayerSeat.WEST
-    : PlayerSeat.EAST;
-
-  const communityCards: Card[] = [
-    ...state.publicFlop.filter((c): c is Card => c !== null),
-    ...(state.isTurnRiverRevealed ? state.publicTurnRiver.filter((c): c is Card => c !== null) : [])
-  ];
-
-  for (let i = 0; i < player.trenchCards.length; i++) {
-    if (player.trenchCards[i] === null) {
-      const teammateCard = state.players[teammateSeat]?.trenchCards[i] || null;
-      let card: Card | null = null;
-
-      if (strategy === 'MEDIUM_RESERVE_ATTACK') {
-        card = popMedianRankCard(player.baseDeck);
-      } else if (strategy === 'POKER_SYNERGY' || strategy === 'FLOP_PAIR_MATCH') {
-        card = popBestPokerRefillCard(player.baseDeck, communityCards, teammateCard);
-      } else {
-        card = popHighestRankCard(player.baseDeck);
-      }
-
-      if (card) {
-        player.trenchCards[i] = card;
-      }
-    }
-  }
+  if (!player) return;
+  normalizePlayerTrenchAndBase(player);
 }
 
 export function refillAllTrenchCards(state: GameState): void {
   for (const seat of [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST]) {
     refillTrenchCardsForPlayer(state, seat);
   }
+}
+
+export function getEmptyBackupSlotIndex(backup: (Card | null)[]): number | null {
+  // Priority: Center (1) -> Right (2) -> Left (0)
+  if (backup[1] === null || backup[1] === undefined) return 1;
+  if (backup[2] === null || backup[2] === undefined) return 2;
+  if (backup[0] === null || backup[0] === undefined) return 0;
+  return null;
+}
+
+export function getTeammateEmptySlot(
+  player: PlayerState
+): { slotType: 'trench' | 'backup'; slotIndex: number } | null {
+  if (!player) return null;
+  // Priority order for filling slots: Center (1) -> Right (2) -> Left (0)
+  const priority = [1, 2, 0];
+
+  // 1. Check for empty trench slot
+  for (const idx of priority) {
+    if (player.trenchCards && player.trenchCards[idx] === null) {
+      return { slotType: 'trench', slotIndex: idx };
+    }
+  }
+
+  // 2. Check for empty backup slot
+  for (const idx of priority) {
+    if (player.backupCards && player.backupCards[idx] === null) {
+      return { slotType: 'backup', slotIndex: idx };
+    }
+  }
+
+  return null;
+}
+
+export function syncPlayerReserve(player: PlayerState): void {
+  if (!player.backupCards) {
+    player.backupCards = [null, null, null];
+  }
+  player.baseDeck = player.backupCards.filter((c): c is Card => Boolean(c && c.id !== 'hidden'));
+}
+
+/**
+ * Ensures that a card can be in Base position i only if Trench position i is full.
+ * Otherwise, the card jumps from Base i to Trench i.
+ */
+export function normalizePlayerTrenchAndBase(player: PlayerState): void {
+  if (!player) return;
+  if (!player.backupCards) {
+    player.backupCards = [null, null, null];
+  }
+  if (!player.trenchCards) {
+    player.trenchCards = [null, null, null];
+  }
+  for (let i = 0; i < 3; i++) {
+    if (player.trenchCards[i] === null && player.backupCards[i] !== null) {
+      player.trenchCards[i] = player.backupCards[i];
+      player.backupCards[i] = null;
+    }
+  }
+  syncPlayerReserve(player);
 }
 
 export function processPostCombat(state: GameState, combat: CombatResult): void {
@@ -256,37 +262,60 @@ export function processPostCombat(state: GameState, combat: CombatResult): void 
 
   // Return attacker team's used trench cards to main deck
   for (const seat of attackerSeats) {
-    const card = state.players[seat].trenchCards[attCardIdx];
-    if (card) {
-      state.deck.unshift(card);
-      state.players[seat].trenchCards[attCardIdx] = null;
+    const player = state.players[seat];
+    if (player.trenchCards[attCardIdx]) {
+      // Top card was used in combat
+      state.deck.unshift(player.trenchCards[attCardIdx]!);
+      player.trenchCards[attCardIdx] = null;
+    } else if (player.backupCards && player.backupCards[attCardIdx]) {
+      // Backup card had to be used in combat
+      state.deck.unshift(player.backupCards[attCardIdx]!);
+      player.backupCards[attCardIdx] = null;
     }
+
+    normalizePlayerTrenchAndBase(player);
   }
 
   // Handle defender team's trench cards
   for (const seat of defenderSeats) {
-    const card = state.players[seat].trenchCards[defCardIdx];
-    if (card) {
+    const player = state.players[seat];
+    let defCard: Card | null = null;
+    if (player.trenchCards[defCardIdx]) {
+      defCard = player.trenchCards[defCardIdx]!;
+      player.trenchCards[defCardIdx] = null;
+    } else if (player.backupCards && player.backupCards[defCardIdx]) {
+      defCard = player.backupCards[defCardIdx]!;
+      player.backupCards[defCardIdx] = null;
+    }
+
+    if (defCard) {
       if (winnerSeat === attackerSeat && seat === defenderSeat) {
-        const emptySlots = state.players[attackerSeat].trenchCards.filter(c => c === null).length;
-        if (state.players[attackerSeat].baseDeck.length < MAX_BASE_DECK_SIZE + emptySlots) {
-          state.players[attackerSeat].baseDeck.push(card);
+        const attackerPlayer = state.players[attackerSeat];
+        // Prefer placing into the slot that was just used in combat (attCardIdx), otherwise first available slot
+        const targetSlot = (attackerPlayer.trenchCards[attCardIdx] === null || attackerPlayer.backupCards[attCardIdx] === null)
+          ? attCardIdx
+          : getEmptyBackupSlotIndex(attackerPlayer.backupCards);
+
+        if (targetSlot !== null) {
+          if (attackerPlayer.trenchCards[targetSlot] === null) {
+            attackerPlayer.trenchCards[targetSlot] = defCard;
+          } else {
+            attackerPlayer.backupCards[targetSlot] = defCard;
+          }
+          normalizePlayerTrenchAndBase(attackerPlayer);
         } else {
-          state.deck.unshift(card);
+          state.deck.unshift(defCard);
         }
       } else {
-        state.deck.unshift(card);
+        state.deck.unshift(defCard);
       }
-      state.players[seat].trenchCards[defCardIdx] = null;
     }
+
+    normalizePlayerTrenchAndBase(player);
   }
 
-  // Refill in natural clockwise turn order starting from the active attacker
-  state.pendingRefills = [0, 1, 2, 3].map(i => {
-    const seat = ((attackerSeat + i) % 4) as PlayerSeat;
-    const slot = state.players[seat].team === attackerTeam ? attCardIdx : defCardIdx;
-    return { seat, slot };
-  });
+  // Used trench slots that lacked a backup remain null until player refills/swaps
+  state.pendingRefills = [];
 
   // 2. Open 3 new public flop cards + 2 turn/river cards from deck with card burns
   const communityCards = dealCommunityCards(state.deck);
@@ -314,11 +343,13 @@ export function grantHillCardReward(state: GameState, seat: PlayerSeat): boolean
     state.players &&
     state.players[seat]
   ) {
-    const emptySlots = state.players[seat].trenchCards.filter(c => c === null).length;
-    if (state.players[seat].baseDeck.length < MAX_BASE_DECK_SIZE + emptySlots) {
-      const topCard = state.deck[state.deck.length - 1];
+    const player = state.players[seat];
+    const targetSlot = getEmptyBackupSlotIndex(player.backupCards);
+    if (targetSlot !== null) {
+      const topCard = state.deck.pop();
       if (topCard) {
-        state.players[seat].baseDeck.push(state.deck.pop()!);
+        player.backupCards[targetSlot] = topCard;
+        normalizePlayerTrenchAndBase(player);
         return true;
       }
     }
@@ -340,76 +371,77 @@ export function grantTurnEndCardRewards(
  * - Index 0, 1, 2: Trench Cards
  * - Index 3..N: Base Deck Cards (Base Card 0 = index 3, Base Card 1 = index 4, etc.)
  */
+export function getTrenchSlotCardCount(player: PlayerState, idx: number): 0 | 1 | 2 {
+  const top = player.trenchCards[idx];
+  const backup = player.backupCards[idx];
+  if (top !== null && backup !== null) return 2;
+  if (top !== null || backup !== null) return 1;
+  return 0;
+}
+
+export function getTrenchSlotTopCard(player: PlayerState | undefined | null, idx: number): Card | null {
+  if (!player) return null;
+  return player.trenchCards[idx];
+}
+
+export function getSlotCard(player: PlayerState, slot: number): Card | null {
+  if (slot < 0 || slot > 5) return null;
+  return slot < 3 ? player.trenchCards[slot] : player.backupCards[slot - 3];
+}
+
+export function setSlotCard(player: PlayerState, slot: number, card: Card | null): void {
+  if (slot < 0 || slot > 5) return;
+  if (!player.backupCards) {
+    player.backupCards = [null, null, null];
+  }
+  if (slot < 3) {
+    player.trenchCards[slot] = card;
+  } else {
+    player.backupCards[slot - 3] = card;
+    syncPlayerReserve(player);
+  }
+}
+
+/**
+ * Universal swap across all 6 player card slots:
+ * - Slots 0, 1, 2: Trench Left, Center, Right
+ * - Slots 3, 4, 5: Backup Left, Center, Right (fused base deck)
+ *
+ * Supports:
+ * - Trench <-> Trench
+ * - Trench <-> Backup
+ * - Backup <-> Backup
+ * - Swapping between two cards (exchange positions)
+ * - Moving a card into an empty slot (other slot becomes empty)
+ */
 export function swapPlayerCards(
   state: GameState,
   seat: PlayerSeat,
   slot1: number,
   slot2: number
 ): boolean {
+  if (slot1 < 0 || slot1 > 5 || slot2 < 0 || slot2 > 5 || slot1 === slot2) {
+    return false;
+  }
   const player = state.players[seat];
+  if (!player) return false;
+  if (!player.backupCards) {
+    player.backupCards = [null, null, null];
+  }
 
-  const isValidCard = (c: Card | null | undefined): boolean => Boolean(c && c.id !== 'hidden' && c.rank > 0);
+  const c1 = getSlotCard(player, slot1);
+  const c2 = getSlotCard(player, slot2);
 
-  const getSlotInfo = (slot: number): { isTrench: boolean; index: number } => {
-    if (slot < 3) {
-      return { isTrench: true, index: slot };
-    } else {
-      return { isTrench: false, index: slot - 3 };
-    }
-  };
-
-  const item1 = getSlotInfo(slot1);
-  const item2 = getSlotInfo(slot2);
-
-  // Base-to-Base swap is disallowed
-  if (!item1.isTrench && !item2.isTrench) {
+  const isValidCard = (c: Card | null): boolean => Boolean(c && c.id !== 'hidden' && c.rank > 0);
+  if (!isValidCard(c1) && !isValidCard(c2)) {
     return false;
   }
+  if (c1 && !isValidCard(c1)) return false;
+  if (c2 && !isValidCard(c2)) return false;
 
-  // Case 1: Swapping two Trench cards (0..2 <-> 0..2)
-  if (item1.isTrench && item2.isTrench) {
-    const card1 = player.trenchCards[item1.index];
-    const card2 = player.trenchCards[item2.index];
-
-    const isHiddenOrCorrupt = (c: Card | null): boolean => Boolean(c && (c.id === 'hidden' || c.rank <= 0));
-    if (isHiddenOrCorrupt(card1) || isHiddenOrCorrupt(card2)) {
-      return false;
-    }
-    if (card1 === null && card2 === null) {
-      return false;
-    }
-
-    player.trenchCards[item1.index] = card2;
-    player.trenchCards[item2.index] = card1;
-    return true;
-  }
-
-  // Case 2: Swapping Trench card (0..2) and Base deck card (>=3)
-  const posSlot = item1.isTrench ? item1 : item2;
-  const baseSlot = item1.isTrench ? item2 : item1;
-
-  const baseCards = [...player.baseDeck];
-  const posCards = [...player.trenchCards];
-  const baseCard = baseCards[baseSlot.index];
-  const posCard = posCards[posSlot.index];
-
-  if (!isValidCard(baseCard)) {
-    return false;
-  }
-
-  if (posCard === null) {
-    posCards[posSlot.index] = baseCard;
-    baseCards.splice(baseSlot.index, 1);
-  } else {
-    if (!isValidCard(posCard)) {
-      return false;
-    }
-    posCards[posSlot.index] = baseCard;
-    baseCards[baseSlot.index] = posCard;
-  }
-
-  player.baseDeck = baseCards.filter((c): c is Card => Boolean(c));
-  player.trenchCards = posCards as [Card | null, Card | null, Card | null];
+  setSlotCard(player, slot1, c2);
+  setSlotCard(player, slot2, c1);
+  normalizePlayerTrenchAndBase(player);
   return true;
 }
 
@@ -647,11 +679,15 @@ export function computeRegionProbabilities(state: GameState): RegionOdds[] {
   const east = state.players[PlayerSeat.EAST];
   const west = state.players[PlayerSeat.WEST];
 
+  const getSlotActiveCard = (p: typeof north, idx: number): Card | null => {
+    return p.trenchCards[idx] ?? (p.backupCards ? p.backupCards[idx] : null);
+  };
+
   const teamACardsBySlot: Card[][] = [0, 1, 2].map(aIdx =>
-    [north.trenchCards[aIdx], south.trenchCards[aIdx]].filter((c): c is Card => c !== null)
+    [getSlotActiveCard(north, aIdx), getSlotActiveCard(south, aIdx)].filter((c): c is Card => c !== null)
   );
   const teamBCardsBySlot: Card[][] = [0, 1, 2].map(bIdx =>
-    [east.trenchCards[bIdx], west.trenchCards[bIdx]].filter((c): c is Card => c !== null)
+    [getSlotActiveCard(east, bIdx), getSlotActiveCard(west, bIdx)].filter((c): c is Card => c !== null)
   );
 
   const winsA = new Array(9).fill(0);
@@ -704,3 +740,22 @@ export function getSquareCombatOdds(state: GameState, targetSquareIndex: number)
   }
   return (item as RegionOdds) || { teamAWinRate: 0.5, teamBWinRate: 0.5 };
 }
+
+/**
+ * Automatically refills empty trench slots (0 cards) for the specified player
+ * using the highest rank cards from their base deck.
+ *
+ * This occurs at pre-pre-turn by the engine and does NOT count as a pre-turn swap
+ * (state.hasSwappedThisTurn is NOT set to true).
+ */
+export function autoFillEmptySlots(
+  _state: GameState,
+  _seat: PlayerSeat = _state?.activePlayer,
+  _skipOddsRecompute: boolean = false
+): { slot: number; card: Card }[] {
+  // Base and backup are unified (3 trench + 3 base per player).
+  // Trench slots are backed up 1-to-1 by their corresponding base cards and instantly promoted during combat.
+  // Empty slots remain empty until swapped by the player or refilled via Hill bonus/teammate pass.
+  return [];
+}
+
