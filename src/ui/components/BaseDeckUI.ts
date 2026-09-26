@@ -54,6 +54,7 @@ export class BaseDeckUI {
     this.cardHolders = [];
 
     this.mainWrapper = document.createElement('div');
+    this.mainWrapper.className = 'base-deck-wrapper';
     this.mainWrapper.style.display = 'flex';
     this.mainWrapper.style.flexDirection = 'column';
     this.mainWrapper.style.alignItems = 'center';
@@ -164,7 +165,15 @@ export class BaseDeckUI {
       this.initDOMStructure();
     }
 
-    if (state.pendingCombat || store.isCombatDelaying) {
+    const inCombat = Boolean(state.pendingCombat || store.isCombatDelaying || state.isCombatDelaying);
+
+    if (inCombat) {
+      if (this.mainWrapper) {
+        this.mainWrapper.className = 'base-deck-wrapper in-combat-announcement';
+      }
+      if (this.bunkerBtn) this.bunkerBtn.style.display = 'none';
+      if (this.passBtn) this.passBtn.style.display = 'none';
+
       if (state.pendingCombat) {
         if (!state.isTurnRiverRevealed || state.pendingCombat.winnerSeat === null || state.pendingCombat.winnerSeat === undefined) {
           if (this.combatText && this.combatWrapper && this.cardsRow) {
@@ -172,8 +181,9 @@ export class BaseDeckUI {
             this.combatText.innerText = '';
             this.combatWrapper.style.display = 'flex';
             this.cardsRow.style.display = 'none';
-            if (this.bunkerBtn) this.bunkerBtn.style.display = 'none';
           }
+          if (this.bunkerBtn) this.bunkerBtn.style.display = 'none';
+          if (this.passBtn) this.passBtn.style.display = 'none';
           return;
         }
 
@@ -187,16 +197,20 @@ export class BaseDeckUI {
           this.combatText.innerText = text;
           this.combatWrapper.style.display = 'flex';
           this.cardsRow.style.display = 'none';
-          if (this.bunkerBtn) this.bunkerBtn.style.display = 'none';
         }
+        if (this.bunkerBtn) this.bunkerBtn.style.display = 'none';
+        if (this.passBtn) this.passBtn.style.display = 'none';
         return;
       }
     }
 
+    if (this.mainWrapper) {
+      this.mainWrapper.className = 'base-deck-wrapper';
+    }
     if (this.combatWrapper) this.combatWrapper.style.display = 'none';
     if (this.cardsRow) this.cardsRow.style.display = 'flex';
-    if (this.passBtn && (state.pendingCombat || store.isCombatDelaying)) this.passBtn.style.display = 'none';
-    if (this.bunkerBtn && (state.pendingCombat || store.isCombatDelaying)) this.bunkerBtn.style.display = 'none';
+    if (this.passBtn && inCombat) this.passBtn.style.display = 'none';
+    if (this.bunkerBtn && inCombat) this.bunkerBtn.style.display = 'none';
 
     const activePlayerSeat = state.pendingRefills[0]?.seat ?? state.activePlayer;
     const activePlayerState = state.players[activePlayerSeat];
@@ -213,11 +227,13 @@ export class BaseDeckUI {
     // Display exactly 3 fixed positional slots: Left (0), Center (1), Right (2) - not sorted by rank
     const backupList: (Card | null)[] = activePlayerState.backupCards;
 
-    this.cardTargetIndices = [0, 1, 2];
+    const reverseOrder = activePlayerSeat === PlayerSeat.NORTH || activePlayerSeat === PlayerSeat.EAST;
+    this.cardTargetIndices = reverseOrder ? [2, 1, 0] : [0, 1, 2];
 
-    for (let slotIdx = 0; slotIdx < 3; slotIdx++) {
+    for (let i = 0; i < 3; i++) {
+      const slotIdx = this.cardTargetIndices[i];
       const card = backupList[slotIdx] ?? null;
-      const holder = this.getOrCreateCardHolder(slotIdx);
+      const holder = this.getOrCreateCardHolder(i);
 
       holder.cardEl.dataset.cardType = 'base';
       holder.cardEl.dataset.cardIndex = String(slotIdx);
@@ -285,7 +301,7 @@ export class BaseDeckUI {
       }
     }
 
-    const isPlayerTurnNow = !state.isGameOver && !store.isReplaying && !store.isCombatDelaying &&
+    const isPlayerTurnNow = !state.isGameOver && !store.isReplaying && !inCombat &&
       !state.setupState?.inSetup && state.pendingRefills.length === 0 &&
       !isBotTurn && isMySeatOrLocal && (state.activePlayer === activePlayerSeat);
 
@@ -300,7 +316,7 @@ export class BaseDeckUI {
     const canPass = isPlayerTurnNow && !state.hasSwappedThisTurn && hasCardsToPass && teammateHasSpace;
 
     if (this.passBtn) {
-      if (canPass) {
+      if (canPass && !inCombat) {
         this.passBtn.style.display = 'inline-flex';
         const teamCls = activePlayerState.team === 'A' ? 'team-a' : 'team-b';
         this.passBtn.className = `pass-card-btn ${teamCls}`;
@@ -312,7 +328,7 @@ export class BaseDeckUI {
     }
 
     if (this.bunkerBtn) {
-      if (isPlayerTurnNow) {
+      if (isPlayerTurnNow && !inCombat) {
         this.bunkerBtn.style.display = 'inline-flex';
         const teamCls = activePlayerState.team === 'A' ? 'team-a' : 'team-b';
         const currentBunkers = getPlayerBunkerCount(state.board, activePlayerSeat);
@@ -324,6 +340,11 @@ export class BaseDeckUI {
       } else {
         this.bunkerBtn.style.display = 'none';
       }
+    }
+
+    if (this.combatWrapper && this.combatWrapper.style.display === 'flex') {
+      if (this.passBtn) this.passBtn.style.display = 'none';
+      if (this.bunkerBtn) this.bunkerBtn.style.display = 'none';
     }
 
     const validPromoOptions = getValidPromotionOptions(state, activePlayerSeat);

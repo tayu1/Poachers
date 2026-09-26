@@ -168,5 +168,43 @@ describe('Log Book Notation Formatter', () => {
     expect(formatCombatAnnouncementText(combatResultAttackerWin)).toBe('Attacker Wins with a Full House!');
     expect(formatCombatAnnouncementText(combatResultDefenderWin)).toBe('Defender Wins with a Full House!');
     expect(formatCombatAnnouncementText(combatResultDraw)).toBe('Draw - attacker wins');
+
+    const pairTensWithAceKicker: EvaluatedHand = {
+      rank: HandRank.ONE_PAIR,
+      score: 2100014,
+      name: 'One Pair',
+      cards: [
+        { id: '1', suit: 'H', rank: 14 },
+        { id: '2', suit: 'S', rank: 10 },
+        { id: '3', suit: 'C', rank: 10 },
+        { id: '4', suit: 'D', rank: 5 },
+        { id: '5', suit: 'H', rank: 2 }
+      ],
+      winningCards: [{ id: '2', suit: 'S', rank: 10 }]
+    };
+    const pairTensWithKingKicker: EvaluatedHand = {
+      rank: HandRank.ONE_PAIR,
+      score: 2100013,
+      name: 'One Pair',
+      cards: [
+        { id: '6', suit: 'D', rank: 13 },
+        { id: '7', suit: 'H', rank: 10 },
+        { id: '8', suit: 'D', rank: 10 },
+        { id: '9', suit: 'C', rank: 5 },
+        { id: '10', suit: 'S', rank: 2 }
+      ],
+      winningCards: [{ id: '7', suit: 'H', rank: 10 }]
+    };
+    const combatResultKickerWin: CombatResult = {
+      attackerSeat: PlayerSeat.NORTH,
+      defenderSeat: PlayerSeat.EAST,
+      attackerPosIndex: 36,
+      defenderPosIndex: 27,
+      attackerHand: pairTensWithAceKicker,
+      defenderHand: pairTensWithKingKicker,
+      winnerSeat: PlayerSeat.NORTH,
+      capturedPiece: 'P'
+    };
+    expect(formatCombatAnnouncementText(combatResultKickerWin)).toBe('attacker wins with an Ace kicker');
   });
 });

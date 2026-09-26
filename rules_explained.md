@@ -2,9 +2,10 @@
 
 ![Poachers Rules Overview](/assets/rules_pic.webp)
 
-Poachers is a 2–4 Player, 2-Team (North-South vs. East-West) Turn-Based Board Game.
+POACHERS is a 2–4 Player, 2-Teams, Turn-Based Strategy Board Game,
+that combines elements of Chess and Poker.
 
-**Objective:** Win by capturing **Both** opposing Kings (or by capturing all enemy pieces except one King).
+**Objective:** Win by capturing **Both** enemy Kings (or all enemy pieces).
 
 ## Board & Control
 
@@ -14,62 +15,59 @@ Poachers is a 2–4 Player, 2-Team (North-South vs. East-West) Turn-Based Board 
 
 ## Pieces & Movement
 
-**Pawns:** Move one square in 4 orthogonal directions, attack in 4 diagonals.
+**Pawns:** Move one square in 4 orthogonal directions, and attack in 4 diagonals.
 
 **Rooks, Bishops, Knights:** Move like in Chess.
 
-**Kings:** Move like in Chess. Can't touch enemy King. Can't cross the team midline (each player has 1 King max).
+**Kings:** Move like in Chess. Can't touch enemy King. Can't cross the team midline (1 King per player).
 
-## Card System (Poker Mechanics)
+## Cards
 
-**Setup:** Each player starts with 3 Trench Cards (Position Cards used for resolving attacks) and 3 Base Cards (6 cards total per player: Left, Center, Right).
+**Setup:** Each player starts with 3 *Position Cards* used for Combat. and 3 *Backup Cards*. (Total of 6 Card slots).
 
-**Trench & Base Alignment:** Each Trench slot holds 1 active Trench Card and is backed up 1-to-1 by its corresponding Base Card (Left backs up Left, Center backs up Center, Right backs up Right). A card can be in Base position `i` only if Trench position `i` is full; otherwise, it immediately jumps from Base `i` to Trench `i`. A card is strictly either in the Trench or in the Base, never in both at the same time. When a Trench Card is used in combat, the corresponding Base Card immediately moves up to replace it.
+**Pre-Turn Swap:** Before making your move, you may do one swap/change in your cards (or pass a Backup Card to your teammate).
 
-**Pre-Turn Swap:** Before your move, you may swap any of your cards (between Trench slots, between Base slots, or Trench <-> Base), or Pass a card from your Base Deck to your Teammate.
+**Post-Turn Hill Card Bonus:** After your turn ends, *if you have a piece standing on your half of the *Center Hill* - you get 1 card if you have an empty Card slot.
 
-**End-Turn Hill Bonus:** After your turn ends, *if you have a piece standing on your half of the Hill* - you get 1 card into an empty Base Deck slot (max 3 Base cards).
+## Combat (Poker Hands)
 
-**Card Acquisition:** Players get new cards by capturing an opponent's piece in combat (Defender's card goes to Attacker's Base Deck), the End-Turn Hill Bonus, or when a Teammate passes a card to them.
-
-## Resolving Attacks
-
-**Attack on King or by King:** Results in immediate capture without cards involved.
+**Attack on King or by King:** Result in immediate capture without cards involved.
 
 **Other Piece-on-Piece Attacks:** Resolved via a Poker hand:
 Best 5-card poker hand wins. The pool consists of:
 
-**5 Public Cards:** 3 Cards always face-up (Flop), 2 more Cards are revealed for attack resolution.
-
 **Position Cards:** Each team uses their 2 Position-Cards corresponding to the attacked square coordinates (row or column).
 
-**Attacker Wins Hand:** A capture, and Defender's card goes to Attacker's Base Deck (if space available).
+**5 Public Cards:** 3 Cards always face-up (Flop), 2 more Cards are revealed for attack resolution.
 
-**Attacker Loses Hand:** Attacker move is blocked (Rooks/Bishops slide to touch the defender).
+**If Attacker Wins Hand:** A **capture**, and **Card Steal:** Defender's card goes to Attacker.
+- Poker Hand Draw: Attacker wins by default.
 
-**Poker Hand Draw:** Attacker wins by default.
+**If Defender Wins Hand:** Attacker move is blocked (Rooks/Bishops slide to touch the defender).
 
-**Cleanup and Discard:** Used cards are discarded back to the deck (except captured Defender card which goes to Attacker). Position cards are immediately replaced by their backup Base Card if available. 3 new public cards are opened and turn passes.
+**Cleanup and Refill:** Used cards are discarded back to the deck. Position cards are replaced by their backup card if available. 3 new public cards are opened and turn passes.
 
 ## Special Mechanics
 
-### Bunkers
+### Bunkered Pieces
+- (shown as a circle over the piece). Initially set to the 2 side pawns of each player.
 
-**Bunkered Pieces** - (shown as a circle over the piece) initially set to the side pawns of each player.
-
-Bunkered pieces cannot move or attack until the bunker is released.
+**Movement:** Bunkered pieces can move to empty squares, but cannot attack. Moving removes the bunker.
 
 **Combat:** When attacking bunkered pieces: Attack resolves normally as explained, but the *Attacking piece is captured in any case.*
 
-**Changing Bunkered Pieces** (counts as a turn):
-
-Click a bunkered piece *twice* to enter "Set Bunker Mode":
-Click another piece in your control ( *but not on the Hill* ) to transfer the bunker mode / Click the bunkered piece a 3rd time to release it without transferring / Click outside to cancel.
+**Setting Bunkers:** (counts as a turn) Use the Bunker button (⛊) to set a new bunker on any friendly piece in your control (except on the Hill). Max 2 bunkers per player.
 
 ### Pawn Promotion / Resurrect Captured Pieces
 
 Possible when you have a Pawn on *your half of the Center Hill.*
 
-Resurrect your captured pieces by clicking them, and then clicking on the Hill Pawn (this counts as a turn).
+Resurrect your captured pieces by clicking them, and then clicking on the Hill Pawn (counts as a turn).
 
 **Restrictions to Pawn Promotions:** 1 King per player half. Kings can't touch enemy Kings. No 2 same-team Bishops on the same colored square.
+
+## Tips
+- Your King is marked with a red square when it is threatened - Move it to safety.
+- Control the Center Hill (get Card Bonus and resarect pieces).
+- Beware of Knights jumping across a Midline - crossing a Midline can give your piece a "Double Move" against the enemy.
+- Use the pre-turn card change to increase your chance of capturing.

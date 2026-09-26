@@ -147,6 +147,7 @@ export class GameStore {
       this.isReplaying = false;
     }
 
+    this.autoSetBoardRotation();
     this.notify();
   }
 
@@ -435,8 +436,32 @@ export class GameStore {
     this.notify();
   }
 
+  public autoSetBoardRotation(): void {
+    let humanSeats: PlayerSeat[] = [];
+    if (this.isMultiplayer) {
+      humanSeats = this.mySeats;
+    } else {
+      for (let s = 0; s < 4; s++) {
+        if (!this.botSeats[s as PlayerSeat]) {
+          humanSeats.push(s as PlayerSeat);
+        }
+      }
+    }
+
+    if (humanSeats.includes(PlayerSeat.EAST)) {
+      this.boardRotationAngle = 90;
+    } else if (humanSeats.length === 1 && humanSeats[0] === PlayerSeat.NORTH) {
+      this.boardRotationAngle = 180;
+    } else if (humanSeats.length === 1 && humanSeats[0] === PlayerSeat.WEST) {
+      this.boardRotationAngle = 270;
+    } else {
+      this.boardRotationAngle = 0;
+    }
+  }
+
   public toggleBotSeat(seat: PlayerSeat): void {
     this.botSeats[seat] = !this.botSeats[seat];
+    this.autoSetBoardRotation();
     this.notify();
   }
 
@@ -569,6 +594,8 @@ export class GameStore {
     // Cancel ALL combat-related timers (turnRiverTimer + combatTimer) to prevent
     // stale callbacks from previous game firing on the new game's state.
     this.cancelCombatTimers();
+
+    this.autoSetBoardRotation();
 
     if (isRematch) {
       this.matchScore = { ...this.state.score };

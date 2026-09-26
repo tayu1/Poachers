@@ -118,6 +118,10 @@
   flex-shrink: 0;
 }
 
+#base-deck-panel .trench-card {
+  overflow: visible !important;
+}
+
 .trench-row-north {
   --backup-offset-x: var(--backup-card-offset-north-x, 0px);
   --backup-offset-y: var(--backup-card-offset-north-y, -8px);
@@ -428,6 +432,40 @@
 
 .sq.dark-sq {
   background-color: var(--board-dark);
+}
+
+.corner-label {
+  position: absolute;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 4;
+  transition: transform 0.4s ease-in-out;
+}
+
+.corner-label.pos-tl {
+  top: 2px;
+  left: 4px;
+}
+.corner-label.pos-tr {
+  top: 2px;
+  right: 4px;
+}
+.corner-label.pos-bl {
+  bottom: 2px;
+  left: 4px;
+}
+.corner-label.pos-br {
+  bottom: 2px;
+  right: 4px;
+}
+
+.corner-label.dark-text {
+  color: var(--board-dark);
+}
+
+.corner-label.light-text {
+  color: var(--board-light);
 }
 
 .hill-mark-2x2 {
@@ -952,7 +990,6 @@
 /* Chosen Card for Swapping: Top z-level outline */
 .trench-card.selected {
   outline: none !important;
-  transform: scale(1.05);
   z-index: 5;
 }
 

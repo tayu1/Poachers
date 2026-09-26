@@ -342,6 +342,15 @@ export class BoardUI {
       img.draggable = false;
       sq.appendChild(img);
 
+      if (index === 0 || index === 7 || index === 56 || index === 63) {
+        const lbl = document.createElement('div');
+        const notation = index === 0 ? 'a8' : index === 7 ? 'h8' : index === 56 ? 'a1' : 'h1';
+        const positionClass = index === 0 ? 'pos-tl' : index === 7 ? 'pos-tr' : index === 56 ? 'pos-bl' : 'pos-br';
+        lbl.className = `corner-label ${positionClass} ${isLight ? 'dark-text' : 'light-text'}`;
+        lbl.textContent = notation;
+        sq.appendChild(lbl);
+      }
+
       this.squareElements.push(sq);
       this.pieceImgElements.push(img);
       this.boardGrid.appendChild(sq);
@@ -756,14 +765,21 @@ export class BoardUI {
         }
       }
 
-      // In-place marker removal, preserving active captured ghost elements
+      if (index === 0 || index === 7 || index === 56 || index === 63) {
+        const lbl = sq.querySelector('.corner-label') as HTMLElement;
+        if (lbl) {
+          lbl.style.transform = `rotate(-${store.boardRotationAngle}deg)`;
+        }
+      }
+
+      // In-place marker removal, preserving active captured ghost elements and corner labels
       for (let c = sq.childNodes.length - 1; c >= 1; c--) {
         const child = sq.childNodes[c] as HTMLElement;
         const cls = child.className || '';
-        if (typeof cls === 'string' && cls.includes('captured-piece-ghost')) {
+        if (typeof cls === 'string' && (cls.includes('captured-piece-ghost') || cls.includes('corner-label'))) {
           continue;
         }
-        if (child.classList && child.classList.contains('captured-piece-ghost')) {
+        if (child.classList && (child.classList.contains('captured-piece-ghost') || child.classList.contains('corner-label'))) {
           continue;
         }
         sq.removeChild(child);

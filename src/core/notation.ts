@@ -171,12 +171,12 @@ export function formatCombatAnnouncementText(combat: CombatResult): string {
 
     if (kickerRank > 0) {
       const kickerNames: Record<number, string> = {
-        14: 'ace', 13: 'king', 12: 'queen', 11: 'jack',
-        10: '10', 9: '9', 8: '8', 7: '7', 6: '6',
-        5: '5', 4: '4', 3: '3', 2: '2'
+        14: 'an Ace', 13: 'a King', 12: 'a Queen', 11: 'a Jack',
+        10: 'a 10', 9: 'a 9', 8: 'an 8', 7: 'a 7', 6: 'a 6',
+        5: 'a 5', 4: 'a 4', 3: 'a 3', 2: 'a 2'
       };
-      const kickerName = kickerNames[kickerRank] || kickerRank.toString();
-      return `${winnerRole.toLowerCase()} won with a ${kickerName} kicker`;
+      const kickerDesc = kickerNames[kickerRank] || `a ${kickerRank}`;
+      return `${winnerRole.toLowerCase()} wins with ${kickerDesc} kicker`;
     }
   }
 

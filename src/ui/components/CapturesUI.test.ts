@@ -3,7 +3,7 @@ import { buildPieceRow, CapturesUI } from './CapturesUI';
 import { BaseDeckUI } from './BaseDeckUI';
 import { createInitialGameState, getTeamCapturedPieces } from '../../core/engine';
 import { GameStore } from '../../store/store';
-import { PlayerSeat, Pc } from '../../core/types';
+import { PlayerSeat, Pc, HandRank } from '../../core/types';
 
 class MockElement {
   public tagName: string;
@@ -20,6 +20,7 @@ class MockElement {
   public alt: string = '';
   public title: string = '';
   public innerHTML: string = '';
+  public innerText: string = '';
   public attributes: Record<string, string> = {};
   public textContent: string = '';
   private listeners: Record<string, ((e: any) => void)[]> = {};
@@ -309,6 +310,124 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
     store.isSettingBunker = true;
     baseDeckUI.render(state, store);
     expect(bunkerBtn.className).toContain('active');
+  });
+
+  it('BaseDeckUI hides bunker and pass card buttons during a poker win message', () => {
+    const container = document.createElement('div') as unknown as MockElement;
+    let bunkerClicked = false;
+    let passClicked = false;
+    const baseDeckUI = new BaseDeckUI(
+      container as unknown as HTMLElement,
+      () => {},
+      () => {},
+      () => { passClicked = true; },
+      undefined,
+      () => { bunkerClicked = true; }
+    );
+    const state = createInitialGameState({ skipSetup: true });
+    const store = new GameStore();
+    store.botSeats[PlayerSeat.NORTH] = false;
+    state.activePlayer = PlayerSeat.NORTH;
+
+    // Normal state where both pass and bunker buttons would be displayed
+    state.players[PlayerSeat.SOUTH].backupCards[2] = null;
+    state.players[PlayerSeat.NORTH].backupCards[0] = { id: 'c1', suit: 'H', rank: 14 };
+    store.selectedBaseCardIndex = 0;
+
+    baseDeckUI.render(state, store);
+
+    const bunkerBtn = container.querySelector('.bunker-action-btn') as HTMLElement;
+    const passBtn = container.querySelector('.pass-card-btn') as HTMLElement;
+    expect(bunkerBtn).not.toBeNull();
+    expect(bunkerBtn.style.display).toBe('inline-flex');
+    expect(passBtn).not.toBeNull();
+    expect(passBtn.style.display).toBe('inline-flex');
+
+    // Introduce a resolved poker combat with win announcement message
+    state.pendingCombat = {
+      attackerSeat: PlayerSeat.NORTH,
+      defenderSeat: PlayerSeat.EAST,
+      attackerPosIndex: 45,
+      defenderPosIndex: 35,
+      attackerHand: {
+        rank: HandRank.FULL_HOUSE,
+        cards: [],
+        score: 7000000,
+        winningCards: []
+      },
+      defenderHand: {
+        rank: HandRank.TWO_PAIR,
+        cards: [],
+        score: 3000000,
+        winningCards: []
+      },
+      winnerSeat: PlayerSeat.NORTH,
+      capturedPiece: 0
+    };
+    state.isTurnRiverRevealed = true;
+
+    baseDeckUI.render(state, store);
+
+    // Verify poker win announcement is visible
+    const combatWrapper = container.querySelector('.combat-announcement-wrapper') as HTMLElement;
+    const combatText = container.querySelector('.combat-announcement-text') as any;
+    expect(combatWrapper).not.toBeNull();
+    expect(combatWrapper.style.display).toBe('flex');
+    expect(combatText.innerText).toContain('Attacker Wins with a Full House!');
+
+    // Verify both bunker and pass card buttons are strictly hidden
+    expect(bunkerBtn.style.display).toBe('none');
+    expect(passBtn.style.display).toBe('none');
+  });
+
+  it('BaseDeckUI hides bunker and pass card buttons during pending combat delay', () => {
+    const container = document.createElement('div') as unknown as MockElement;
+    const baseDeckUI = new BaseDeckUI(
+      container as unknown as HTMLElement,
+      () => {},
+      () => {},
+      () => {},
+      undefined,
+      () => {}
+    );
+    const state = createInitialGameState({ skipSetup: true });
+    const store = new GameStore();
+    store.botSeats[PlayerSeat.NORTH] = false;
+    state.activePlayer = PlayerSeat.NORTH;
+
+    state.players[PlayerSeat.SOUTH].backupCards[2] = null;
+    state.players[PlayerSeat.NORTH].backupCards[0] = { id: 'c1', suit: 'H', rank: 14 };
+    store.selectedBaseCardIndex = 0;
+
+    // Combat pending before river is revealed
+    state.pendingCombat = {
+      attackerSeat: PlayerSeat.NORTH,
+      defenderSeat: PlayerSeat.EAST,
+      attackerPosIndex: 45,
+      defenderPosIndex: 35,
+      attackerHand: {
+        rank: HandRank.HIGH_CARD,
+        cards: [],
+        score: 1000000,
+        winningCards: []
+      },
+      defenderHand: {
+        rank: HandRank.HIGH_CARD,
+        cards: [],
+        score: 1000000,
+        winningCards: []
+      },
+      winnerSeat: null,
+      capturedPiece: 0
+    };
+    state.isTurnRiverRevealed = false;
+
+    baseDeckUI.render(state, store);
+
+    const bunkerBtn = container.querySelector('.bunker-action-btn') as HTMLElement;
+    const passBtn = container.querySelector('.pass-card-btn') as HTMLElement;
+    expect(bunkerBtn.style.display).toBe('none');
+    expect(passBtn.style.display).toBe('none');
   });
 
   it('CapturesUI highlights Team A box border with #f59e0b when Team A is active', () => {

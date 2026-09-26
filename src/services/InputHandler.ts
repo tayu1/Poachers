@@ -156,7 +156,7 @@ export class InputHandler {
 
   public handleBunkerButtonClick(): void {
     const state = this.store.getState();
-    if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
+    if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.isCombatDelaying || state.pendingCombat || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
     if (!this.isMyTurn(state.activePlayer)) return;
 
     const currentBunkers = getPlayerBunkerCount(state.board, state.activePlayer);
@@ -381,7 +381,7 @@ export class InputHandler {
 
   public handlePassCard(): void {
     const state = this.store.getState();
-    if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
+    if (state.isGameOver || this.store.isReplaying || this.store.isCombatDelaying || state.isCombatDelaying || state.pendingCombat || state.setupState?.inSetup || state.pendingRefills.length > 0) return;
     if (state.hasSwappedThisTurn) return;
 
     const activeSeat = state.activePlayer;

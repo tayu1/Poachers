@@ -10,13 +10,13 @@
   /* 👁️ Lobby Texture Opacity (0.0 to 1.0) */
   --lobby-texture-size: 400px;
   /* 📐 Lobby Texture Size (e.g. 400px = spacious) */
-  --lobby-modal-bg: rgba(5, 26, 79, 0.131);
+  --lobby-modal-bg: rgba(0, 0, 0, 0.131);
   /* 🪟 Lobby Modal Frosted Glass Background */
   --lobby-modal-blur: 8px;
   /* 🌫️ Lobby Modal Blur Radius */
   --rules-bg-color: #001a24;
   /* 📜 Rules Page Background Color */
-  --rules-backdrop-bg: rgba(0, 0, 0, 0.139);
+  --rules-backdrop-bg: rgba(0, 0, 0, 0.122);
   /* 🪟 Rules Page Backdrop Background (rgba(5, 9, 18, 0.72) or transparent) */
   --rules-backdrop-blur: 8px;
   /* 🌫️ Rules Page Backdrop Blur Radius */
@@ -24,9 +24,9 @@
   /* ==========================================================================
      SET 2: GAME SCREEN (Background, Texture & Board Glass Controls)
      ========================================================================== */
-  --game-bg-color: #003532;
+  --game-bg-color: #002f25;
   /* 🎨 Game Screen Background Color */
-  --game-texture-color: #00413b;
+  --game-texture-color: #46ffdd0a;
   /* 🎨 Game Texture Symbol Color */
   --game-texture-opacity: 1;
   /* 👁️ Game Texture Opacity (0.0 to 1.0) */
@@ -34,18 +34,18 @@
   /* 📐 Game Texture Size (e.g. 240px = smaller/denser symbols) */
   --board-glass-blur: 0px;
   /* 🌫️ Board Glass Panel Blur (0px = disabled for solid center) */
-  --board-glass-bg: var(--game-bg-color);
+  --board-glass-bg: #00000000;
   /* 🪟 Center Board Area Background (Solid game background) */
   --board-border-blur-color: transparent;
   /* 🌑 Blurred Border Shadow Color between Center and Sides (transparent = no shadow) */
   --board-border-blur-line: rgba(255, 255, 255, 0);
   /* 🌫️ Blurred Border Line Glow between Center and Sides */
-  --board-border-blur-radius: 14px;
+  --board-border-blur-radius: 0px;
   /* 📐 Blurred Border Blur Radius */
   --board-glass-border: var(--board-border-blur-line);
-  --game-menu-glass-bg: #00252372;
+  --game-menu-glass-bg: #0000001f;
   /* 🪟 Game Screen Sidebars / Menus Glass Background */
-  --game-menu-glass-blur: 0px;
+  --game-menu-glass-blur: 5px;
   /* 🌫️ Game Screen Sidebars / Menus Glass Blur Radius (0px = no blur) */
   --game-menu-glass-border: rgba(255, 255, 255, 0.367);
   /* 🖼️ Game Screen Sidebars / Menus Border & Separation Line Color */
@@ -53,7 +53,7 @@
   /* 🌑 Game Screen Sidebars / Menus Shadow */
 
 
-  --game-end-bg-color: #002523ca;
+  --game-end-bg-color: #0000008e;
   /* 🏆 Game End Menu Background Color */
   --game-end-backdrop-bg: rgba(5, 9, 18, 0);
   /* 🪟 Game End Menu Backdrop Background (rgba(5, 9, 18, 0.72) or transparent) */
@@ -76,8 +76,8 @@
   --font-body: 'Inter', sans-serif;
 
   /* Board & Square Colors */
-  --board-light: rgb(164, 97, 38);
-  --board-dark: rgb(120, 62, 12);
+  --board-light: rgb(168, 98, 37);
+  --board-dark: rgb(142, 74, 15);
   --board-border: none;
   /* 🔲 Board Border Line (none = no border line around board) */
   --hill-border-color: rgb(255, 255, 255);
@@ -176,24 +176,24 @@
   --bg-card-face: rgb(255, 233, 176);
   --card-empty-bg: rgba(11, 19, 37, 0.224);
   --card-val-font-size: 1.3rem;
-  --card-suit-font-size: 1.3rem;
+  --card-suit-font-size: 1.4rem;
   --card-border-width: 1.5px;
   --card-border-team-a-color: var(--team-a-color);
   --card-border-team-b-color: var(--team-b-color);
-  --combat-dimmed-opacity: 0.75;
+  --combat-dimmed-opacity: 0.6;
 
   /* Double Card Trench Slots: Backup Card Stack Offset Controls */
   --bco_offset: 8px;
   --backup-card-offset-north-x: 0px;
-  --backup-card-offset-north-y: calc(-1 * var(--bco_offset, 8px));
+  --backup-card-offset-north-y: calc(-1 * var(--bco_offset));
 
   --backup-card-offset-south-x: 0px;
-  --backup-card-offset-south-y: var(--bco_offset, 8px);
+  --backup-card-offset-south-y: var(--bco_offset);
 
-  --backup-card-offset-east-x: var(--bco_offset, 8px);
+  --backup-card-offset-east-x: var(--bco_offset);
   --backup-card-offset-east-y: 0px;
 
-  --backup-card-offset-west-x: calc(-1 * var(--bco_offset, 8px));
+  --backup-card-offset-west-x: calc(-1 * var(--bco_offset));
   --backup-card-offset-west-y: 0px;
 
 
@@ -205,8 +205,8 @@
   --swap-card-border-width: 3px;
 
   /* Winning Card Highlight Controls */
-  --winning-card-border-team-a: #fccc54;
-  --winning-card-border-team-b: #9df2ff;
+  --winning-card-border-team-a: var(--team-a-color);
+  --winning-card-border-team-b: var(--team-b-color);
   --winning-card-border-width: 3px;
 
   /* Last Move Arrows */
@@ -325,6 +325,14 @@ select,
 .combat-announcement-text.winning-team-b,
 .combat-announcement-text.defender-win-msg {
   color: var(--team-b-color);
+}
+
+/* Hide bunker and pass card buttons during combat announcement / poker win message */
+.base-deck-wrapper.in-combat-announcement .pass-card-btn,
+.base-deck-wrapper.in-combat-announcement .bunker-action-btn,
+.combat-announcement-wrapper:not([style*="display: none"])~.pass-card-btn,
+.combat-announcement-wrapper:not([style*="display: none"])~.bunker-action-btn {
+  display: none !important;
 }
 
 /* Pass Card Button */
