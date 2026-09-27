@@ -140,6 +140,9 @@ export class LobbyUI {
             </div>
           </div>
         </div>
+        <div style="position: absolute; bottom: 16px; left: 0; width: 100%; text-align: center; font-size: 11px; color: #7f9487ff; pointer-events: auto; user-select: text; -webkit-user-select: text; z-index: 10;">
+          All rights reserved . nitai.ieru@gmail.com
+        </div>
       </div>
     `;
 

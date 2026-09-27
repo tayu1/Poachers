@@ -662,6 +662,8 @@
   z-index: 1;
   padding-right: 16px;
   flex: 1;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .rules-content h1 {
