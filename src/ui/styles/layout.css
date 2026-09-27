@@ -991,6 +991,7 @@
 .trench-card.selected {
   outline: none !important;
   z-index: 5;
+  overflow: visible !important;
 }
 
 .trench-card.selected::after {
@@ -1003,11 +1004,13 @@
   outline-offset: 0px;
   transform: scale(1.05);
   z-index: 5;
+  overflow: visible !important;
 }
 
 /* Available / Possible Cards for Swapping: Top z-level outline */
 .trench-card.highlight-mild-swap {
   outline: none !important;
+  overflow: visible !important;
 }
 
 .trench-card.highlight-mild-swap::after {
@@ -1089,6 +1092,7 @@
   outline: none !important;
   box-shadow: none !important;
   z-index: 10 !important;
+  overflow: visible !important;
 }
 
 .trench-card.winning-card-highlight::after {
@@ -1113,6 +1117,7 @@
   outline-offset: 1.5px !important;
   box-shadow: none !important;
   z-index: 10 !important;
+  overflow: visible !important;
 }
 
 .winning-card-highlight.winning-team-a {
