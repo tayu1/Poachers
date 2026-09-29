@@ -66,7 +66,16 @@ export interface ClientToServerEvents {
   toggle_auto_card_pick: (data: { roomCode: string; playerId: string }) => void;
   start_game: (data: { roomCode: string; playerId: string }, callback?: (res: { success: boolean; error?: string }) => void) => void;
   game_action: (data: { roomCode: string; playerId: string; action: GameAction }) => void;
-  reconnect_session: (data: { roomCode: string; playerId: string }, callback?: (res: { success: boolean; roomState?: RoomState; gameState?: GameState; logs?: NetworkLogEntry[]; history?: GameState[]; error?: string }) => void) => void;
+  reconnect_session: (data: { roomCode: string; playerId: string }, callback?: (res: {
+    success: boolean;
+    roomState?: RoomState;
+    gameState?: GameState;
+    logs?: NetworkLogEntry[];
+    history?: GameState[];
+    timerRemainingSeconds?: number;
+    timerActiveSeat?: PlayerSeat;
+    error?: string;
+  }) => void) => void;
   reset_match: (data: { roomCode: string; playerId: string }) => void;
   request_rematch: (data: { roomCode: string; playerId: string }) => void;
   accept_rematch: (data: { roomCode: string; playerId: string }) => void;

@@ -10,6 +10,7 @@ export interface ServerPlayer {
   isHost: boolean;
   isReady: boolean;
   isOnline: boolean;
+  ip?: string;
 }
 
 export interface ServerRoom {
@@ -19,12 +20,15 @@ export interface ServerRoom {
   players: Map<string, ServerPlayer>;
   gameStarted: boolean;
   status: 'lobby' | 'playing' | 'ended';
+  matchStartTime?: string;
+  hasLoggedMatch?: boolean;
   gameState: GameState | null;
   history: GameState[];
   logs: NetworkLogEntry[];
   botTimer: NodeJS.Timeout | null;
   botTurnStartTime?: number | null;
   turnTimeout: NodeJS.Timeout | null;
+  teamTimeouts?: Record<Team, number>;
   autoCardPick: boolean;
   isPublic: boolean;
   turnTimeLimit: TurnTimeLimit;

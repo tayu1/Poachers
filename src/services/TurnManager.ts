@@ -1,3 +1,4 @@
+import BotWorker from '../bot/botWorker?worker';
 import { DEFAULT_BOT_PROFILE, getBestBotAction } from '../bot/bot';
 import { DEFAULT_TURN_TIME_LIMIT, POST_COMBAT_DELAY_MS, TURN_RIVER_DELAY_MS } from '../config';
 import { applyAction, completePostCombat, executeCombatResolution, getRandomLegalAction, executeTrenchSingleCardSelect, GameAction, autoFillEmptySlots } from '../core/engine';
@@ -13,6 +14,7 @@ export class TurnManager {
   private appElement: HTMLElement;
 
   public phase: TurnPhase = TurnPhase.IDLE;
+  private botWorker: Worker | null = null;
 
   // Timers
   private turnClockInterval: any = null;
@@ -28,11 +30,20 @@ export class TurnManager {
   private lastTurnCount: number | null = null;
   private lastStage: string | null = null;
   private isExecutingTimeout = false;
+  private teamTimeouts: Record<Team, number> = { A: 0, B: 0 };
 
   constructor(store: GameStore, overlaysUI: OverlaysUI) {
     this.store = store;
     this.overlaysUI = overlaysUI;
     this.appElement = (typeof document !== 'undefined' ? document.getElementById('app') || document.body : null) as HTMLElement;
+    if (typeof window !== 'undefined' && typeof Worker !== 'undefined') {
+      try {
+        this.botWorker = new BotWorker();
+      } catch (err) {
+        console.warn('[TurnManager] Bot Worker init fallback:', err);
+        this.botWorker = null;
+      }
+    }
   }
 
   public cancelAllTimers(): void {
@@ -44,11 +55,15 @@ export class TurnManager {
       clearTimeout(this.botTimer);
       this.botTimer = null;
     }
+    if (this.botWorker) {
+      this.botWorker.onmessage = null;
+    }
     this.botTurnStartTime = null;
     this.store.cancelCombatTimers();
     this.lastSeat = null;
     this.lastTurnCount = null;
     this.lastStage = null;
+    this.teamTimeouts = { A: 0, B: 0 };
     // Reset execution flag — if a timer was mid-execution when cancelled,
     // this prevents it from permanently blocking all future timer handling.
     this.isExecutingTimeout = false;
@@ -288,9 +303,16 @@ export class TurnManager {
       }
     }
 
-    if (!this.store.isInMatch() || this.store.isMultiplayer) {
+    if (!this.store.isInMatch()) {
       this.cancelAllTimers();
       return;
+    }
+
+    if (this.store.isMultiplayer) {
+      if (!this.store.roomState || this.store.myPlayerId !== this.store.roomState.hostPlayerId) {
+        this.cancelAllTimers();
+        return;
+      }
     }
 
     if (this.store.isCombatDelaying || this.phase === TurnPhase.COMBAT_DELAY || this.store.isReplaying) {
@@ -451,11 +473,26 @@ export class TurnManager {
           });
         }
       } else {
+        const currentTeam: Team = currentState.players[currentSeat]?.team || (currentSeat === PlayerSeat.NORTH || currentSeat === PlayerSeat.SOUTH ? 'A' : 'B');
+        this.teamTimeouts[currentTeam] = (this.teamTimeouts[currentTeam] || 0) + 1;
+        const timeoutCount = this.teamTimeouts[currentTeam];
+
+        if (timeoutCount >= 3) {
+          this.isExecutingTimeout = false;
+          const result = this.store.resignGame();
+          if (result) {
+            const seatCode = getSeatCode(currentSeat);
+            const logText = `Team ${currentTeam} (${seatCode}) timed out (3rd timeout). Team ${result.winnerTeam} Victorious!`;
+            this.handleGameOver(result.winnerTeam, logText);
+          }
+          return;
+        }
+
         const randomAction = getRandomLegalAction(currentState, currentSeat);
         this.isExecutingTimeout = false;
         this.dispatchAction(randomAction, {
           deferPostCombat: true,
-          logSuffix: ' (timer)'
+          logSuffix: ` (timer ${timeoutCount}/2)`
         });
       }
     }
@@ -501,25 +538,7 @@ export class TurnManager {
       [PlayerSeat.WEST]: DEFAULT_BOT_PROFILE.trenchStrategy
     };
 
-    // 2. Instant card swap if bot wants to swap
-    let currentState = state;
-    if (!currentState.hasSwappedThisTurn && !currentState.setupState?.inSetup && currentState.turnCount > 0) {
-      const initialCandidate = getBestBotAction(currentState, DEFAULT_BOT_PROFILE);
-      const isSwap = initialCandidate && (
-        typeof initialCandidate.action === 'number'
-          ? (initialCandidate.action >>> 20) === ActionType.CARD_SWAP
-          : initialCandidate.action.type === 'CARD_SWAP' || initialCandidate.action.type === ActionType.CARD_SWAP
-      );
-      if (isSwap && initialCandidate) {
-        this.dispatchAction(initialCandidate.action, {
-          deferPostCombat: true,
-          botStrategies
-        });
-        return; // dispatchAction will syncTurn and trigger scheduleBotTurn with botTurnStartTime preserved
-      }
-    }
-
-    // 3. Yield 20ms to allow DOM paint of card swap/refill, then compute move
+    // 2. Yield 20ms to allow DOM paint of card swap/refill, then compute move
     this.botTimer = setTimeout(() => {
       this.botTimer = null;
       const latestState = this.store.getState();
@@ -535,26 +554,54 @@ export class TurnManager {
         return;
       }
 
-      const botCandidate = getBestBotAction(latestState, DEFAULT_BOT_PROFILE);
-      const actionToDispatch: GameAction = botCandidate ? botCandidate.action : { type: 'SKIP_TURN', input1: undefined, input2: null };
-
       const turnStartTime = this.botTurnStartTime ?? Date.now();
-      const elapsed = Date.now() - turnStartTime;
-      const remainingDelay = Math.max(0, this.store.botSpeedMs - elapsed);
 
-      const executeMove = () => {
-        this.botTimer = null;
-        this.botTurnStartTime = null;
-        this.dispatchAction(actionToDispatch, {
-          deferPostCombat: true,
-          botStrategies
-        });
-      };
+      if (this.botWorker) {
+        this.botWorker.onmessage = (e) => {
+          const actionToDispatch: GameAction = e.data.action || (e.data.actionInt ? actionIntToGameAction(e.data.actionInt) : { type: 'SKIP_TURN', input1: undefined, input2: null });
 
-      if (remainingDelay > 0) {
-        this.botTimer = setTimeout(executeMove, remainingDelay);
+          const elapsed = Date.now() - turnStartTime;
+          const remainingDelay = Math.max(0, this.store.botSpeedMs - elapsed);
+
+          const executeMove = () => {
+            this.botTimer = null;
+            this.botTurnStartTime = null;
+            this.dispatchAction(actionToDispatch, {
+              deferPostCombat: true,
+              botStrategies
+            });
+          };
+
+          if (remainingDelay > 0) {
+            this.botTimer = setTimeout(executeMove, remainingDelay);
+          } else {
+            executeMove();
+          }
+        };
+
+        // Send the heavy calculation to the Web Worker
+        this.botWorker.postMessage({ state: latestState, profile: DEFAULT_BOT_PROFILE });
       } else {
-        executeMove();
+        const botCandidate = getBestBotAction(latestState, DEFAULT_BOT_PROFILE);
+        const actionToDispatch: GameAction = botCandidate ? botCandidate.action : { type: 'SKIP_TURN', input1: undefined, input2: null };
+
+        const elapsed = Date.now() - turnStartTime;
+        const remainingDelay = Math.max(0, this.store.botSpeedMs - elapsed);
+
+        const executeMove = () => {
+          this.botTimer = null;
+          this.botTurnStartTime = null;
+          this.dispatchAction(actionToDispatch, {
+            deferPostCombat: true,
+            botStrategies
+          });
+        };
+
+        if (remainingDelay > 0) {
+          this.botTimer = setTimeout(executeMove, remainingDelay);
+        } else {
+          executeMove();
+        }
       }
     }, 20);
   }
@@ -666,6 +713,7 @@ export class TurnManager {
   }
 
   public handleResetOrRematch(): void {
+    this.cancelAllTimers();
     if (this.store.isMultiplayer) {
       if (this.store.getRematchMode() === 'return_to_lobby') {
         this.clearGameOverPopupState();

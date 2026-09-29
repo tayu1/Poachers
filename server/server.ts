@@ -15,6 +15,7 @@ import { checkAndAutoStartMatch, clearTurnTimeout, recordRoomSnapshot, startMatc
 import { assignInitialHostSeats, assignSeat, autoAssignSeat, broadcastPublicRooms, clearPlayerSeats, createEmptySeats, emitGameStateToRoom, ensureAllHumansSeated, findRoom, generateRoomCode, getPublicRoomsSummary, getSeatTeam, getSeatsForPlayer, rooms, sanitizeGameStateForClient, serializeRoomState, toggleBot } from './roomManager';
 
 import { ServerPlayer, ServerRoom } from './types';
+import { getSocketIp, logMatchCompletion } from './analytics';
 
 process.on('uncaughtException', (err) => {
   console.error('[Server] Uncaught Exception:', err);
@@ -75,7 +76,8 @@ io.on('connection', (socket) => {
         team: null,
         isHost: true,
         isReady: false,
-        isOnline: true
+        isOnline: true,
+        ip: getSocketIp(socket)
       };
 
       const room: ServerRoom = {
@@ -89,6 +91,7 @@ io.on('connection', (socket) => {
         logs: [],
         botTimer: null,
         turnTimeout: null,
+        teamTimeouts: { A: 0, B: 0 },
         autoCardPick: true,
         isPublic: isPublic !== false,
         turnTimeLimit: DEFAULT_TURN_TIME_LIMIT,
@@ -131,6 +134,7 @@ io.on('connection', (socket) => {
       player = room.players.get(playerId)!;
       player.socketId = socket.id;
       player.isOnline = true;
+      player.ip = getSocketIp(socket);
       if (playerName) player.name = playerName;
       // Ensure existing player has seat
       autoAssignSeat(room, player);
@@ -148,7 +152,8 @@ io.on('connection', (socket) => {
         team: null,
         isHost: false,
         isReady: false,
-        isOnline: true
+        isOnline: true,
+        ip: getSocketIp(socket)
       };
 
       const assignedSeat = autoAssignSeat(room, player);
@@ -175,6 +180,12 @@ io.on('connection', (socket) => {
         logs: room.logs,
         history: room.history ? room.history.map(h => sanitizeGameStateForClient(h, seats)) : undefined
       });
+      if (room.timerRemainingSeconds !== undefined && room.timerActiveSeat !== undefined) {
+        socket.emit('timer_tick', {
+          remainingSeconds: room.timerRemainingSeconds,
+          activeSeat: room.timerActiveSeat
+        });
+      }
     }
   });
 
@@ -198,6 +209,7 @@ io.on('connection', (socket) => {
     const player = room.players.get(playerId)!;
     player.socketId = socket.id;
     player.isOnline = true;
+    player.ip = getSocketIp(socket);
     socket.join(code);
 
     const roomState = serializeRoomState(room);
@@ -208,15 +220,38 @@ io.on('connection', (socket) => {
         roomState,
         gameState: sanitizeGameStateForClient(room.gameState, seats) || undefined,
         logs: room.logs,
-        history: room.history ? room.history.map(h => sanitizeGameStateForClient(h, seats)) : undefined
+        history: room.history ? room.history.map(h => sanitizeGameStateForClient(h, seats)) : undefined,
+        timerRemainingSeconds: room.timerRemainingSeconds,
+        timerActiveSeat: room.timerActiveSeat
       });
     }
 
     io.to(code).emit('room_state_update', roomState);
 
-    // Resume game loop if mid-game (timers were paused while no humans were online)
+    // Sync timer if mid-game without resetting an active clock
     if (room.status === 'playing' && room.gameState && !room.gameState.isGameOver) {
-      startTurnTimeout(room, io);
+      if (room.turnTimeout !== null) {
+        // Clock is already actively ticking down. Send current timer state to the reconnecting player.
+        if (room.timerRemainingSeconds !== undefined && room.timerActiveSeat !== undefined) {
+          socket.emit('timer_tick', {
+            remainingSeconds: room.timerRemainingSeconds,
+            activeSeat: room.timerActiveSeat
+          });
+        }
+      } else {
+        // Timer was not running (e.g. only human reconnected or timer was stopped)
+        const limit = room.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT;
+        const activeSeat = room.gameState.pendingRefills.length > 0 ? room.gameState.pendingRefills[0].seat : room.gameState.activePlayer;
+        const activeSlot = room.seats[activeSeat];
+        if (limit > 0 && (!activeSlot || !activeSlot.isBot) && !room.gameState.isCombatDelaying) {
+          startTurnTimeout(room, io, room.timerRemainingSeconds !== undefined ? room.timerRemainingSeconds : limit);
+        } else if (room.timerRemainingSeconds !== undefined && room.timerActiveSeat !== undefined) {
+          socket.emit('timer_tick', {
+            remainingSeconds: room.timerRemainingSeconds,
+            activeSeat: room.timerActiveSeat
+          });
+        }
+      }
       triggerBotTurnIfNeeded(room, io);
     }
   });
@@ -411,6 +446,7 @@ io.on('connection', (socket) => {
       if (state.isGameOver) {
         room.matchScore = { ...state.score };
         room.status = 'ended';
+        logMatchCompletion(room, 'Resignation');
         io.to(code).emit('room_state_update', serializeRoomState(room));
       }
 
@@ -425,7 +461,15 @@ io.on('connection', (socket) => {
     }
 
     const requiredSlot = room.seats[requiredSeat];
-    if (requiredSlot.playerId !== playerId) {
+    const isBotTurn = requiredSlot.isBot;
+    const isHost = room.hostPlayerId === playerId;
+
+    if (isBotTurn) {
+      if (!isHost) {
+        socket.emit('error_message', { message: 'Only the room host can submit bot moves.' });
+        return;
+      }
+    } else if (requiredSlot.playerId !== playerId) {
       socket.emit('error_message', { message: `It is currently ${getSeatCode(requiredSeat)}'s turn.` });
       return;
     }
@@ -496,6 +540,7 @@ io.on('connection', (socket) => {
             }
             room.matchScore = { ...room.gameState.score };
             room.status = 'ended';
+            logMatchCompletion(room, 'King Captured');
             io.to(code).emit('room_state_update', serializeRoomState(room));
             broadcastPublicRooms(io);
           } else {
@@ -546,6 +591,7 @@ io.on('connection', (socket) => {
         }
         room.matchScore = { ...room.gameState.score };
         room.status = 'ended';
+        logMatchCompletion(room, 'King Captured');
         io.to(code).emit('room_state_update', serializeRoomState(room));
         broadcastPublicRooms(io);
       }

@@ -66,7 +66,7 @@
   --panel-border: var(--game-menu-glass-border);
   --panel-blur: var(--game-menu-glass-blur);
   --panel-shadow: var(--game-menu-glass-shadow);
-  --accent-gold: #ffea00;
+  --accent-gold: #ffd900;
   --accent-cyan: #00d9ff;
   --team-a-color: var(--accent-gold);
   --team-b-color: var(--accent-cyan);
@@ -100,7 +100,7 @@
   --trench-border-style: dotted;
 
   /* Active Piece Rounded Square Controls */
-  --active-piece-team-a-color: #fbee60;
+  --active-piece-team-a-color: #ffdd56;
   --active-piece-team-b-color: #7cd3ff;
   --active-piece-border-width: 1px;
   --active-piece-border-radius: 6px;

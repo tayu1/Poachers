@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PlayerSeat } from '../src/core/types';
 import { applyAction, createInitialGameState, getRandomLegalAction } from '../src/core/engine';
 import { clearTurnTimeout, startTurnTimeout } from './gameLoop';
@@ -392,5 +392,96 @@ describe('Server RoomManager - Unified Seat Management', () => {
 
     expect(room.logs.length).toBe(1);
     expect(room.logs[0].text).toContain('(timer)');
+  });
+
+  it('should preserve remainingSeconds in startTurnTimeout if passed', () => {
+    const { room } = createMockRoom();
+    room.status = 'playing';
+    room.turnTimeLimit = 60;
+    room.gameState = createInitialGameState({ skipSetup: true });
+
+    let emittedRemaining = -1;
+    const mockIo: any = {
+      to: () => ({
+        emit: (event: string, data: any) => {
+          if (event === 'timer_tick') emittedRemaining = data.remainingSeconds;
+        }
+      }),
+      emit: () => {}
+    };
+
+    startTurnTimeout(room, mockIo, 17);
+    expect(room.timerRemainingSeconds).toBe(17);
+    expect(emittedRemaining).toBe(17);
+    clearTurnTimeout(room);
+  });
+
+  it('should default to turnTimeLimit when remainingSeconds is not provided', () => {
+    const { room } = createMockRoom();
+    room.status = 'playing';
+    room.turnTimeLimit = 45;
+    room.gameState = createInitialGameState({ skipSetup: true });
+
+    let emittedRemaining = -1;
+    const mockIo: any = {
+      to: () => ({
+        emit: (event: string, data: any) => {
+          if (event === 'timer_tick') emittedRemaining = data.remainingSeconds;
+        }
+      }),
+      emit: () => {}
+    };
+
+    startTurnTimeout(room, mockIo);
+    expect(room.timerRemainingSeconds).toBe(45);
+    expect(emittedRemaining).toBe(45);
+    clearTurnTimeout(room);
+  });
+
+  it('should allow 2 timeouts per team with random moves and abort/resign on 3rd timeout', () => {
+    vi.useFakeTimers();
+    const { room } = createMockRoom();
+    room.status = 'playing';
+    room.turnTimeLimit = 5;
+    room.teamTimeouts = { A: 0, B: 0 };
+    room.gameState = createInitialGameState({ skipSetup: true });
+    room.gameState.activePlayer = PlayerSeat.NORTH; // Team A
+    room.logs = [];
+
+    const mockIo: any = {
+      to: () => ({ emit: () => {} }),
+      emit: () => {}
+    };
+
+    startTurnTimeout(room, mockIo);
+    // Timeout 1 for Team A
+    vi.advanceTimersByTime(5000);
+    expect(room.teamTimeouts.A).toBe(1);
+    expect(room.status).toBe('playing');
+
+    // Force active player to South (also Team A)
+    clearTurnTimeout(room);
+    room.gameState.activePlayer = PlayerSeat.SOUTH; // Team A
+    startTurnTimeout(room, mockIo);
+    // Timeout 2 for Team A
+    vi.advanceTimersByTime(5000);
+    expect(room.teamTimeouts.A).toBe(2);
+    expect(room.status).toBe('playing');
+
+    // Timeout 3 for Team A (North again)
+    clearTurnTimeout(room);
+    room.gameState.activePlayer = PlayerSeat.NORTH; // Team A
+    startTurnTimeout(room, mockIo);
+    // Timeout 3 triggers forfeit
+    vi.advanceTimersByTime(5000);
+    expect(room.teamTimeouts.A).toBe(3);
+    expect(room.status).toBe('ended');
+    expect(room.gameState.isGameOver).toBe(true);
+    expect(room.gameState.winnerTeam).toBe('B');
+    expect(room.logs[room.logs.length - 1].text).toContain('timed out (3rd timeout)');
+    expect(room.logs[room.logs.length - 1].text).toContain('Team B Victorious');
+
+    clearTurnTimeout(room);
+    vi.useRealTimers();
   });
 });

@@ -140,6 +140,9 @@ class SocketClient {
           if (res.gameState) {
             store.applyServerGameState(res.gameState, res.logs || [], res.history);
           }
+          if (res.timerRemainingSeconds !== undefined && res.timerActiveSeat !== undefined) {
+            store.updateTimerState(res.timerRemainingSeconds, res.timerActiveSeat);
+          }
         } else {
           removeStorageItem('poachers_room_code');
         }
