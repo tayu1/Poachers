@@ -70,6 +70,7 @@ export class GameStore {
 
   // Multiplayer State
   public isMultiplayer: boolean = false;
+  public isOfflineSolo: boolean = false;
   public roomState: RoomState | null = null;
   public myPlayerId: string | null = null;
   public mySeat: PlayerSeat | null = null;
@@ -153,10 +154,57 @@ export class GameStore {
 
   public isInMatch(): boolean {
     if (this.isLocalGame) return true;
-    if (this.isMultiplayer && this.roomState && (this.roomState.status === 'playing' || this.roomState.status === 'ended')) {
+    if ((this.isMultiplayer || this.isOfflineSolo) && this.roomState && (this.roomState.status === 'playing' || this.roomState.status === 'ended')) {
       return true;
     }
     return false;
+  }
+
+  public isSoloWithBots(): boolean {
+    if (!this.roomState) return true;
+    for (let s = 0; s < 4; s++) {
+      const slot = this.roomState.seats[s as PlayerSeat];
+      if (slot && !slot.isBot && slot.playerId && slot.playerId !== this.myPlayerId) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public switchToOfflineSoloMode(): void {
+    if (!this.isSoloWithBots()) return;
+    this.isOfflineSolo = true;
+    this.netError = null;
+    this.notify();
+  }
+
+  public startOfflineSoloGame(): void {
+    if (!this.roomState) return;
+    this.isOfflineSolo = true;
+    this.isMultiplayer = true;
+    this.roomState.gameStarted = true;
+    this.roomState.status = 'playing';
+
+    for (let s = 0; s < 4; s++) {
+      const slot = this.roomState.seats[s as PlayerSeat];
+      if (!slot.isBot && (!slot.playerId || slot.playerId !== this.myPlayerId)) {
+        slot.isBot = true;
+        slot.playerId = null;
+        slot.name = `BOT (${getSeatCode(s as PlayerSeat)})`;
+        slot.isReady = true;
+      }
+    }
+
+    this.botSeats = {
+      [PlayerSeat.NORTH]: this.roomState.seats[PlayerSeat.NORTH].isBot,
+      [PlayerSeat.EAST]: this.roomState.seats[PlayerSeat.EAST].isBot,
+      [PlayerSeat.SOUTH]: this.roomState.seats[PlayerSeat.SOUTH].isBot,
+      [PlayerSeat.WEST]: this.roomState.seats[PlayerSeat.WEST].isBot
+    };
+
+    const initialGame = createInitialGameState({ skipSetup: true });
+    this.applyServerGameState(initialGame, []);
+    this.notify();
   }
 
   public getRematchMode(): 'available' | 'disabled' | 'return_to_lobby' {
@@ -310,6 +358,7 @@ export class GameStore {
 
   public leaveMultiplayerRoom(): void {
     this.isMultiplayer = false;
+    this.isOfflineSolo = false;
     this.roomState = null;
     this.mySeat = null;
     this.myTeam = null;

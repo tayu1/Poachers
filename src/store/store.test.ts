@@ -88,6 +88,49 @@ describe('GameStore Fast Bot Mode', () => {
     store.leaveMultiplayerRoom();
     expect(store.isInMatch()).toBe(false);
   });
+
+  it('should support seamless offline solo mode when playing only bots', () => {
+    store.myPlayerId = 'p1';
+    store.setRoomState({
+      roomCode: 'ABCD',
+      status: 'playing',
+      hostPlayerId: 'p1',
+      autoCardPick: true,
+      turnTimeLimit: 0,
+      isPublic: false,
+      players: {
+        p1: { playerId: 'p1', name: 'Human', seat: PlayerSeat.NORTH, team: 'A', isHost: true, isReady: true, isOnline: true }
+      },
+      seats: {
+        [PlayerSeat.NORTH]: { playerId: 'p1', name: 'Human', isBot: false, isReady: true },
+        [PlayerSeat.EAST]: { playerId: null, name: 'BOT (E)', isBot: true, isReady: true },
+        [PlayerSeat.SOUTH]: { playerId: null, name: 'BOT (S)', isBot: true, isReady: true },
+        [PlayerSeat.WEST]: { playerId: null, name: 'BOT (W)', isBot: true, isReady: true }
+      }
+    });
+
+    expect(store.isSoloWithBots()).toBe(true);
+    expect(store.isOfflineSolo).toBe(false);
+
+    // Switch to offline solo (e.g. WiFi turned off)
+    store.switchToOfflineSoloMode();
+    expect(store.isOfflineSolo).toBe(true);
+    expect(store.isInMatch()).toBe(true);
+
+    // If another human is in the room, isSoloWithBots should be false
+    store.roomState!.seats[PlayerSeat.SOUTH] = {
+      playerId: 'p2',
+      name: 'Human 2',
+      isBot: false,
+      isReady: true
+    };
+    expect(store.isSoloWithBots()).toBe(false);
+
+    // Clean up
+    store.leaveMultiplayerRoom();
+    expect(store.isOfflineSolo).toBe(false);
+    expect(store.isInMatch()).toBe(false);
+  });
 });
 
 describe('GameStore Starting Player Logic', () => {

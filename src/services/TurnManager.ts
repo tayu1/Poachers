@@ -84,7 +84,7 @@ export class TurnManager {
       ? ((action >>> 20) & 0xF) === ActionType.CARD_PASS
       : action.type === 'CARD_PASS' || action.type === ActionType.CARD_PASS;
 
-    if (this.store.isMultiplayer) {
+    if (this.store.isMultiplayer && !this.store.isOfflineSolo) {
       const gameAction = typeof action === 'number' ? actionIntToGameAction(action) : action;
       socketClient.sendGameAction(gameAction);
 
@@ -312,7 +312,7 @@ export class TurnManager {
       return;
     }
 
-    if (this.store.isMultiplayer) {
+    if (this.store.isMultiplayer && !this.store.isOfflineSolo) {
       if (!this.store.roomState || this.store.myPlayerId !== this.store.roomState.hostPlayerId) {
         this.cancelAllTimers();
         return;
@@ -388,7 +388,7 @@ export class TurnManager {
   }
 
   private syncTurnClock(state: GameState): void {
-    if (this.isExecutingTimeout || this.store.isMultiplayer || state.isGameOver || this.store.isCombatDelaying || this.store.isReplaying) {
+    if (this.isExecutingTimeout || (this.store.isMultiplayer && !this.store.isOfflineSolo) || state.isGameOver || this.store.isCombatDelaying || this.store.isReplaying) {
       if (this.turnClockInterval !== null) {
         clearInterval(this.turnClockInterval);
         this.turnClockInterval = null;
@@ -516,7 +516,7 @@ export class TurnManager {
     if (this.isBotComputing) return;
 
     // 1. Auto-refill for bot seats
-    if (this.store.isMultiplayer) {
+    if (this.store.isMultiplayer && !this.store.isOfflineSolo) {
       if (state.pendingRefills.length > 0 && this.store.botSeats[state.pendingRefills[0].seat]) {
         this.checkAndTriggerAutoRefill(state);
         return;

@@ -434,7 +434,7 @@ export class InputHandler {
       return;
     }
 
-    if (this.store.isMultiplayer) {
+    if (this.store.isMultiplayer && !this.store.isOfflineSolo) {
       const resigningSeat = this.store.mySeat !== null ? this.store.mySeat : state.activePlayer;
       socketClient.sendGameAction({
         type: 'RESIGN',

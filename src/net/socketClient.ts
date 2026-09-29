@@ -1,7 +1,9 @@
 import { io, Socket } from 'socket.io-client';
 
+import { TURN_TIME_LIMIT_OPTIONS } from '../config';
 import { GameAction } from '../core/engine';
-import { PlayerSeat } from '../core/types';
+import { getSeatCode } from '../core/notation';
+import { PlayerSeat, TurnTimeLimit } from '../core/types';
 import { store } from '../store/store';
 import { ClientToServerEvents, PublicRoomSummary, RoomState, ServerToClientEvents } from './events';
 
@@ -41,6 +43,60 @@ class SocketClient {
     if (storedId) {
       store.setMyPlayerId(storedId);
     }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('offline', () => {
+        console.log('[Net] Browser went offline');
+        if (store.isInMatch() && store.isSoloWithBots()) {
+          store.switchToOfflineSoloMode();
+        }
+      });
+    }
+  }
+
+  public isConnected(): boolean {
+    return Boolean(this.socket && this.socket.connected);
+  }
+
+  public createOfflineRoom(playerName: string): void {
+    let playerId = store.myPlayerId;
+    if (!playerId) {
+      playerId = `p_${Math.random().toString(36).substring(2, 9)}`;
+      setStorageItem('poachers_player_id', playerId);
+      store.setMyPlayerId(playerId);
+    }
+
+    const roomCode = 'BOTS';
+    setStorageItem('poachers_room_code', roomCode);
+
+    const offlineRoomState: RoomState = {
+      roomCode,
+      hostPlayerId: playerId,
+      seats: {
+        [PlayerSeat.NORTH]: { playerId, name: playerName, isBot: false, isReady: true },
+        [PlayerSeat.EAST]: { playerId: null, name: 'BOT (E)', isBot: true, isReady: true },
+        [PlayerSeat.SOUTH]: { playerId: null, name: 'BOT (S)', isBot: true, isReady: true },
+        [PlayerSeat.WEST]: { playerId: null, name: 'BOT (W)', isBot: true, isReady: true }
+      },
+      players: {
+        [playerId]: {
+          playerId,
+          name: playerName,
+          seat: PlayerSeat.NORTH,
+          team: 'A',
+          isHost: true,
+          isReady: true,
+          isOnline: true
+        }
+      },
+      gameStarted: false,
+      status: 'lobby',
+      autoCardPick: true,
+      isPublic: false,
+      turnTimeLimit: 0
+    };
+
+    store.isOfflineSolo = true;
+    store.setRoomState(offlineRoomState);
   }
 
   public subscribePublicRooms(callback: (rooms: PublicRoomSummary[]) => void): () => void {
@@ -123,6 +179,9 @@ class SocketClient {
 
       this.socket.on('disconnect', () => {
         console.log('[Net] Disconnected from server');
+        if (store.isInMatch() && store.isSoloWithBots()) {
+          store.switchToOfflineSoloMode();
+        }
       });
     } else if (!this.socket.connected) {
       this.socket.connect();
@@ -152,27 +211,33 @@ class SocketClient {
 
   public createRoom(playerName: string, isPublic: boolean = true): Promise<{ success: boolean; roomCode?: string; error?: string }> {
     return new Promise((resolve) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        this.createOfflineRoom(playerName);
+        return resolve({ success: true, roomCode: 'BOTS' });
+      }
+
       this.connect();
       if (!this.socket) {
-        store.setNetError('Socket client unavailable.');
-        return resolve({ success: false, error: 'Socket unavailable' });
+        this.createOfflineRoom(playerName);
+        return resolve({ success: true, roomCode: 'BOTS' });
       }
 
       const timeout = setTimeout(() => {
         if (!store.roomState) {
-          store.setNetError('Connection timed out. Ensure multiplayer server is running (npm run server).');
-          resolve({ success: false, error: 'Timeout' });
+          this.createOfflineRoom(playerName);
+          resolve({ success: true, roomCode: 'BOTS' });
         }
-      }, 4000);
+      }, 1500);
 
       this.socket.emit('create_room', { playerName, isPublic }, (res) => {
         clearTimeout(timeout);
         if (res && res.success && res.roomCode) {
           setStorageItem('poachers_room_code', res.roomCode);
         } else if (res && res.error) {
-          store.setNetError(res.error);
+          this.createOfflineRoom(playerName);
+          return resolve({ success: true, roomCode: 'BOTS' });
         }
-        resolve(res || { success: false, error: 'No response' });
+        resolve(res || { success: true, roomCode: 'BOTS' });
       });
     });
   }
@@ -186,6 +251,15 @@ class SocketClient {
   }
 
   public toggleTurnTimeLimit(): void {
+    if (store.isOfflineSolo && store.roomState) {
+      const limits = TURN_TIME_LIMIT_OPTIONS;
+      const curIdx = limits.indexOf(store.roomState.turnTimeLimit);
+      const nextLimit = limits[(curIdx + 1) % limits.length];
+      store.roomState.turnTimeLimit = nextLimit;
+      store.turnTimeLimit = nextLimit;
+      store.setRoomState({ ...store.roomState });
+      return;
+    }
     const roomCode = store.roomState?.roomCode;
     const playerId = store.myPlayerId;
     if (this.socket && roomCode && playerId) {
@@ -229,6 +303,28 @@ class SocketClient {
 
   public selectSeat(seat: PlayerSeat | null): Promise<{ success: boolean; error?: string }> {
     return new Promise((resolve) => {
+      if (store.isOfflineSolo && store.roomState && store.myPlayerId) {
+        const oldSeat = store.mySeat;
+        if (oldSeat !== null) {
+          store.roomState.seats[oldSeat] = {
+            playerId: null,
+            name: `BOT (${getSeatCode(oldSeat)})`,
+            isBot: true,
+            isReady: true
+          };
+        }
+        if (seat !== null) {
+          store.roomState.seats[seat] = {
+            playerId: store.myPlayerId,
+            name: store.roomState.players[store.myPlayerId]?.name || 'Player',
+            isBot: false,
+            isReady: true
+          };
+        }
+        store.setRoomState({ ...store.roomState });
+        return resolve({ success: true });
+      }
+
       const roomCode = store.roomState?.roomCode;
       const playerId = store.myPlayerId;
       if (!this.socket || !roomCode || !playerId) return resolve({ success: false, error: 'Not in a room' });
@@ -244,6 +340,15 @@ class SocketClient {
 
   public toggleBotSeat(seat: PlayerSeat): Promise<{ success: boolean; error?: string }> {
     return new Promise((resolve) => {
+      if (store.isOfflineSolo && store.roomState) {
+        const slot = store.roomState.seats[seat];
+        if (slot.playerId === store.myPlayerId) return resolve({ success: false });
+        slot.isBot = !slot.isBot;
+        slot.isReady = slot.isBot;
+        store.setRoomState({ ...store.roomState });
+        return resolve({ success: true });
+      }
+
       const roomCode = store.roomState?.roomCode;
       const playerId = store.myPlayerId;
       if (!this.socket || !roomCode || !playerId) return resolve({ success: false, error: 'Not in a room' });
@@ -254,6 +359,18 @@ class SocketClient {
 
   public toggleReady(): Promise<{ success: boolean; error?: string }> {
     return new Promise((resolve) => {
+      if (store.isOfflineSolo && store.roomState && store.myPlayerId) {
+        const player = store.roomState.players[store.myPlayerId];
+        if (player) {
+          player.isReady = !player.isReady;
+          if (player.seat !== null) {
+            store.roomState.seats[player.seat].isReady = player.isReady;
+          }
+          store.setRoomState({ ...store.roomState });
+        }
+        return resolve({ success: true });
+      }
+
       const roomCode = store.roomState?.roomCode;
       const playerId = store.myPlayerId;
       if (!this.socket || !roomCode || !playerId) return resolve({ success: false, error: 'Not in a room' });
@@ -264,11 +381,28 @@ class SocketClient {
 
   public startGame(): Promise<{ success: boolean; error?: string }> {
     return new Promise((resolve) => {
+      if (store.isOfflineSolo || (!this.isConnected() && store.isSoloWithBots())) {
+        store.startOfflineSoloGame();
+        return resolve({ success: true });
+      }
+
       const roomCode = store.roomState?.roomCode;
       const playerId = store.myPlayerId;
-      if (!this.socket || !roomCode || !playerId) return resolve({ success: false, error: 'Not in a room' });
+      if (!this.socket || !roomCode || !playerId) {
+        if (store.isSoloWithBots()) {
+          store.startOfflineSoloGame();
+          return resolve({ success: true });
+        }
+        return resolve({ success: false, error: 'Not in a room' });
+      }
 
-      this.socket.emit('start_game', { roomCode, playerId }, resolve);
+      this.socket.emit('start_game', { roomCode, playerId }, (res) => {
+        if (!res?.success && store.isSoloWithBots()) {
+          store.startOfflineSoloGame();
+          return resolve({ success: true });
+        }
+        resolve(res);
+      });
     });
   }
 
@@ -281,6 +415,12 @@ class SocketClient {
   }
 
   public toggleAutoCardPick(): void {
+    if (store.isOfflineSolo && store.roomState) {
+      store.roomState.autoCardPick = !store.roomState.autoCardPick;
+      store.autoCardPick = store.roomState.autoCardPick;
+      store.setRoomState({ ...store.roomState });
+      return;
+    }
     const roomCode = store.roomState?.roomCode;
     const playerId = store.myPlayerId;
     if (this.socket && roomCode && playerId) {
@@ -289,6 +429,10 @@ class SocketClient {
   }
 
   public resetMatch(): void {
+    if (store.isOfflineSolo) {
+      store.startOfflineSoloGame();
+      return;
+    }
     const roomCode = store.roomState?.roomCode;
     const playerId = store.myPlayerId;
     if (this.socket && roomCode && playerId) {
@@ -297,6 +441,10 @@ class SocketClient {
   }
 
   public requestRematch(): void {
+    if (store.isOfflineSolo) {
+      store.startOfflineSoloGame();
+      return;
+    }
     const roomCode = store.roomState?.roomCode;
     const playerId = store.myPlayerId;
     if (this.socket && roomCode && playerId) {
@@ -305,6 +453,10 @@ class SocketClient {
   }
 
   public acceptRematch(): void {
+    if (store.isOfflineSolo) {
+      store.startOfflineSoloGame();
+      return;
+    }
     const roomCode = store.roomState?.roomCode;
     const playerId = store.myPlayerId;
     if (this.socket && roomCode && playerId) {
