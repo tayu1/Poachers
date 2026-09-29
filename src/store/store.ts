@@ -267,6 +267,23 @@ export class GameStore {
     this.notify();
   }
 
+  public startLocalGame(): void {
+    this.isLocalGame = true;
+    this.isMultiplayer = false;
+    this.roomState = null;
+    this.netError = null;
+    this.mySeats = [PlayerSeat.NORTH, PlayerSeat.SOUTH];
+    this.mySeat = PlayerSeat.NORTH;
+    this.botSeats = {
+      [PlayerSeat.NORTH]: false,
+      [PlayerSeat.EAST]: true,
+      [PlayerSeat.SOUTH]: false,
+      [PlayerSeat.WEST]: true
+    };
+    this.setBotSpeedMs(BOT_SPEED_MS);
+    this.resetGame(false, false);
+  }
+
   public startBotFastMatch(): void {
     this.isLocalGame = true;
     this.botSeats = {

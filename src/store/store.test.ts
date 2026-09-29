@@ -15,6 +15,19 @@ describe('GameStore Fast Bot Mode', () => {
     expect(store.botSeats[PlayerSeat.WEST]).toBe(true);
   });
 
+  it('should initialize singleplayer offline game when startLocalGame is called', () => {
+    store.startLocalGame();
+
+    expect(store.isLocalGame).toBe(true);
+    expect(store.isMultiplayer).toBe(false);
+    expect(store.mySeats).toEqual([PlayerSeat.NORTH, PlayerSeat.SOUTH]);
+    expect(store.botSeats[PlayerSeat.NORTH]).toBe(false);
+    expect(store.botSeats[PlayerSeat.EAST]).toBe(true);
+    expect(store.botSeats[PlayerSeat.SOUTH]).toBe(false);
+    expect(store.botSeats[PlayerSeat.WEST]).toBe(true);
+    expect(store.isInMatch()).toBe(true);
+  });
+
   it('should restore normal settings when leaveLocalGame is called', () => {
     store.startBotFastMatch();
     store.leaveLocalGame();

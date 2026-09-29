@@ -462,7 +462,10 @@ describe('Server RoomManager - Unified Seat Management', () => {
     expect(room.status).toBe('playing');
 
     // Force active player to South (also Team A)
+    vi.runOnlyPendingTimers();
     clearTurnTimeout(room);
+    room.gameState.isCombatDelaying = false;
+    room.gameState.pendingRefills = [];
     room.gameState.activePlayer = PlayerSeat.SOUTH; // Team A
     startTurnTimeout(room, mockIo);
     // Timeout 2 for Team A
@@ -471,7 +474,10 @@ describe('Server RoomManager - Unified Seat Management', () => {
     expect(room.status).toBe('playing');
 
     // Timeout 3 for Team A (North again)
+    vi.runOnlyPendingTimers();
     clearTurnTimeout(room);
+    room.gameState.isCombatDelaying = false;
+    room.gameState.pendingRefills = [];
     room.gameState.activePlayer = PlayerSeat.NORTH; // Team A
     startTurnTimeout(room, mockIo);
     // Timeout 3 triggers forfeit

@@ -107,6 +107,8 @@ export class LobbyUI {
               <input type="text" id="player-name-input" class="lobby-input" value="${this.playerNameInputVal || defaultName}" placeholder="Enter name..." />
             </div>
 
+
+
             <div class="form-actions-row" style="align-items: center;">
               <button id="btn-create-room" class="btn-primary" style="flex: 2;">Create New Room</button>
               <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #cbd5e1; cursor: pointer; flex: 1;">
@@ -194,6 +196,7 @@ export class LobbyUI {
         }
       });
     });
+
 
     const btnCreate = this.container.querySelector('#btn-create-room');
     if (btnCreate) {
