@@ -969,7 +969,7 @@ function findBestCardSwap(state: GameState, seat: PlayerSeat): ActionInt | null 
       if (c1 === null) {
         beforeScore = 0;
         afterScore = 5000000 + getSlotScore(state, seat, slot1, c2);
-      } else if (!hasBackup) {
+      } else if (!hasBackup && isValidCard(c2)) {
         beforeScore = getSlotScore(state, seat, slot1, c1);
         afterScore = getSlotScore(state, seat, slot1, c1) + 2500;
       } else {
@@ -981,7 +981,7 @@ function findBestCardSwap(state: GameState, seat: PlayerSeat): ActionInt | null 
       if (c2 === null) {
         beforeScore = 0;
         afterScore = 5000000 + getSlotScore(state, seat, slot2, c1);
-      } else if (!hasBackup) {
+      } else if (!hasBackup && isValidCard(c1)) {
         beforeScore = getSlotScore(state, seat, slot2, c2);
         afterScore = getSlotScore(state, seat, slot2, c2) + 2500;
       } else {

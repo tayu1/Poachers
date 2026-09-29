@@ -463,5 +463,47 @@ describe('TurnManager State Machine', () => {
 
     socketSpy.mockRestore();
   });
+
+  it('should recognize combat delay when state.isCombatDelaying or state.pendingCombat is present', () => {
+    const store = new GameStore();
+    expect(store.isCombatDelaying).toBe(false);
+
+    const state = store.getState();
+    state.isCombatDelaying = true;
+    expect(store.isCombatDelaying).toBe(true);
+
+    state.isCombatDelaying = false;
+    state.pendingCombat = {} as any;
+    expect(store.isCombatDelaying).toBe(true);
+  });
+
+  it('should NOT schedule bot turns while combat is delaying', () => {
+    vi.useFakeTimers();
+    const store = new GameStore();
+    const mockOverlays: any = {
+      showGameOver: vi.fn(),
+      hideAll: vi.fn()
+    };
+    const tm = new TurnManager(store, mockOverlays);
+
+    store.isLocalGame = true;
+    store.botSeats = {
+      [PlayerSeat.NORTH]: false,
+      [PlayerSeat.EAST]: true,
+      [PlayerSeat.SOUTH]: false,
+      [PlayerSeat.WEST]: false
+    };
+
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.EAST;
+    state.isCombatDelaying = true;
+
+    tm.syncTurn(state);
+
+    expect((tm as any).isBotComputing).toBe(false);
+    expect((tm as any).botTimer).toBeNull();
+    vi.useRealTimers();
+  });
 });
 

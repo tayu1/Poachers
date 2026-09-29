@@ -16,6 +16,10 @@ export class TurnManager {
   public phase: TurnPhase = TurnPhase.IDLE;
   private botWorker: Worker | null = null;
   private isBotComputing = false;
+  private botTurnRequestId = 0;
+  private botComputingSeat: PlayerSeat | null = null;
+  private botComputingTurnCount: number | null = null;
+  private botWatchdogTimer: any = null;
 
   // Timers
   private turnClockInterval: any = null;
@@ -59,8 +63,14 @@ export class TurnManager {
     if (this.botWorker) {
       this.botWorker.onmessage = null;
     }
+    if (this.botWatchdogTimer !== null) {
+      clearTimeout(this.botWatchdogTimer);
+      this.botWatchdogTimer = null;
+    }
     this.botTurnStartTime = null;
     this.isBotComputing = false;
+    this.botComputingSeat = null;
+    this.botComputingTurnCount = null;
     this.store.cancelCombatTimers();
     this.lastSeat = null;
     this.lastTurnCount = null;
@@ -319,7 +329,20 @@ export class TurnManager {
       }
     }
 
-    if (this.store.isCombatDelaying || this.phase === TurnPhase.COMBAT_DELAY || this.store.isReplaying) {
+    const isCombatBusy = this.store.isCombatDelaying || Boolean(state.isCombatDelaying) || Boolean(state.pendingCombat) || this.phase === TurnPhase.COMBAT_DELAY;
+    if (isCombatBusy || this.store.isReplaying) {
+      if (this.botTimer !== null) {
+        clearTimeout(this.botTimer);
+        this.botTimer = null;
+      }
+      if (this.botWatchdogTimer !== null) {
+        clearTimeout(this.botWatchdogTimer);
+        this.botWatchdogTimer = null;
+      }
+      this.botTurnStartTime = null;
+      this.isBotComputing = false;
+      this.botComputingSeat = null;
+      this.botComputingTurnCount = null;
       return;
     }
 
@@ -334,13 +357,21 @@ export class TurnManager {
 
     // Schedule Bot Turn if active seat is a bot
     const effectiveSeat = state.pendingRefills.length > 0 ? state.pendingRefills[0].seat : state.activePlayer;
-    if (this.store.botSeats[effectiveSeat] && !state.isGameOver && !this.store.isCombatDelaying) {
+    if (this.store.botSeats[effectiveSeat] && !state.isGameOver && !isCombatBusy) {
       this.scheduleBotTurn(state);
     } else {
       if (this.botTimer !== null) {
         clearTimeout(this.botTimer);
         this.botTimer = null;
       }
+      if (this.botWatchdogTimer !== null) {
+        clearTimeout(this.botWatchdogTimer);
+        this.botWatchdogTimer = null;
+      }
+      this.botTurnStartTime = null;
+      this.isBotComputing = false;
+      this.botComputingSeat = null;
+      this.botComputingTurnCount = null;
     }
   }
 
@@ -503,17 +534,39 @@ export class TurnManager {
   }
 
   private scheduleBotTurn(state: GameState): void {
-    if (state.isGameOver || this.store.isReplaying || state.setupState?.inSetup || this.store.isCombatDelaying || this.phase === TurnPhase.COMBAT_DELAY) {
+    const isCombatBusy = this.store.isCombatDelaying || Boolean(state.isCombatDelaying) || Boolean(state.pendingCombat) || this.phase === TurnPhase.COMBAT_DELAY;
+    if (state.isGameOver || this.store.isReplaying || state.setupState?.inSetup || isCombatBusy) {
       if (this.botTimer !== null) {
         clearTimeout(this.botTimer);
         this.botTimer = null;
       }
+      if (this.botWatchdogTimer !== null) {
+        clearTimeout(this.botWatchdogTimer);
+        this.botWatchdogTimer = null;
+      }
       this.botTurnStartTime = null;
       this.isBotComputing = false;
+      this.botComputingSeat = null;
+      this.botComputingTurnCount = null;
       return;
     }
 
-    if (this.isBotComputing) return;
+    const effectiveSeat = state.pendingRefills.length > 0 ? state.pendingRefills[0].seat : state.activePlayer;
+    if (!this.store.botSeats[effectiveSeat]) {
+      if (this.botTimer !== null) {
+        clearTimeout(this.botTimer);
+        this.botTimer = null;
+      }
+      if (this.botWatchdogTimer !== null) {
+        clearTimeout(this.botWatchdogTimer);
+        this.botWatchdogTimer = null;
+      }
+      this.botTurnStartTime = null;
+      this.isBotComputing = false;
+      this.botComputingSeat = null;
+      this.botComputingTurnCount = null;
+      return;
+    }
 
     // 1. Auto-refill for bot seats
     if (this.store.isMultiplayer && !this.store.isOfflineSolo) {
@@ -529,15 +582,23 @@ export class TurnManager {
       }
     }
 
-    const effectiveSeat = state.pendingRefills.length > 0 ? state.pendingRefills[0].seat : state.activePlayer;
-    if (!this.store.botSeats[effectiveSeat]) {
+    // If currently computing for this exact seat and turn, let it continue
+    if (this.isBotComputing) {
+      if (this.botComputingSeat === effectiveSeat && this.botComputingTurnCount === state.turnCount) {
+        return;
+      }
+      // State has advanced or changed; reset stale computation
+      this.isBotComputing = false;
+      this.botComputingSeat = null;
+      this.botComputingTurnCount = null;
       if (this.botTimer !== null) {
         clearTimeout(this.botTimer);
         this.botTimer = null;
       }
-      this.botTurnStartTime = null;
-      this.isBotComputing = false;
-      return;
+      if (this.botWatchdogTimer !== null) {
+        clearTimeout(this.botWatchdogTimer);
+        this.botWatchdogTimer = null;
+      }
     }
 
     if (this.botTimer !== null) return;
@@ -546,6 +607,8 @@ export class TurnManager {
       this.botTurnStartTime = Date.now();
     }
 
+    const targetTurnCount = state.turnCount;
+    const targetSeat = effectiveSeat;
     const botStrategies = {
       [PlayerSeat.NORTH]: DEFAULT_BOT_PROFILE.trenchStrategy,
       [PlayerSeat.EAST]: DEFAULT_BOT_PROFILE.trenchStrategy,
@@ -558,51 +621,57 @@ export class TurnManager {
       this.botTimer = null;
       const latestState = this.store.getState();
 
-      if (latestState.isGameOver || this.store.isReplaying || latestState.setupState?.inSetup || this.store.isCombatDelaying || this.phase === TurnPhase.COMBAT_DELAY) {
+      const isLatestCombatBusy = this.store.isCombatDelaying || Boolean(latestState.isCombatDelaying) || Boolean(latestState.pendingCombat) || this.phase === TurnPhase.COMBAT_DELAY;
+      if (latestState.isGameOver || this.store.isReplaying || latestState.setupState?.inSetup || isLatestCombatBusy) {
         this.botTurnStartTime = null;
         this.isBotComputing = false;
+        this.botComputingSeat = null;
+        this.botComputingTurnCount = null;
         return;
       }
 
       const activeSeat = latestState.pendingRefills.length > 0 ? latestState.pendingRefills[0].seat : latestState.activePlayer;
-      if (!this.store.botSeats[activeSeat]) {
+      if (!this.store.botSeats[activeSeat] || activeSeat !== targetSeat || latestState.turnCount !== targetTurnCount) {
         this.botTurnStartTime = null;
         this.isBotComputing = false;
+        this.botComputingSeat = null;
+        this.botComputingTurnCount = null;
+        this.syncTurn(latestState);
         return;
       }
 
       this.isBotComputing = true;
+      this.botComputingSeat = activeSeat;
+      this.botComputingTurnCount = latestState.turnCount;
+      const currentReqId = ++this.botTurnRequestId;
       const turnStartTime = this.botTurnStartTime ?? Date.now();
 
-      if (this.botWorker) {
-        this.botWorker.onmessage = (e) => {
-          const actionToDispatch: GameAction = e.data.action || (e.data.actionInt ? actionIntToGameAction(e.data.actionInt) : { type: 'SKIP_TURN', input1: undefined, input2: null });
-
-          const elapsed = Date.now() - turnStartTime;
-          const remainingDelay = Math.max(0, this.store.botSpeedMs - elapsed);
-
-          const executeMove = () => {
-            this.botTimer = null;
-            this.botTurnStartTime = null;
-            this.isBotComputing = false;
-            this.dispatchAction(actionToDispatch, {
-              deferPostCombat: true,
-              botStrategies
-            });
-          };
-
-          if (remainingDelay > 0) {
-            this.botTimer = setTimeout(executeMove, remainingDelay);
-          } else {
-            executeMove();
+      // Watchdog: If calculation or move dispatch takes > 4000ms, recover safely
+      if (this.botWatchdogTimer !== null) {
+        clearTimeout(this.botWatchdogTimer);
+      }
+      this.botWatchdogTimer = setTimeout(() => {
+        this.botWatchdogTimer = null;
+        if (this.isBotComputing && this.botTurnRequestId === currentReqId) {
+          console.warn(`[TurnManager] Bot watchdog timeout on turn ${latestState.turnCount} (${getSeatCode(activeSeat)}). Executing fallback move.`);
+          this.isBotComputing = false;
+          this.botComputingSeat = null;
+          this.botComputingTurnCount = null;
+          this.botTurnStartTime = null;
+          const fresh = this.store.getState();
+          const freshActive = fresh.pendingRefills.length > 0 ? fresh.pendingRefills[0].seat : fresh.activePlayer;
+          if (freshActive === activeSeat && !fresh.isGameOver && !fresh.isCombatDelaying && !fresh.pendingCombat) {
+            const fallbackAction = getRandomLegalAction(fresh, activeSeat);
+            this.dispatchAction(fallbackAction, { deferPostCombat: true, botStrategies });
           }
-        };
+        }
+      }, 4000);
 
-        // Send the heavy calculation to the Web Worker
-        this.botWorker.postMessage({ state: latestState, profile: DEFAULT_BOT_PROFILE });
-      } else {
-        const botCandidate = getBestBotAction(latestState, DEFAULT_BOT_PROFILE);
-        const actionToDispatch: GameAction = botCandidate ? botCandidate.action : { type: 'SKIP_TURN', input1: undefined, input2: null };
+      const handleMoveResult = (actionToDispatch: GameAction) => {
+        if (this.botWatchdogTimer !== null) {
+          clearTimeout(this.botWatchdogTimer);
+          this.botWatchdogTimer = null;
+        }
 
         const elapsed = Date.now() - turnStartTime;
         const remainingDelay = Math.max(0, this.store.botSpeedMs - elapsed);
@@ -611,6 +680,22 @@ export class TurnManager {
           this.botTimer = null;
           this.botTurnStartTime = null;
           this.isBotComputing = false;
+          this.botComputingSeat = null;
+          this.botComputingTurnCount = null;
+
+          const freshState = this.store.getState();
+          const freshActive = freshState.pendingRefills.length > 0 ? freshState.pendingRefills[0].seat : freshState.activePlayer;
+          const freshCombat = freshState.isCombatDelaying || Boolean(freshState.pendingCombat) || this.store.isCombatDelaying;
+
+          if (freshState.isGameOver || freshCombat) {
+            return;
+          }
+
+          if (freshActive !== targetSeat || freshState.turnCount !== targetTurnCount) {
+            this.syncTurn(freshState);
+            return;
+          }
+
           this.dispatchAction(actionToDispatch, {
             deferPostCombat: true,
             botStrategies
@@ -622,6 +707,59 @@ export class TurnManager {
         } else {
           executeMove();
         }
+      };
+
+      if (this.botWorker) {
+        this.botWorker.onerror = (err) => {
+          console.error('[TurnManager] Bot worker error:', err);
+          if (this.botTurnRequestId === currentReqId) {
+            this.isBotComputing = false;
+            this.botComputingSeat = null;
+            this.botComputingTurnCount = null;
+            const fallback = getRandomLegalAction(latestState, activeSeat);
+            handleMoveResult(actionIntToGameAction(fallback));
+          }
+        };
+
+        this.botWorker.onmessage = (e) => {
+          if (e.data.id !== undefined && e.data.id !== currentReqId) {
+            return;
+          }
+
+          let actionToDispatch: GameAction;
+          if (e.data.error) {
+            console.warn('[TurnManager] Bot worker error reported:', e.data.error);
+            const fallback = getRandomLegalAction(latestState, activeSeat);
+            actionToDispatch = actionIntToGameAction(fallback);
+          } else if (e.data.action) {
+            actionToDispatch = e.data.action;
+          } else if (e.data.actionInt !== undefined) {
+            actionToDispatch = actionIntToGameAction(e.data.actionInt);
+          } else {
+            const fallback = getRandomLegalAction(latestState, activeSeat);
+            actionToDispatch = actionIntToGameAction(fallback);
+          }
+
+          handleMoveResult(actionToDispatch);
+        };
+
+        this.botWorker.postMessage({
+          id: currentReqId,
+          turnCount: latestState.turnCount,
+          seat: activeSeat,
+          state: latestState,
+          profile: DEFAULT_BOT_PROFILE
+        });
+      } else {
+        let actionToDispatch: GameAction;
+        try {
+          const botCandidate = getBestBotAction(latestState, DEFAULT_BOT_PROFILE);
+          actionToDispatch = botCandidate ? botCandidate.action : actionIntToGameAction(getRandomLegalAction(latestState, activeSeat));
+        } catch (err) {
+          console.error('[TurnManager] Sync bot computation error:', err);
+          actionToDispatch = actionIntToGameAction(getRandomLegalAction(latestState, activeSeat));
+        }
+        handleMoveResult(actionToDispatch);
       }
     }, 20);
   }

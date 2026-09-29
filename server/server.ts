@@ -776,6 +776,18 @@ io.on('connection', (socket) => {
         }
       }
       if (playerUpdated) {
+        // If current host is offline, transfer host role to the first available online player
+        const currentHost = room.players.get(room.hostPlayerId);
+        if (!currentHost || !currentHost.isOnline) {
+          const nextOnline = Array.from(room.players.values()).find(p => p.isOnline);
+          if (nextOnline) {
+            room.hostPlayerId = nextOnline.playerId;
+            nextOnline.isHost = true;
+            if (currentHost) currentHost.isHost = false;
+            console.log(`[Host] Host disconnected, reassigned host of room ${code} to ${nextOnline.name} (${nextOnline.playerId})`);
+          }
+        }
+
         // Don't delete instantly — schedule a grace period cleanup
         scheduleGracePeriodCleanup(code, room);
         if (!isRoomEffectivelyEmpty(room)) {

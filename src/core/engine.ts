@@ -1035,7 +1035,9 @@ export function executePromotionAction(
   const pawnPiece = 1 | teamBit;
 
   state.board[targetIndex] = pieceCode;
-  state.deadPoolCounts[pieceCode]--;
+  if (state.deadPoolCounts[pieceCode] > 0) {
+    state.deadPoolCounts[pieceCode]--;
+  }
   state.deadPoolCounts[pawnPiece]++;
 
   if (!state.threatMap || state.threatMap.length !== 4096) {

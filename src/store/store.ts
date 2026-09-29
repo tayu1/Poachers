@@ -47,7 +47,7 @@ export class GameStore {
   public isReplaying: boolean = false;
   private _isCombatDelaying: boolean = false;
   public get isCombatDelaying(): boolean {
-    return this._isCombatDelaying;
+    return this._isCombatDelaying || Boolean(this.state?.isCombatDelaying) || Boolean(this.state?.pendingCombat);
   }
   private combatTimer: any = null;
   private turnRiverTimer: any = null;
