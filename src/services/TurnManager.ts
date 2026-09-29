@@ -15,6 +15,7 @@ export class TurnManager {
 
   public phase: TurnPhase = TurnPhase.IDLE;
   private botWorker: Worker | null = null;
+  private isBotComputing = false;
 
   // Timers
   private turnClockInterval: any = null;
@@ -59,6 +60,7 @@ export class TurnManager {
       this.botWorker.onmessage = null;
     }
     this.botTurnStartTime = null;
+    this.isBotComputing = false;
     this.store.cancelCombatTimers();
     this.lastSeat = null;
     this.lastTurnCount = null;
@@ -86,7 +88,8 @@ export class TurnManager {
       const gameAction = typeof action === 'number' ? actionIntToGameAction(action) : action;
       socketClient.sendGameAction(gameAction);
 
-      // Optimistic execution for deterministic player moves to eliminate network turn delay on Render
+      // Optimistic execution ONLY for deterministic human player moves to eliminate network turn delay on Render.
+      // Bot moves must NEVER be executed optimistically to prevent rapid-fire card-swap/move pipelining and desyncs.
       const fromIdx = typeof gameAction.input1 === 'number' ? gameAction.input1 : gameAction.origin;
       const toIdx = typeof gameAction.input2 === 'number' ? gameAction.input2 : (typeof gameAction.end === 'number' ? gameAction.end : null);
       const isMoveAction = gameAction.type === 'MOVE' || gameAction.type === ActionType.MOVE;
@@ -95,7 +98,8 @@ export class TurnManager {
         (state.board[toIdx] & 7) === 5 || (state.board[fromIdx] & 7) === 5
       ));
       const isBunker = gameAction.type === 'SET_BUNKER' || gameAction.type === ActionType.SET_BUNKER;
-      const isOptimisticEligible = isRegularMove || isKingCapture || isBunker || isCardSwap || isCardPass;
+      const isHumanTurn = !this.store.botSeats[state.activePlayer];
+      const isOptimisticEligible = isHumanTurn && (isRegularMove || isKingCapture || isBunker || isCardSwap || isCardPass);
 
       if (isOptimisticEligible && !state.isGameOver && this.phase !== TurnPhase.COMBAT_DELAY) {
         const turnNum = state.turnCount;
@@ -505,14 +509,24 @@ export class TurnManager {
         this.botTimer = null;
       }
       this.botTurnStartTime = null;
+      this.isBotComputing = false;
       return;
     }
 
-    // 1. Auto-refill for bot seats immediately
-    while (state.pendingRefills.length > 0 && this.store.botSeats[state.pendingRefills[0].seat]) {
-      this.checkAndTriggerAutoRefill(state);
-      state = this.store.getState();
-      if (state.isGameOver || (this.phase as TurnPhase) === TurnPhase.COMBAT_DELAY || this.store.isCombatDelaying) return;
+    if (this.isBotComputing) return;
+
+    // 1. Auto-refill for bot seats
+    if (this.store.isMultiplayer) {
+      if (state.pendingRefills.length > 0 && this.store.botSeats[state.pendingRefills[0].seat]) {
+        this.checkAndTriggerAutoRefill(state);
+        return;
+      }
+    } else {
+      while (state.pendingRefills.length > 0 && this.store.botSeats[state.pendingRefills[0].seat]) {
+        this.checkAndTriggerAutoRefill(state);
+        state = this.store.getState();
+        if (state.isGameOver || (this.phase as TurnPhase) === TurnPhase.COMBAT_DELAY || this.store.isCombatDelaying) return;
+      }
     }
 
     const effectiveSeat = state.pendingRefills.length > 0 ? state.pendingRefills[0].seat : state.activePlayer;
@@ -522,6 +536,7 @@ export class TurnManager {
         this.botTimer = null;
       }
       this.botTurnStartTime = null;
+      this.isBotComputing = false;
       return;
     }
 
@@ -545,15 +560,18 @@ export class TurnManager {
 
       if (latestState.isGameOver || this.store.isReplaying || latestState.setupState?.inSetup || this.store.isCombatDelaying || this.phase === TurnPhase.COMBAT_DELAY) {
         this.botTurnStartTime = null;
+        this.isBotComputing = false;
         return;
       }
 
       const activeSeat = latestState.pendingRefills.length > 0 ? latestState.pendingRefills[0].seat : latestState.activePlayer;
       if (!this.store.botSeats[activeSeat]) {
         this.botTurnStartTime = null;
+        this.isBotComputing = false;
         return;
       }
 
+      this.isBotComputing = true;
       const turnStartTime = this.botTurnStartTime ?? Date.now();
 
       if (this.botWorker) {
@@ -566,6 +584,7 @@ export class TurnManager {
           const executeMove = () => {
             this.botTimer = null;
             this.botTurnStartTime = null;
+            this.isBotComputing = false;
             this.dispatchAction(actionToDispatch, {
               deferPostCombat: true,
               botStrategies
@@ -591,6 +610,7 @@ export class TurnManager {
         const executeMove = () => {
           this.botTimer = null;
           this.botTurnStartTime = null;
+          this.isBotComputing = false;
           this.dispatchAction(actionToDispatch, {
             deferPostCombat: true,
             botStrategies

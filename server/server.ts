@@ -175,6 +175,13 @@ io.on('connection', (socket) => {
 
     if (room.status === 'playing' && room.gameState) {
       const seats = getSeatsForPlayer(room, player.playerId);
+      if (player.isHost) {
+        for (let s = 0; s < 4; s++) {
+          if (room.seats[s as PlayerSeat].isBot) {
+            seats.push(s as PlayerSeat);
+          }
+        }
+      }
       socket.emit('game_state_update', {
         gameState: sanitizeGameStateForClient(room.gameState, seats),
         logs: room.logs,
@@ -215,6 +222,13 @@ io.on('connection', (socket) => {
     const roomState = serializeRoomState(room);
     if (callback) {
       const seats = getSeatsForPlayer(room, player.playerId);
+      if (player.isHost) {
+        for (let s = 0; s < 4; s++) {
+          if (room.seats[s as PlayerSeat].isBot) {
+            seats.push(s as PlayerSeat);
+          }
+        }
+      }
       callback({
         success: true,
         roomState,

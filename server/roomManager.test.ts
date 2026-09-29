@@ -15,7 +15,9 @@ import {
   getSeatAssignmentCode,
   getSeatsForPlayer,
   rooms,
-  toggleBot
+  toggleBot,
+  emitGameStateToRoom,
+  sanitizeGameStateForClient
 } from './roomManager';
 import { ServerPlayer, ServerRoom } from './types';
 
@@ -483,5 +485,46 @@ describe('Server RoomManager - Unified Seat Management', () => {
 
     clearTurnTimeout(room);
     vi.useRealTimers();
+  });
+
+  it('should include bot seats for room host in emitGameStateToRoom so host can compute bot moves', () => {
+    const { room, host } = createMockRoom();
+    room.status = 'playing';
+    room.seats[PlayerSeat.NORTH] = { playerId: 'p1', name: 'Host', isBot: false, isReady: true };
+    room.seats[PlayerSeat.EAST] = { playerId: 'bot_1', name: 'Bot East', isBot: true, isReady: true };
+    room.seats[PlayerSeat.SOUTH] = { playerId: 'p1', name: 'Host', isBot: false, isReady: true };
+    room.seats[PlayerSeat.WEST] = { playerId: 'bot_3', name: 'Bot West', isBot: true, isReady: true };
+    room.gameState = createInitialGameState({ skipSetup: true });
+
+    let sentGameState: any = null;
+    const mockIo: any = {
+      to: (socketId: string) => ({
+        emit: (event: string, data: any) => {
+          if (event === 'game_state_update') {
+            sentGameState = data.gameState;
+          }
+        }
+      })
+    };
+
+    emitGameStateToRoom(mockIo, room);
+
+    expect(sentGameState).not.toBeNull();
+    // Host can see East (bot) and West (bot) cards
+    expect(sentGameState.players[PlayerSeat.EAST].baseDeck[0].id).not.toBe('hidden');
+    expect(sentGameState.players[PlayerSeat.WEST].baseDeck[0].id).not.toBe('hidden');
+    expect(sentGameState.players[PlayerSeat.EAST].backupCards[0].id).not.toBe('hidden');
+  });
+
+  it('should hide baseDeck and backupCards for opponent seats in sanitizeGameStateForClient', () => {
+    const state = createInitialGameState({ skipSetup: true });
+    // North is recipient
+    const sanitized = sanitizeGameStateForClient(state, [PlayerSeat.NORTH]);
+    // East's baseDeck and backupCards must be hidden
+    expect(sanitized.players[PlayerSeat.EAST].baseDeck[0].id).toBe('hidden');
+    expect(sanitized.players[PlayerSeat.EAST].backupCards[0].id).toBe('hidden');
+    // North's cards must NOT be hidden
+    expect(sanitized.players[PlayerSeat.NORTH].baseDeck[0].id).not.toBe('hidden');
+    expect(sanitized.players[PlayerSeat.NORTH].backupCards[0].id).not.toBe('hidden');
   });
 });

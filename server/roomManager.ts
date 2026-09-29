@@ -354,7 +354,8 @@ export function sanitizeGameStateForClient(
     } else if (player) {
       sanitizedPlayers[seatKey] = {
         ...player,
-        baseDeck: player.baseDeck ? player.baseDeck.map(() => HIDDEN_CARD) : []
+        baseDeck: player.baseDeck ? player.baseDeck.map(() => HIDDEN_CARD) : [],
+        backupCards: player.backupCards ? player.backupCards.map(c => c ? HIDDEN_CARD : null) : [null, null, null]
       };
     }
   }
@@ -392,6 +393,13 @@ export function emitGameStateToRoom(
   for (const player of room.players.values()) {
     if (player.socketId && player.isOnline) {
       const seats = getSeatsForPlayer(room, player.playerId);
+      if (player.isHost) {
+        for (let s = 0; s < 4; s++) {
+          if (room.seats[s as PlayerSeat].isBot) {
+            seats.push(s as PlayerSeat);
+          }
+        }
+      }
       const sanitized = sanitizeGameStateForClient(room.gameState, seats);
       const sanitizedHistory = includeHistory && room.history ? room.history.map(h => sanitizeGameStateForClient(h, seats)) : undefined;
       io.to(player.socketId).emit('game_state_update', {

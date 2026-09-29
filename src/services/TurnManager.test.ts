@@ -427,5 +427,41 @@ describe('TurnManager State Machine', () => {
 
     socketSpy.mockRestore();
   });
+
+  it('should NOT optimistically apply bot moves in multiplayer (waits for server update)', async () => {
+    const { socketClient } = await import('../net/socketClient');
+    const store = new GameStore();
+    const mockOverlays: any = {
+      showGameOver: vi.fn(),
+      hideAll: vi.fn()
+    };
+    const tm = new TurnManager(store, mockOverlays);
+
+    store.isMultiplayer = true;
+    store.mySeats = [PlayerSeat.SOUTH]; // Player is South
+    store.botSeats = {
+      [PlayerSeat.NORTH]: true, // North is a BOT
+      [PlayerSeat.EAST]: false,
+      [PlayerSeat.SOUTH]: false,
+      [PlayerSeat.WEST]: false
+    };
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH; // Active player is the Bot
+
+    const socketSpy = vi.spyOn(socketClient, 'sendGameAction').mockImplementation(() => {});
+
+    // Bot performs a card swap
+    tm.dispatchAction({ type: 'CARD_SWAP', input1: 0, input2: 1 });
+
+    // 1. Socket message sent to server
+    expect(socketSpy).toHaveBeenCalledWith({ type: 'CARD_SWAP', input1: 0, input2: 1 });
+
+    // 2. State is NOT updated optimistically on client (hasSwappedThisTurn remains false until server update)
+    const freshState = store.getState();
+    expect(freshState.hasSwappedThisTurn).toBe(false);
+
+    socketSpy.mockRestore();
+  });
 });
 
