@@ -36,7 +36,7 @@ export class MobileMenuUI {
   }
 
   public applyTabVisibility(): void {
-    if (window.innerWidth > 900) {
+    if (window.innerWidth > 1150) {
       if (this.statusPanel) this.statusPanel.style.display = '';
       if (this.controlsPanel) this.controlsPanel.style.display = '';
       if (this.logPanel) this.logPanel.style.display = '';
@@ -86,7 +86,7 @@ export class MobileMenuUI {
   }
 
   private scrollToTab(tab: MobileMenuTab): void {
-    if (window.innerWidth > 900) return;
+    if (window.innerWidth > 1150) return;
 
     setTimeout(() => {
       if (tab === 'board' && this.centerArea) {

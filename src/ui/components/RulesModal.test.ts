@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { toggleRulesModal, showRulesModal, openImageLightbox } from './RulesModal';
+import { toggleRulesModal, showRulesModal, openImageLightbox, parseRulesMarkdown } from './RulesModal';
 
 class MockElement {
   public tagName: string;
@@ -327,5 +327,25 @@ describe('RulesModal & Lightbox Pinch Zoom', () => {
       docListeners['keydown'].forEach(cb => cb({ key: 'Escape' }));
     }
     expect(modal.classList.contains('hidden')).toBe(true);
+  });
+
+  it('correctly parses headings and boldings in markdown', () => {
+    const md = [
+      '# Main Heading',
+      '## Sub Heading',
+      '### Minor Heading',
+      '**Bold Title:** This is normal text with **bold keyword** and *italic keyword*.',
+      '* *Spaced Bold* * text here.'
+    ].join('\n');
+
+    const html = parseRulesMarkdown(md);
+    expect(html).toContain('<h1>Main Heading</h1>');
+    expect(html).toContain('<h2>Sub Heading</h2>');
+    expect(html).toContain('<h3>Minor Heading</h3>');
+    expect(html).toContain('<strong>Bold Title:</strong>');
+    expect(html).toContain('<strong>bold keyword</strong>');
+    expect(html).toContain('<strong>Spaced Bold</strong>');
+    expect(html).toContain('<em>italic keyword</em>');
+    expect(html).toContain('<p><strong>Bold Title:</strong> This is normal text with <strong>bold keyword</strong> and <em>italic keyword</em>.</p>');
   });
 });

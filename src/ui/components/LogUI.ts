@@ -31,14 +31,18 @@ export class LogUI {
       const style = document.createElement('style');
       style.id = 'log-ui-styles';
       style.textContent = `
-        .log-ui-btn { padding: 3px 10px; font-size: 12px; font-weight: bold; font-family: monospace; border-radius: 4px; transition: all 0.15s ease; background: rgba(255, 255, 255, 0.08); color: var(--accent-gold); border: 1px solid rgba(255, 255, 255, 0.15); cursor: pointer; }
-        .log-ui-btn:hover:not(:disabled) { background: rgba(245, 158, 11, 0.2); border-color: var(--accent-gold); }
-        .log-ui-btn:disabled { background: rgba(255, 255, 255, 0.03); color: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.05); cursor: not-allowed; }
-        .log-ui-entry { padding: 4px 6px; border-radius: 4px; cursor: pointer; border-left: 3px solid transparent; background: rgba(255, 255, 255, 0.02); transition: all 0.15s ease; }
-        .log-ui-entry:hover:not(.log-ui-entry-selected) { background: rgba(255, 255, 255, 0.08); }
-        .log-ui-entry-selected { background: rgba(255, 255, 255, 0.12) !important; border-left: 3px solid rgba(255, 255, 255, 0.75) !important; }
-        .log-ui-current-turn-entry { opacity: 0.9; }
-        .log-ui-current-turn-entry:hover:not(.log-ui-entry-selected) { background: rgba(255, 255, 255, 0.08); }
+        .log-ui-btn { padding: 3px 10px; font-size: 12px; font-weight: bold; font-family: var(--Font_classic); border-radius: 4px; transition: all 0.15s ease; background: transparent; color: var(--Color_Beige); border: 1.5px solid var(--Color_Beige); cursor: pointer; }
+        .log-ui-btn:hover:not(:disabled) { background: var(--Color_Beige_hover); border-color: var(--Color_Beige); color: var(--Color_Beige); box-shadow: none; }
+        .log-ui-btn:disabled { background: transparent; color: rgba(247, 251, 169, 0.35); border-color: rgba(247, 251, 169, 0.25); cursor: not-allowed; opacity: 0.5; }
+        .log-ui-entry { padding: 4px 6px; border-radius: 4px; cursor: pointer; border-left: 3px solid transparent; background: transparent; transition: all 0.15s ease; }
+        .log-ui-entry:hover:not(.log-ui-entry-selected) { background: rgba(247, 251, 169, 0.08); }
+        .log-ui-entry-selected { background: rgba(247, 251, 169, 0.14) !important; border-left: 3px solid var(--Color_Beige) !important; }
+        .log-ui-current-turn-entry { opacity: 0.95; }
+        .log-ui-current-turn-entry:hover:not(.log-ui-entry-selected) { background: rgba(247, 251, 169, 0.08); }
+        .log-entry-move { color: var(--Log_Text_move); }
+        .log-entry-card { color: var(--Log_Text_card); }
+        .log-entry-poker { color: var(--Log_Text_pokerhand); }
+        .log-entry-victory { color: var(--Team_A_color); }
       `;
       document.head.appendChild(style);
     }
@@ -101,7 +105,7 @@ export class LogUI {
     const logTitle = document.createElement('span');
     logTitle.style.fontSize = '12px';
     logTitle.style.fontWeight = 'bold';
-    logTitle.style.color = '#94a3b8';
+    logTitle.style.color = 'var(--Color_Beige)';
     logTitle.style.letterSpacing = '0.5px';
     logTitle.innerText = 'LOG / REPLAY';
 
@@ -195,7 +199,7 @@ export class LogUI {
 
       const line1 = document.createElement('div');
       line1.style.fontWeight = '600';
-      line1.style.color = '#e2e8f0';
+      line1.style.color = 'var(--Log_Text_move)';
 
       const isVictory = entry.text.includes('Victorious') || entry.text.includes('Game Over');
       const isUnnumbered = !isVictory && (
@@ -207,11 +211,13 @@ export class LogUI {
       );
 
       if (isVictory) {
-        line1.style.color = 'var(--accent-gold)';
+        line1.className = 'log-entry-victory';
+        line1.style.color = 'var(--Team_A_color)';
         line1.style.fontWeight = 'bold';
         line1.innerText = entry.text.startsWith('🏆') ? entry.text : `🏆 ${entry.text}`;
       } else if (isUnnumbered) {
-        line1.style.color = '#888888';
+        line1.className = 'log-entry-card';
+        line1.style.color = 'var(--Log_Text_card)';
         if (entry.text === 'card swap' || entry.text === '---card swap') {
           line1.innerText = '---card change';
         } else if (entry.text === 'card refill' || entry.text === '---card refill') {
@@ -220,14 +226,16 @@ export class LogUI {
           line1.innerText = entry.text;
         }
       } else {
+        line1.className = 'log-entry-move';
         line1.innerText = `${entry.turnNumber}. ${entry.seat}] ${entry.text}`;
       }
       entryContainer.appendChild(line1);
 
       if (entry.pokerText) {
         const line2 = document.createElement('div');
+        line2.className = 'log-entry-poker';
         line2.style.fontSize = '11px';
-        line2.style.color = 'var(--accent-gold)';
+        line2.style.color = 'var(--Log_Text_pokerhand)';
         line2.style.marginTop = '2px';
         line2.style.paddingLeft = '12px';
         line2.innerText = entry.pokerText;
@@ -252,8 +260,9 @@ export class LogUI {
         this.currentTurnElement.className = 'log-ui-entry log-ui-current-turn-entry';
 
         const line1 = document.createElement('div');
+        line1.className = 'log-entry-move log-entry-current-turn';
         line1.style.fontWeight = '600';
-        line1.style.color = '#e2e8f0';
+        line1.style.color = 'var(--Log_Text_move)';
         line1.innerText = 'current turn';
         this.currentTurnElement.appendChild(line1);
 

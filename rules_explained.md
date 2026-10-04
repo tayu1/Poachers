@@ -27,7 +27,7 @@ that combines elements of Chess and Poker.
 
 **Pre-Turn Swap:** Before making your move, you may do one swap/change in your cards (or pass a Backup Card to your teammate).
 
-**Post-Turn Hill Card Bonus:** After your turn ends, *if you have a piece standing on your half of the *Center Hill* - you get 1 card if you have an empty Card slot.
+**Post-Turn Hill Card Bonus:** After your turn ends, if you have a piece standing on your half of the *Center Hill* - you get 1 card if you have an empty Card slot.
 
 ## Combat (Poker Hands)
 

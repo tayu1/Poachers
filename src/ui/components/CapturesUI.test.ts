@@ -430,7 +430,7 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
     expect(passBtn.style.display).toBe('none');
   });
 
-  it('CapturesUI highlights Team A box border with #f59e0b when Team A is active', () => {
+  it('CapturesUI keeps both Team A and Team B boxes with 1px team color border and no glow when Team A is active', () => {
     const container = document.createElement('div') as unknown as MockElement;
     const capturesUI = new CapturesUI(container as unknown as HTMLElement);
     const state = createInitialGameState();
@@ -446,17 +446,19 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
     const groupDivA = panel.children[1];
     const groupDivB = panel.children[2];
 
-    expect(groupDivA.style.border).toBe('1.5px solid #f59e0b');
-    expect(groupDivB.style.border).toBe('1.5px solid transparent');
+    expect(groupDivA.style.border).toBe('1px solid var(--Team_A_color)');
+    expect(groupDivB.style.border).toBe('1px solid var(--Team_B_color)');
+    expect(groupDivA.style.boxShadow).toBe('none');
+    expect(groupDivB.style.boxShadow).toBe('none');
   });
 
-  it('CapturesUI highlights Team B box border with #06b6d4 when Team B is active', () => {
+  it('CapturesUI keeps both bars unchanged with 1px team color border and no glow when Team B is active', () => {
     const container = document.createElement('div') as unknown as MockElement;
     const capturesUI = new CapturesUI(container as unknown as HTMLElement);
     const state = createInitialGameState();
     const store = new GameStore();
 
-    // Active player EAST is Team B
+    // Active player EAST is Team B - bars must remain unchanged (no highlight or change)
     state.activePlayer = PlayerSeat.EAST;
     capturesUI.render(state, store);
 
@@ -464,8 +466,10 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
     const groupDivA = panel.children[1];
     const groupDivB = panel.children[2];
 
-    expect(groupDivA.style.border).toBe('1.5px solid transparent');
-    expect(groupDivB.style.border).toBe('1.5px solid #06b6d4');
+    expect(groupDivA.style.border).toBe('1px solid var(--Team_A_color)');
+    expect(groupDivB.style.border).toBe('1px solid var(--Team_B_color)');
+    expect(groupDivA.style.boxShadow).toBe('none');
+    expect(groupDivB.style.boxShadow).toBe('none');
   });
 
   it('getTeamCapturedPieces includes captured pawns for both teams', () => {

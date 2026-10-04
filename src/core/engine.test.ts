@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createInitialGameState, applyAction, completePostCombat, executeCombatResolution, fastCloneState, isSeatOccupyingHill, grantHillCardReward, autoFillEmptySlots, advanceTurn } from './engine';
-import { processPostCombat, dealCommunityCards, swapPlayerCards, syncPlayerReserve } from './cards';
+import { createInitialGameState, applyAction, completePostCombat, executeCombatResolution, fastCloneState, isSeatOccupyingHill, grantHillCardReward, autoFillEmptySlots, advanceTurn, getPlayerEmptySlot, addCardToPlayerSlots } from './engine';
+import { processPostCombat, dealCommunityCards, swapPlayerCards, syncPlayerReserve, isValidCardSwap } from './cards';
 import { PlayerSeat } from './types';
 
 describe('Core Engine & Combat Integration', () => {
@@ -473,7 +473,7 @@ describe('Core Engine & Combat Integration', () => {
       expect(state.players[PlayerSeat.NORTH].backupCards[1]).toBeNull();
     });
 
-    it('should grant hill bonus to baseDeck when attacker on hill loses combat without auto refilling trench', () => {
+    it('should grant hill bonus to refill empty trench slot when attacker on hill loses combat', () => {
       const state = createInitialGameState({ skipSetup: true });
       state.players[PlayerSeat.NORTH].backupCards = [null, null, null];
       // North has 0 baseDeck cards
@@ -494,14 +494,15 @@ describe('Core Engine & Combat Integration', () => {
 
       // Resolve combat with East winning (North loses):
       // 1) North does NOT steal defender card.
-      // 2) North still occupies hill square 27, receives hill bonus (+1 in baseDeck).
-      // 3) No auto-refill: used trench card remains null.
+      // 2) North still occupies hill square 27, receives hill bonus.
+      // 3) Following slot refill logic, the empty trench slot (slot 0) is refilled by the hill bonus card.
       executeCombatResolution(state, result.pendingCombat!, { forceCombatWinner: PlayerSeat.EAST });
       completePostCombat(state, result.pendingCombat!);
 
       expect(isSeatOccupyingHill(state.board, PlayerSeat.NORTH)).toBe(true);
-      expect(state.players[PlayerSeat.NORTH].trenchCards.includes(null)).toBe(true);
-      expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(1);
+      expect(state.players[PlayerSeat.NORTH].trenchCards.includes(null)).toBe(false);
+      expect(state.players[PlayerSeat.NORTH].trenchCards[0]).not.toBeNull();
+      expect(state.players[PlayerSeat.NORTH].baseDeck.length).toBe(0);
     });
 
     it('should allow player to refill empty trench slot from baseDeck on pre-turn swap', () => {
@@ -863,6 +864,194 @@ describe('Core Engine & Combat Integration', () => {
       expect(() => {
         applyAction(state, { type: 'CARD_PASS', origin: 99 });
       }).toThrow(/Invalid card selected to pass/);
+    });
+  });
+
+  describe('New Card Slot Refill Logic (Card Steal / Hill Bonus / Card Pass)', () => {
+    it('should determine empty slot priority: Trench Center (1) -> Right (2) -> Left (0) -> Backup Center (1) -> Right (2) -> Left (0)', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      const north = state.players[PlayerSeat.NORTH];
+
+      // 1. All empty: should pick Trench Center (1)
+      north.trenchCards = [null, null, null];
+      north.backupCards = [null, null, null];
+      expect(getPlayerEmptySlot(north)).toEqual({ slotType: 'trench', slotIndex: 1 });
+
+      // 2. Trench Center full, others empty: should pick Trench Right (2)
+      north.trenchCards = [null, { id: 'c1', rank: 10, suit: 'H' }, null];
+      expect(getPlayerEmptySlot(north)).toEqual({ slotType: 'trench', slotIndex: 2 });
+
+      // 3. Trench Center & Right full, Left empty: should pick Trench Left (0)
+      north.trenchCards = [null, { id: 'c1', rank: 10, suit: 'H' }, { id: 'c2', rank: 11, suit: 'S' }];
+      expect(getPlayerEmptySlot(north)).toEqual({ slotType: 'trench', slotIndex: 0 });
+
+      // 4. All Trench full, all Backup empty: should pick Backup Center (1)
+      north.trenchCards = [
+        { id: 'c0', rank: 9, suit: 'D' },
+        { id: 'c1', rank: 10, suit: 'H' },
+        { id: 'c2', rank: 11, suit: 'S' }
+      ];
+      north.backupCards = [null, null, null];
+      expect(getPlayerEmptySlot(north)).toEqual({ slotType: 'backup', slotIndex: 1 });
+
+      // 5. All Trench full, Backup Center full, others empty: should pick Backup Right (2)
+      north.backupCards = [null, { id: 'b1', rank: 5, suit: 'C' }, null];
+      expect(getPlayerEmptySlot(north)).toEqual({ slotType: 'backup', slotIndex: 2 });
+
+      // 6. All Trench full, Backup Center & Right full, Left empty: should pick Backup Left (0)
+      north.backupCards = [null, { id: 'b1', rank: 5, suit: 'C' }, { id: 'b2', rank: 6, suit: 'D' }];
+      expect(getPlayerEmptySlot(north)).toEqual({ slotType: 'backup', slotIndex: 0 });
+
+      // 7. All 6 slots full: should return null
+      north.backupCards = [
+        { id: 'b0', rank: 4, suit: 'H' },
+        { id: 'b1', rank: 5, suit: 'C' },
+        { id: 'b2', rank: 6, suit: 'D' }
+      ];
+      expect(getPlayerEmptySlot(north)).toBeNull();
+    });
+
+    it('Card Steal: should refill Center trench slot first even when combat occurred in Left slot', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      const north = state.players[PlayerSeat.NORTH];
+      const south = state.players[PlayerSeat.SOUTH];
+      const east = state.players[PlayerSeat.EAST];
+
+      // North has Left slot 0 full, Center slot 1 EMPTY, Right slot 2 full.
+      // North has no backup cards.
+      north.trenchCards = [
+        { id: 'N_0', rank: 10, suit: 'H' },
+        null, // Center empty
+        { id: 'N_2', rank: 12, suit: 'S' }
+      ];
+      north.backupCards = [null, null, null];
+      syncPlayerReserve(north);
+
+      // East defender has card in slot 0
+      east.trenchCards[0] = { id: 'E_0', rank: 9, suit: 'C' };
+
+      // Combat on square 16 (Col 0 -> Left slot 0 for both North and East)
+      const combat: any = {
+        attackerSeat: PlayerSeat.NORTH,
+        defenderSeat: PlayerSeat.EAST,
+        attackerPosIndex: 24,
+        defenderPosIndex: 16,
+        winnerSeat: PlayerSeat.NORTH
+      };
+
+      processPostCombat(state, combat);
+
+      // North used slot 0 in combat (consumed).
+      // North won and steals East's card (E_0).
+      // Slots needing refill: Center (1) and Left (0).
+      // Per slot refill logic (first empty slots, starting from center):
+      // The stolen card E_0 MUST go to Center (slot 1), not slot 0!
+      expect(north.trenchCards[1]?.id).toBe('E_0');
+      expect(north.trenchCards[0]).toBeNull();
+    });
+
+    it('Hill Bonus: should refill first empty Trench slot starting from center (not bypass to backup)', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      const north = state.players[PlayerSeat.NORTH];
+
+      // North has Center slot 1 empty, but slots 0 and 2 full.
+      north.trenchCards = [
+        { id: 'N_0', rank: 10, suit: 'H' },
+        null, // Center empty
+        { id: 'N_2', rank: 12, suit: 'S' }
+      ];
+      north.backupCards = [null, null, null];
+      syncPlayerReserve(north);
+
+      // Put North on North hill square 27
+      state.board[27] = 1;
+      expect(isSeatOccupyingHill(state.board, PlayerSeat.NORTH)).toBe(true);
+
+      const topCard = state.deck[state.deck.length - 1];
+      const granted = grantHillCardReward(state, PlayerSeat.NORTH);
+
+      expect(granted).toBe(true);
+      // Hill bonus card should fill Center trench slot (1)
+      expect(north.trenchCards[1]?.id).toBe(topCard.id);
+      expect(north.backupCards[1]).toBeNull();
+      expect(north.baseDeck.length).toBe(0);
+
+      // Next turn on hill: Trench is now full. Hill bonus should go to Backup Center (1).
+      const nextTopCard = state.deck[state.deck.length - 1];
+      const secondGranted = grantHillCardReward(state, PlayerSeat.NORTH);
+
+      expect(secondGranted).toBe(true);
+      expect(north.backupCards[1]?.id).toBe(nextTopCard.id);
+      expect(north.baseDeck.length).toBe(1);
+    });
+
+    it('Card Pass: should refill teammate empty slot starting from center (trench first, then backup)', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      state.activePlayer = PlayerSeat.NORTH;
+      state.hasSwappedThisTurn = false;
+
+      const south = state.players[PlayerSeat.SOUTH];
+      // South has Center slot 1 full, Right slot 2 empty, Left slot 0 empty
+      south.trenchCards = [
+        null,
+        { id: 'S_1', rank: 10, suit: 'D' },
+        null
+      ];
+      south.backupCards = [null, null, null];
+      syncPlayerReserve(south);
+
+      const northCardToPass = state.players[PlayerSeat.NORTH].backupCards[0]!;
+      // Pass card to teammate (South)
+      applyAction(state, { type: 'CARD_PASS', origin: 0 });
+
+      // Priority Center (1) -> Right (2) -> Left (0):
+      // Center (1) is full, so Right (2) must be filled first!
+      expect(south.trenchCards[2]?.id).toBe(northCardToPass.id);
+      expect(south.trenchCards[0]).toBeNull();
+    });
+
+    it('Card Swap Rule: rejects moving a card from a trench slot without backup to an empty backup slot', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      const north = state.players[PlayerSeat.NORTH];
+      const c = (id: string, rank: number) => ({ id, suit: 'S' as const, rank: rank as any });
+
+      // Setup North: Trench has cards, but slot 0 has NO backup (slot 3 is null)
+      north.trenchCards = [c('t0', 10), c('t1', 11), c('t2', 12)];
+      north.backupCards = [null, c('b1', 13), null]; // slot 3 is null, slot 4 has card, slot 5 is null
+      syncPlayerReserve(north);
+
+      // 1. Origin 0 (no backup) -> Target 3 (empty backup slot): REJECTED
+      expect(isValidCardSwap(north, 0, 3)).toBe(false);
+      expect(isValidCardSwap(north, 3, 0)).toBe(false);
+      expect(swapPlayerCards(state, PlayerSeat.NORTH, 0, 3)).toBe(false);
+
+      // 2. Origin 0 (no backup) -> Target 5 (empty backup slot): REJECTED
+      expect(isValidCardSwap(north, 0, 5)).toBe(false);
+      expect(isValidCardSwap(north, 5, 0)).toBe(false);
+      expect(swapPlayerCards(state, PlayerSeat.NORTH, 0, 5)).toBe(false);
+
+      // 3. Origin 0 (no backup) -> Target 4 (OCCUPIED backup slot): ALLOWED (swap/exchange)
+      expect(isValidCardSwap(north, 0, 4)).toBe(true);
+      expect(isValidCardSwap(north, 4, 0)).toBe(true);
+
+      // 4. Origin 1 (HAS backup in slot 4) -> Target 3 (empty backup slot): ALLOWED
+      expect(isValidCardSwap(north, 1, 3)).toBe(true);
+      expect(isValidCardSwap(north, 3, 1)).toBe(true);
+
+      // 5. Trench-to-trench: Origin 0 -> Target 1: ALLOWED
+      expect(isValidCardSwap(north, 0, 1)).toBe(true);
+
+      // 6. Backup-to-trench: Slot 4 (occupied) -> Slot 2 (if trench slot 2 was empty):
+      north.trenchCards[2] = null;
+      expect(isValidCardSwap(north, 4, 2)).toBe(true);
+      expect(isValidCardSwap(north, 2, 4)).toBe(true);
+
+      // 7. Verify engine applyAction throws for illegal swap
+      state.activePlayer = PlayerSeat.NORTH;
+      state.hasSwappedThisTurn = false;
+      expect(() => {
+        applyAction(state, { type: 'CARD_SWAP', input1: 0, input2: 5 });
+      }).toThrow('Invalid card swap action');
     });
   });
 });

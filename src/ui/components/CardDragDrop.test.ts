@@ -246,6 +246,61 @@ describe('Card Drag-and-Drop Swapping', () => {
     });
   });
 
+  it('rejects drag drop of trench card without backup into an empty backup slot', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.hasSwappedThisTurn = false;
+
+    const north = state.players[PlayerSeat.NORTH];
+    // Slot 0 has a card, but its backup slot 0 (slot 3) is null!
+    north.backupCards[0] = null;
+    // Base card index 1 (slot 4) is empty (null)
+    north.backupCards[1] = null;
+
+    const dispatchSpy = vi.spyOn(turnManager, 'dispatchAction');
+
+    // 1. Check cardDragManager isValidDropTarget returns false
+    const canDrop = cardDragManager.isValidDropTarget(
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 },
+      { type: 'base', cardIndex: 1 }
+    );
+    expect(canDrop).toBe(false);
+
+    // 2. Check inputHandler.handleCardDrop returns false and does not dispatch
+    const result = inputHandler.handleCardDrop(
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 },
+      { type: 'base', cardIndex: 1 }
+    );
+    expect(result).toBe(false);
+    expect(dispatchSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects drag drop of trench card without backup into its own empty backup slot', () => {
+    const state = store.getState();
+    state.setupState.inSetup = false;
+    state.activePlayer = PlayerSeat.NORTH;
+    state.hasSwappedThisTurn = false;
+
+    const north = state.players[PlayerSeat.NORTH];
+    north.backupCards[0] = null;
+
+    const dispatchSpy = vi.spyOn(turnManager, 'dispatchAction');
+
+    const canDrop = cardDragManager.isValidDropTarget(
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 },
+      { type: 'base', cardIndex: 0 }
+    );
+    expect(canDrop).toBe(false);
+
+    const result = inputHandler.handleCardDrop(
+      { type: 'trench', seat: PlayerSeat.NORTH, cardIndex: 0 },
+      { type: 'base', cardIndex: 0 }
+    );
+    expect(result).toBe(false);
+    expect(dispatchSpy).not.toHaveBeenCalled();
+  });
+
   it('rejects drag drop of trench card onto itself (same index and seat)', () => {
     const state = store.getState();
     state.setupState.inSetup = false;

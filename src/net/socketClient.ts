@@ -151,18 +151,22 @@ class SocketClient {
       });
 
       this.socket.on('room_state_update', (roomState: RoomState) => {
+        if (store.isInMatch() && store.isOfflineSolo) return;
         store.setRoomState(roomState);
       });
 
       this.socket.on('game_state_update', ({ gameState, logs, history }) => {
+        if (store.isInMatch() && store.isOfflineSolo) return;
         store.applyServerGameState(gameState, logs, history);
       });
 
       this.socket.on('timer_tick', ({ remainingSeconds, activeSeat }) => {
+        if (store.isInMatch() && store.isOfflineSolo) return;
         store.updateTimerState(remainingSeconds, activeSeat);
       });
 
       this.socket.on('rematch_offer_update', (offer) => {
+        if (store.isInMatch() && store.isOfflineSolo) return;
         store.setRematchOffer(offer);
       });
 
@@ -189,11 +193,20 @@ class SocketClient {
   }
 
   private attemptAutoReconnect(): void {
+    // If the player is in an active offline/solo match, ignore server reconnection so they can finish offline
+    if (store.isInMatch() && store.isOfflineSolo) {
+      console.log('[Net] Active offline/solo match in progress. Ignoring server reconnect to prevent turn rollback.');
+      return;
+    }
+
     const savedRoom = getStorageItem('poachers_room_code');
     const savedId = getStorageItem('poachers_player_id');
 
     if (savedRoom && savedId && this.socket) {
       this.socket.emit('reconnect_session', { roomCode: savedRoom, playerId: savedId }, (res) => {
+        if (store.isInMatch() && store.isOfflineSolo) {
+          return;
+        }
         if (res.success && res.roomState) {
           store.setRoomState(res.roomState);
           if (res.gameState) {

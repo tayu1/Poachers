@@ -13,14 +13,17 @@ import {
   processPostCombat,
   refillAllTrenchCards,
   swapPlayerCards,
+  isValidCardSwap,
   getTrenchSlotCardCount,
   getEmptyBackupSlotIndex,
+  getPlayerEmptySlot,
   getTeammateEmptySlot,
+  addCardToPlayerSlots,
   syncPlayerReserve,
   normalizePlayerTrenchAndBase,
   TrenchStrategy
 } from './cards';
-export { autoFillEmptySlots, getTeammateEmptySlot, normalizePlayerTrenchAndBase };
+export { autoFillEmptySlots, getPlayerEmptySlot, getTeammateEmptySlot, addCardToPlayerSlots, normalizePlayerTrenchAndBase, isValidCardSwap };
 import { HILL_SQUARE_INDICES, HILL_SQUARES_BY_SEAT, INITIAL_BOARD_1D, MAX_BUNKERS_PER_PLAYER, PLAYER_TEAMS, TEAM_SEATS, getCol, getRow } from './constants';
 import { generateFullThreatMap, getLegalMoves1D, getPieceTeam, getPlayerBunkerCount, getSlidingTargetIndex, getThreatenedKings, INITIAL_THREAT_MAP, isPieceBunkerable, isPieceControllable, isPromotionValid, isSeatKingAlive, update_threatMap_by_move } from './moves';
 import {
@@ -1171,7 +1174,7 @@ export function executeCardPassAction(
     throw new Error('Teammate not found');
   }
 
-  const emptySlot = getTeammateEmptySlot(teammate);
+  const emptySlot = getPlayerEmptySlot(teammate);
   if (emptySlot === null) {
     throw new Error('Teammate base deck is full (max 6 cards)');
   }
@@ -1180,12 +1183,7 @@ export function executeCardPassAction(
   activePlayer.backupCards[cardIndex] = null;
   syncPlayerReserve(activePlayer);
 
-  if (emptySlot.slotType === 'trench') {
-    teammate.trenchCards[emptySlot.slotIndex] = passedCard;
-  } else {
-    teammate.backupCards[emptySlot.slotIndex] = passedCard;
-  }
-  normalizePlayerTrenchAndBase(teammate);
+  addCardToPlayerSlots(teammate, passedCard);
   normalizePlayerTrenchAndBase(activePlayer);
 
   state.hasSwappedThisTurn = true;

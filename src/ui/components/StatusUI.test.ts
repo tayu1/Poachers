@@ -33,10 +33,20 @@ class MockElement {
   }
 
   public querySelector(selector: string): MockElement | null {
-    if (selector === '.turn-timer') {
-      return this.findChild(c => c.className.includes('turn-timer'));
+    if (selector.startsWith('.')) {
+      const cls = selector.substring(1);
+      return this.findChild(c => c.className.split(/\s+/).includes(cls));
     }
     return null;
+  }
+
+  public querySelectorAll(selector: string): MockElement[] {
+    const results: MockElement[] = [];
+    if (selector.startsWith('.')) {
+      const cls = selector.substring(1);
+      this.collectChildren(c => c.className.split(/\s+/).includes(cls), results);
+    }
+    return results;
   }
 
   private findChild(predicate: (el: MockElement) => boolean): MockElement | null {
@@ -47,108 +57,173 @@ class MockElement {
     }
     return null;
   }
+
+  private collectChildren(predicate: (el: MockElement) => boolean, results: MockElement[]): void {
+    for (const child of this.children) {
+      if (predicate(child)) results.push(child);
+      child.collectChildren(predicate, results);
+    }
+  }
 }
 
-describe('StatusUI', () => {
+describe('StatusUI with Compass Square', () => {
   beforeEach(() => {
     (globalThis as any).document = {
       createElement: (tag: string) => new MockElement(tag)
     };
   });
 
-  it('displays the total card count (0-6) of each player combining trench cards and backup cards', () => {
+  it('renders compass square in place of the status bar with 4 directional slots and a center dot', () => {
     const container = new MockElement('div');
     const statusUI = new StatusUI(container as any);
     const state = createInitialGameState();
 
-    // North has 3 trench cards and 0 backup cards -> total 3
-    state.players[PlayerSeat.NORTH].trenchCards = [
-      { id: 'N1', suit: 'H', rank: 10 },
-      { id: 'N2', suit: 'S', rank: 11 },
-      { id: 'N3', suit: 'D', rank: 12 }
-    ];
-    state.players[PlayerSeat.NORTH].backupCards = [null, null, null];
-
-    // East has 3 trench cards and 2 backup cards -> total 5
-    state.players[PlayerSeat.EAST].trenchCards = [
-      { id: 'E1', suit: 'H', rank: 5 },
-      { id: 'E2', suit: 'C', rank: 6 },
-      { id: 'E3', suit: 'S', rank: 7 }
-    ];
-    state.players[PlayerSeat.EAST].backupCards = [
-      { id: 'EB1', suit: 'D', rank: 8 },
-      { id: 'EB2', suit: 'H', rank: 9 },
-      null
-    ];
-
-    // South has 3 trench cards and 3 backup cards -> total 6
-    state.players[PlayerSeat.SOUTH].trenchCards = [
-      { id: 'S1', suit: 'C', rank: 2 },
-      { id: 'S2', suit: 'D', rank: 3 },
-      { id: 'S3', suit: 'H', rank: 4 }
-    ];
-    state.players[PlayerSeat.SOUTH].backupCards = [
-      { id: 'SB1', suit: 'S', rank: 10 },
-      { id: 'SB2', suit: 'H', rank: 11 },
-      { id: 'SB3', suit: 'C', rank: 12 }
-    ];
-
-    // West has 1 trench card and 0 backup cards -> total 1
-    state.players[PlayerSeat.WEST].trenchCards = [
-      { id: 'W1', suit: 'S', rank: 14 },
-      null,
-      null
-    ];
-    state.players[PlayerSeat.WEST].backupCards = [null, null, null];
-
     statusUI.render(state);
 
-    const playersBox = container.children.find(c => c.className === 'players-status-box')!;
-    expect(playersBox).toBeTruthy();
-    expect(playersBox.children.length).toBe(4);
+    const compassBox = container.querySelector('.status-compass-box');
+    expect(compassBox).toBeTruthy();
 
-    // Row 0: North -> total 3
-    const northRow = playersBox.children[0];
-    const northIndicators = northRow.children[1];
-    const northBadge = northIndicators.children[2];
-    expect(northBadge.innerText).toBe('3');
-    expect(northBadge.title).toBe('Total Cards: 3 (Trench: 3, Backup: 0)');
+    const topSlot = container.querySelector('.compass-slot-top');
+    const rightSlot = container.querySelector('.compass-slot-right');
+    const bottomSlot = container.querySelector('.compass-slot-bottom');
+    const leftSlot = container.querySelector('.compass-slot-left');
+    const centerDot = container.querySelector('.compass-center-dot');
 
-    // Row 1: East -> total 5
-    const eastRow = playersBox.children[1];
-    const eastIndicators = eastRow.children[1];
-    const eastBadge = eastIndicators.children[2];
-    expect(eastBadge.innerText).toBe('5');
-    expect(eastBadge.title).toBe('Total Cards: 5 (Trench: 3, Backup: 2)');
-
-    // Row 2: South -> total 6
-    const southRow = playersBox.children[2];
-    const southIndicators = southRow.children[1];
-    const southBadge = southIndicators.children[2];
-    expect(southBadge.innerText).toBe('6');
-    expect(southBadge.title).toBe('Total Cards: 6 (Trench: 3, Backup: 3)');
-
-    // Row 3: West -> total 1
-    const westRow = playersBox.children[3];
-    const westIndicators = westRow.children[1];
-    const westBadge = westIndicators.children[2];
-    expect(westBadge.innerText).toBe('1');
-    expect(westBadge.title).toBe('Total Cards: 1 (Trench: 1, Backup: 0)');
+    expect(topSlot).toBeTruthy();
+    expect(rightSlot).toBeTruthy();
+    expect(bottomSlot).toBeTruthy();
+    expect(leftSlot).toBeTruthy();
+    expect(centerDot).toBeTruthy();
   });
 
-  it('correctly displays 0 when a player has no trench or backup cards', () => {
+  it('displays full direction names ("North", "East", "South", "West") with player name under each', () => {
     const container = new MockElement('div');
     const statusUI = new StatusUI(container as any);
     const state = createInitialGameState();
 
-    state.players[PlayerSeat.NORTH].trenchCards = [null, null, null];
-    state.players[PlayerSeat.NORTH].backupCards = [null, null, null];
+    const mockStore: any = {
+      boardRotationAngle: 0,
+      botSeats: {
+        [PlayerSeat.NORTH]: false,
+        [PlayerSeat.EAST]: true,
+        [PlayerSeat.SOUTH]: false,
+        [PlayerSeat.WEST]: true
+      },
+      roomState: {
+        seats: {
+          [PlayerSeat.NORTH]: { name: 'Alice' },
+          [PlayerSeat.EAST]: { name: 'BOT (E)' },
+          [PlayerSeat.SOUTH]: { name: 'Bob' },
+          [PlayerSeat.WEST]: { name: 'BOT (W)' }
+        }
+      }
+    };
 
-    statusUI.render(state);
+    statusUI.render(state, mockStore);
 
-    const playersBox = container.children.find(c => c.className === 'players-status-box')!;
-    const northBadge = playersBox.children[0].children[1].children[2];
-    expect(northBadge.innerText).toBe('0');
-    expect(northBadge.title).toBe('Total Cards: 0 (Trench: 0, Backup: 0)');
+    const topSlot = container.querySelector('.compass-slot-top')!;
+    const rightSlot = container.querySelector('.compass-slot-right')!;
+    const bottomSlot = container.querySelector('.compass-slot-bottom')!;
+    const leftSlot = container.querySelector('.compass-slot-left')!;
+
+    // At 0 deg: Top=North, Right=East, Bottom=South, Left=West
+    expect(topSlot.children[0].innerText).toBe('North');
+    expect(topSlot.children[1].innerText).toBe('Alice');
+
+    expect(rightSlot.children[0].innerText).toBe('East');
+    expect(rightSlot.children[1].innerText).toBe('BOT (E)');
+
+    expect(bottomSlot.children[0].innerText).toBe('South');
+    expect(bottomSlot.children[1].innerText).toBe('Bob');
+
+    expect(leftSlot.children[0].innerText).toBe('West');
+    expect(leftSlot.children[1].innerText).toBe('BOT (W)');
+  });
+
+  it('rotates direction and player positions when board rotates (90, 180, 270 deg)', () => {
+    const container = new MockElement('div');
+    const statusUI = new StatusUI(container as any);
+    const state = createInitialGameState();
+
+    const mockStore: any = {
+      boardRotationAngle: 90,
+      botSeats: {
+        [PlayerSeat.NORTH]: false,
+        [PlayerSeat.EAST]: true,
+        [PlayerSeat.SOUTH]: false,
+        [PlayerSeat.WEST]: true
+      }
+    };
+
+    // At 90 deg: Top=West, Right=North, Bottom=East, Left=South
+    statusUI.render(state, mockStore);
+
+    const topSlot = container.querySelector('.compass-slot-top')!;
+    const rightSlot = container.querySelector('.compass-slot-right')!;
+    const bottomSlot = container.querySelector('.compass-slot-bottom')!;
+    const leftSlot = container.querySelector('.compass-slot-left')!;
+
+    expect(topSlot.children[0].innerText).toBe('West');
+    expect(rightSlot.children[0].innerText).toBe('North');
+    expect(bottomSlot.children[0].innerText).toBe('East');
+    expect(leftSlot.children[0].innerText).toBe('South');
+
+    // At 180 deg: Top=South, Right=West, Bottom=North, Left=East
+    mockStore.boardRotationAngle = 180;
+    statusUI.render(state, mockStore);
+
+    expect(topSlot.children[0].innerText).toBe('South');
+    expect(rightSlot.children[0].innerText).toBe('West');
+    expect(bottomSlot.children[0].innerText).toBe('North');
+    expect(leftSlot.children[0].innerText).toBe('East');
+
+    // At 270 deg: Top=East, Right=South, Bottom=West, Left=North
+    mockStore.boardRotationAngle = 270;
+    statusUI.render(state, mockStore);
+
+    expect(topSlot.children[0].innerText).toBe('East');
+    expect(rightSlot.children[0].innerText).toBe('South');
+    expect(bottomSlot.children[0].innerText).toBe('West');
+    expect(leftSlot.children[0].innerText).toBe('North');
+  });
+
+  it('matches team colors for seat text and highlights current turn seat with transparency on other seats', () => {
+    const container = new MockElement('div');
+    const statusUI = new StatusUI(container as any);
+    const state = createInitialGameState();
+    // North is active player
+    state.activePlayer = PlayerSeat.NORTH;
+
+    const mockStore: any = {
+      boardRotationAngle: 0,
+      botSeats: {}
+    };
+
+    statusUI.render(state, mockStore);
+
+    const topSlot = container.querySelector('.compass-slot-top')!;
+    const rightSlot = container.querySelector('.compass-slot-right')!;
+    const bottomSlot = container.querySelector('.compass-slot-bottom')!;
+    const leftSlot = container.querySelector('.compass-slot-left')!;
+
+    // North (Top) & South (Bottom) are Team A
+    expect(topSlot.children[0].style.color).toContain('var(--Team_A_color');
+    expect(topSlot.children[1].style.color).toContain('var(--Team_A_color');
+    expect(bottomSlot.children[0].style.color).toContain('var(--Team_A_color');
+    expect(bottomSlot.children[1].style.color).toContain('var(--Team_A_color');
+
+    // East (Right) & West (Left) are Team B
+    expect(rightSlot.children[0].style.color).toContain('var(--Team_B_color');
+    expect(rightSlot.children[1].style.color).toContain('var(--Team_B_color');
+    expect(leftSlot.children[0].style.color).toContain('var(--Team_B_color');
+    expect(leftSlot.children[1].style.color).toContain('var(--Team_B_color');
+
+    // Active seat (North/Top) is highlighted at full opacity 1.0
+    expect(topSlot.style.opacity).toBe('1.0');
+
+    // Other seats are slightly transparent (0.35)
+    expect(rightSlot.style.opacity).toBe('0.35');
+    expect(bottomSlot.style.opacity).toBe('0.35');
+    expect(leftSlot.style.opacity).toBe('0.35');
   });
 });

@@ -872,7 +872,7 @@ export class TurnManager {
 
   public handleResetOrRematch(): void {
     this.cancelAllTimers();
-    if (this.store.isMultiplayer) {
+    if (this.store.isMultiplayer && !this.store.isOfflineSolo) {
       if (this.store.getRematchMode() === 'return_to_lobby') {
         this.clearGameOverPopupState();
         this.updateScreenGlow(null);
@@ -894,7 +894,11 @@ export class TurnManager {
       this.cancelAllTimers();
       this.phase = TurnPhase.AWAITING_INPUT;
       this.isGameOverShown = false;
-      this.store.resetGame(true);
+      if (this.store.isOfflineSolo) {
+        this.store.startOfflineSoloGame(true);
+      } else {
+        this.store.resetGame(true);
+      }
       this.syncTurn(this.store.getState());
     }
   }

@@ -28,7 +28,7 @@ import {
   encodeAction
 } from '../core/types';
 import { PLAYER_TEAMS, TEAM_SEATS, HILL_SQUARES_BY_SEAT } from '../core/constants';
-import { getSquareCombatOdds, TrenchStrategy, getBestHandFrom7CardPool, swapPlayerCards } from '../core/cards';
+import { getSquareCombatOdds, TrenchStrategy, getBestHandFrom7CardPool, swapPlayerCards, isValidCardSwap } from '../core/cards';
 import {
   formatDirectTakeText,
   formatPromotionText,
@@ -946,6 +946,8 @@ function findBestCardSwap(state: GameState, seat: PlayerSeat): ActionInt | null 
   let bestSwap: ActionInt | null = null;
 
   const trySwap = (slot1: number, slot2: number) => {
+    if (!isValidCardSwap(player, slot1, slot2)) return;
+
     const isPos1 = slot1 < 3;
     const isPos2 = slot2 < 3;
     const c1 = isPos1 ? player.trenchCards[slot1] : (player.backupCards ? player.backupCards[slot1 - 3] : player.baseDeck[slot1 - 3]);

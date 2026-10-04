@@ -131,6 +131,38 @@ describe('GameStore Fast Bot Mode', () => {
     expect(store.isOfflineSolo).toBe(false);
     expect(store.isInMatch()).toBe(false);
   });
+
+  it('should support startOfflineSoloGame with isRematch preserving matchScore', () => {
+    store.myPlayerId = 'p1';
+    store.setRoomState({
+      roomCode: 'BOTS',
+      hostPlayerId: 'p1',
+      status: 'waiting',
+      gameStarted: false,
+      players: {
+        p1: { playerId: 'p1', name: 'Human', seat: PlayerSeat.NORTH, team: 'A', isHost: true, isReady: true, isOnline: true }
+      },
+      seats: {
+        [PlayerSeat.NORTH]: { playerId: 'p1', name: 'Human', isBot: false, isReady: true },
+        [PlayerSeat.EAST]: { playerId: null, name: 'BOT (E)', isBot: true, isReady: true },
+        [PlayerSeat.SOUTH]: { playerId: null, name: 'BOT (S)', isBot: true, isReady: true },
+        [PlayerSeat.WEST]: { playerId: null, name: 'BOT (W)', isBot: true, isReady: true }
+      }
+    });
+
+    store.startOfflineSoloGame(false);
+    expect(store.isOfflineSolo).toBe(true);
+    expect(store.isInMatch()).toBe(true);
+    expect(store.matchScore).toEqual({ teamA: 0, teamB: 0 });
+
+    // Simulate score update
+    store.state.score = { teamA: 1, teamB: 0 };
+    store.startOfflineSoloGame(true); // Rematch
+    expect(store.isOfflineSolo).toBe(true);
+    expect(store.matchScore).toEqual({ teamA: 1, teamB: 0 });
+
+    store.leaveMultiplayerRoom();
+  });
 });
 
 describe('GameStore Starting Player Logic', () => {

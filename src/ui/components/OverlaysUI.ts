@@ -31,24 +31,27 @@ export class OverlaysUI {
 
     const isTeamA = winnerTeam === 'A';
     const isTeamB = winnerTeam === 'B';
-    const borderColor = isTeamA ? 'var(--team-a-color)' : (isTeamB ? 'var(--team-b-color)' : '#94a3b8');
-    const shadowColor = isTeamA ? 'rgba(245, 158, 11, 0.4)' : (isTeamB ? 'rgba(6, 182, 212, 0.4)' : 'rgba(148, 163, 184, 0.4)');
+    const borderColor = isTeamA ? 'var(--Team_A_color)' : (isTeamB ? 'var(--Team_B_color)' : 'var(--Color_Beige)');
+    const shadowColor = isTeamA ? 'rgba(245, 158, 11, 0.4)' : (isTeamB ? 'rgba(6, 182, 212, 0.4)' : 'rgba(247, 251, 169, 0.25)');
 
-    card.style.border = `2px solid ${borderColor}`;
-    card.style.boxShadow = `0 0 30px ${shadowColor}`;
+    card.style.border = `1.5px solid ${borderColor}`;
+    card.style.boxShadow = `0 25px 60px rgba(0, 0, 0, 0.75), 0 0 30px ${shadowColor}`;
 
     const title = document.createElement('h1');
     title.style.color = borderColor;
     title.style.margin = '0 0 10px 0';
-    title.style.fontFamily = 'var(--font-heading)';
-    title.style.fontSize = '28px';
+    title.style.fontFamily = 'var(--Font_classic)';
+    title.style.fontSize = '26px';
+    title.style.fontWeight = '700';
     title.innerText = isTeamA ? 'Team Gold (A) Won!' : (isTeamB ? 'Team Cyan (B) Won!' : 'Game Over - Draw!');
     card.appendChild(title);
 
     const desc = document.createElement('p');
-    desc.style.color = '#94a3b8';
+    desc.style.color = 'var(--Color_Beige)';
+    desc.style.opacity = '0.9';
+    desc.style.fontFamily = 'var(--Font_classic)';
     desc.style.fontSize = '14px';
-    desc.style.margin = '0 0 16px 0';
+    desc.style.margin = '0 0 18px 0';
     desc.innerText = message || (winnerTeam ? `Team ${winnerTeam === 'A' ? 'Gold (A)' : 'Cyan (B)'} achieved victory!` : 'The match ended in a draw.');
     card.appendChild(desc);
 
@@ -63,24 +66,25 @@ export class OverlaysUI {
       const banner = document.createElement('div');
       banner.style.padding = '8px 12px';
       banner.style.marginBottom = '16px';
-      banner.style.borderRadius = '6px';
+      banner.style.borderRadius = '8px';
       banner.style.fontSize = '13px';
-      banner.style.fontWeight = 'bold';
+      banner.style.fontWeight = '700';
       banner.style.textAlign = 'center';
+      banner.style.fontFamily = 'var(--Font_classic)';
 
       if (isMyRequest) {
-        banner.style.background = 'rgba(245, 158, 11, 0.2)';
-        banner.style.border = '1px solid #f59e0b';
+        banner.style.background = 'rgba(245, 158, 11, 0.15)';
+        banner.style.border = '1.5px solid #f59e0b';
         banner.style.color = '#f59e0b';
         banner.innerText = '⏳ Rematch Requested... Waiting for opponent to accept';
       } else if (isAcceptedByMe) {
-        banner.style.background = 'rgba(34, 197, 94, 0.2)';
-        banner.style.border = '1px solid #22c55e';
+        banner.style.background = 'rgba(34, 197, 94, 0.15)';
+        banner.style.border = '1.5px solid #22c55e';
         banner.style.color = '#4ade80';
         banner.innerText = '✓ Rematch Accepted! Starting match...';
       } else {
-        banner.style.background = 'rgba(34, 197, 94, 0.25)';
-        banner.style.border = '1px solid #22c55e';
+        banner.style.background = 'rgba(34, 197, 94, 0.2)';
+        banner.style.border = '1.5px solid #22c55e';
         banner.style.color = '#4ade80';
         banner.innerText = `⚡ ${rematchOffer.requestedByName || 'Opponent'} requested a Rematch!`;
       }
@@ -89,31 +93,16 @@ export class OverlaysUI {
 
     const btnGroup = document.createElement('div');
     btnGroup.className = 'overlay-btn-group';
-    btnGroup.style.display = 'flex';
-    btnGroup.style.flexDirection = 'column';
-    btnGroup.style.gap = '10px';
 
     const rematchBtn = document.createElement('button');
-    rematchBtn.className = 'btn-overlay btn-rematch';
-    rematchBtn.style.padding = '12px 20px';
-    rematchBtn.style.borderRadius = '6px';
-    rematchBtn.style.fontWeight = '700';
-    rematchBtn.style.fontSize = '15px';
-    rematchBtn.style.border = 'none';
+    rematchBtn.className = 'btn-overlay btn-primary btn-rematch';
 
     if (rematchMode === 'disabled') {
-      rematchBtn.innerText = 'Rematch (Unavailable)';
-      rematchBtn.style.background = '#334155';
-      rematchBtn.style.color = '#64748b';
-      rematchBtn.style.cursor = 'not-allowed';
-      rematchBtn.style.opacity = '0.6';
+      rematchBtn.innerText = '🚫 Rematch (Unavailable)';
       rematchBtn.disabled = true;
       rematchBtn.title = 'Cannot rematch: Opponent left the match';
     } else if (rematchMode === 'return_to_lobby') {
-      rematchBtn.innerText = 'Rematch (Seat Setup)';
-      rematchBtn.style.background = '#2563eb';
-      rematchBtn.style.color = '#fff';
-      rematchBtn.style.cursor = 'pointer';
+      rematchBtn.innerText = '🔄 Rematch (Seat Setup)';
       rematchBtn.title = 'A player left. Click to return to seat setting room.';
       rematchBtn.addEventListener('click', () => {
         options.onRematch();
@@ -121,21 +110,14 @@ export class OverlaysUI {
     } else if (rematchOffer) {
       if (isMyRequest) {
         rematchBtn.innerText = '⏳ Waiting for Opponent...';
-        rematchBtn.style.background = '#334155';
-        rematchBtn.style.color = '#94a3b8';
-        rematchBtn.style.cursor = 'not-allowed';
         rematchBtn.disabled = true;
       } else if (isAcceptedByMe) {
         rematchBtn.innerText = '✓ Rematch Accepted';
-        rematchBtn.style.background = '#166534';
-        rematchBtn.style.color = '#4ade80';
-        rematchBtn.style.cursor = 'not-allowed';
+        rematchBtn.classList.add('btn-ready-active');
         rematchBtn.disabled = true;
       } else {
         rematchBtn.innerText = '✓ Accept Rematch';
-        rematchBtn.style.background = '#22c55e';
-        rematchBtn.style.color = '#000';
-        rematchBtn.style.cursor = 'pointer';
+        rematchBtn.classList.add('btn-ready-active');
         rematchBtn.addEventListener('click', () => {
           if (options.onAcceptRematch) {
             options.onAcceptRematch();
@@ -145,10 +127,7 @@ export class OverlaysUI {
         });
       }
     } else {
-      rematchBtn.innerText = 'Rematch';
-      rematchBtn.style.background = '#2563eb';
-      rematchBtn.style.color = '#fff';
-      rematchBtn.style.cursor = 'pointer';
+      rematchBtn.innerText = '🔄 Rematch';
       rematchBtn.addEventListener('click', () => {
         options.onRematch();
       });
@@ -156,16 +135,8 @@ export class OverlaysUI {
     btnGroup.appendChild(rematchBtn);
 
     const lobbyBtn = document.createElement('button');
-    lobbyBtn.className = 'btn-overlay btn-back-lobby';
-    lobbyBtn.style.padding = '12px 20px';
-    lobbyBtn.style.background = '#334155';
-    lobbyBtn.style.color = '#f8fafc';
-    lobbyBtn.style.border = '1px solid #475569';
-    lobbyBtn.style.borderRadius = '6px';
-    lobbyBtn.style.cursor = 'pointer';
-    lobbyBtn.style.fontWeight = '700';
-    lobbyBtn.style.fontSize = '15px';
-    lobbyBtn.innerText = 'Back to Lobby';
+    lobbyBtn.className = 'btn-overlay btn-secondary btn-back-lobby';
+    lobbyBtn.innerText = '🏠 Back to Lobby';
     lobbyBtn.addEventListener('click', () => {
       this.hideAll();
       options.onBackToLobby();
@@ -173,16 +144,8 @@ export class OverlaysUI {
     btnGroup.appendChild(lobbyBtn);
 
     const reviewBtn = document.createElement('button');
-    reviewBtn.className = 'btn-overlay btn-review-game';
-    reviewBtn.style.padding = '12px 20px';
-    reviewBtn.style.background = '#0d9488';
-    reviewBtn.style.color = '#fff';
-    reviewBtn.style.border = 'none';
-    reviewBtn.style.borderRadius = '6px';
-    reviewBtn.style.cursor = 'pointer';
-    reviewBtn.style.fontWeight = '700';
-    reviewBtn.style.fontSize = '15px';
-    reviewBtn.innerText = 'Review Game';
+    reviewBtn.className = 'btn-overlay btn-secondary btn-review-game';
+    reviewBtn.innerText = '🔍 Review Game';
     reviewBtn.addEventListener('click', () => {
       this.hideAll();
       options.onReviewGame();

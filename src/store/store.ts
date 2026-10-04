@@ -4,6 +4,7 @@ import { generateFullThreatMap, INITIAL_THREAT_MAP } from '../core/moves';
 
 import { BOT_SPEED_MS, POST_COMBAT_DELAY_MS, DEFAULT_TURN_TIME_LIMIT, TurnTimeLimit, TURN_RIVER_DELAY_MS } from '../config';
 import { ActionInt, GameState, Move, PieceType, PlayerSeat, Team } from '../core/types';
+import { ALL_SEATS } from '../core/constants';
 import { NetworkLogEntry, RematchOfferState, RoomState } from '../net/events';
 
 export interface LogEntry {
@@ -123,14 +124,9 @@ export class GameStore {
       this.turnTimeLimit = roomState.turnTimeLimit;
     }
 
-    const mySeats: PlayerSeat[] = [];
-    if (this.myPlayerId) {
-      for (let s = 0; s < 4; s++) {
-        if (roomState.seats[s as PlayerSeat]?.playerId === this.myPlayerId) {
-          mySeats.push(s as PlayerSeat);
-        }
-      }
-    }
+    const mySeats: PlayerSeat[] = this.myPlayerId
+      ? ALL_SEATS.filter(s => roomState.seats[s]?.playerId === this.myPlayerId)
+      : [];
     this.mySeats = mySeats;
     this.mySeat = mySeats.length > 0 ? mySeats[0] : null;
 
@@ -162,13 +158,10 @@ export class GameStore {
 
   public isSoloWithBots(): boolean {
     if (!this.roomState) return true;
-    for (let s = 0; s < 4; s++) {
-      const slot = this.roomState.seats[s as PlayerSeat];
-      if (slot && !slot.isBot && slot.playerId && slot.playerId !== this.myPlayerId) {
-        return false;
-      }
-    }
-    return true;
+    return !ALL_SEATS.some(s => {
+      const slot = this.roomState!.seats[s];
+      return slot && !slot.isBot && slot.playerId && slot.playerId !== this.myPlayerId;
+    });
   }
 
   public switchToOfflineSoloMode(): void {
@@ -178,7 +171,7 @@ export class GameStore {
     this.notify();
   }
 
-  public startOfflineSoloGame(): void {
+  public startOfflineSoloGame(isRematch: boolean = false): void {
     if (!this.roomState) return;
     this.isOfflineSolo = true;
     this.isMultiplayer = true;
@@ -202,7 +195,19 @@ export class GameStore {
       [PlayerSeat.WEST]: this.roomState.seats[PlayerSeat.WEST].isBot
     };
 
-    const initialGame = createInitialGameState({ skipSetup: true });
+    if (isRematch) {
+      this.matchScore = { ...this.state.score };
+      this.startingSeatIndex = (this.startingSeatIndex + 1) % 4;
+    } else {
+      this.matchScore = { teamA: 0, teamB: 0 };
+      this.startingSeatIndex = PlayerSeat.NORTH;
+    }
+
+    const initialGame = createInitialGameState({
+      skipSetup: true,
+      score: this.matchScore,
+      startingPlayer: this.startingSeatIndex as PlayerSeat
+    });
     this.applyServerGameState(initialGame, []);
     this.notify();
   }
@@ -503,22 +508,17 @@ export class GameStore {
   }
 
   public autoSetBoardRotation(): void {
-    let humanSeats: PlayerSeat[] = [];
-    if (this.isMultiplayer) {
-      humanSeats = this.mySeats;
-    } else {
-      for (let s = 0; s < 4; s++) {
-        if (!this.botSeats[s as PlayerSeat]) {
-          humanSeats.push(s as PlayerSeat);
-        }
-      }
-    }
+    const humanSeats = this.isMultiplayer
+      ? this.mySeats
+      : ALL_SEATS.filter(seat => !this.botSeats[seat]);
 
-    if (humanSeats.includes(PlayerSeat.EAST)) {
+    if (humanSeats.includes(PlayerSeat.SOUTH)) {
+      this.boardRotationAngle = 0;
+    } else if (humanSeats.includes(PlayerSeat.EAST)) {
       this.boardRotationAngle = 90;
-    } else if (humanSeats.length === 1 && humanSeats[0] === PlayerSeat.NORTH) {
+    } else if (humanSeats.includes(PlayerSeat.NORTH)) {
       this.boardRotationAngle = 180;
-    } else if (humanSeats.length === 1 && humanSeats[0] === PlayerSeat.WEST) {
+    } else if (humanSeats.includes(PlayerSeat.WEST)) {
       this.boardRotationAngle = 270;
     } else {
       this.boardRotationAngle = 0;

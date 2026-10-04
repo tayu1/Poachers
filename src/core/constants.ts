@@ -15,6 +15,13 @@ export const TEAM_SEATS: Record<Team, PlayerSeat[]> = {
   B: [PlayerSeat.EAST, PlayerSeat.WEST]
 };
 
+export const ALL_SEATS: PlayerSeat[] = [
+  PlayerSeat.NORTH,
+  PlayerSeat.EAST,
+  PlayerSeat.SOUTH,
+  PlayerSeat.WEST
+];
+
 export function toIndex(r: number, c: number): number {
   return r * BOARD_SIZE + c;
 }

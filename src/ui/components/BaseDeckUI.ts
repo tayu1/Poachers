@@ -85,7 +85,7 @@ export class BaseDeckUI {
     this.promoWrapper.style.gap = '6px';
     this.promoWrapper.style.marginLeft = '8px';
     this.promoWrapper.style.paddingLeft = '8px';
-    this.promoWrapper.style.borderLeft = '1px solid var(--panel-border)';
+    this.promoWrapper.style.borderLeft = '1px solid var(--Game_Menu_Glass_border_color)';
 
     this.passBtn = document.createElement('button');
     this.passBtn.className = 'pass-card-btn';
@@ -363,7 +363,7 @@ export class BaseDeckUI {
       this.promoWrapper.style.display = 'flex';
 
       const canPromoteSet = new Set(uniquePromoPieces.map(p => getPieceType(p)));
-      const teamColor = activePlayerState.team === 'A' ? 'var(--accent-gold)' : 'var(--accent-cyan)';
+      const teamColor = activePlayerState.team === 'A' ? 'var(--Team_A_color)' : 'var(--Team_B_color)';
 
       const pieceRow = buildPieceRow(
         uniquePromoPieces,

@@ -310,6 +310,15 @@ describe('Card Switch Animation (Trench Cards)', () => {
     vi.useRealTimers();
   });
 
+  it('PublicCardsUI does not render compass box since it is now in StatusUI', () => {
+    const publicCardsUI = new PublicCardsUI(publicContainer as any);
+    const state = store.getState();
+    publicCardsUI.render(state, store);
+
+    const compassBox = publicContainer.querySelector('.board-compass-box');
+    expect(compassBox).toBeNull();
+  });
+
   it('TrenchCardsUI correctly retains has-backup class and toggles underEl when backup cards exist', () => {
     const trenchUI = new TrenchCardsUI(containers, () => {});
     const state = store.getState();

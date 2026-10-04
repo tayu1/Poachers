@@ -9,7 +9,7 @@ export function openImageLightbox(src: string, alt: string): void {
     lightbox.innerHTML = `
       <div class="rules-lightbox-backdrop"></div>
       <div class="rules-lightbox-controls">
-        <button id="btn-close-rules-lightbox" class="rules-lightbox-close" aria-label="Close">✕ Close</button>
+        <button id="btn-close-rules-lightbox" class="rules-lightbox-close" aria-label="Close">❌ Close</button>
       </div>
       <div class="rules-lightbox-viewport">
         <img class="rules-lightbox-img" src="" alt="" draggable="false" />
@@ -267,6 +267,20 @@ export function openImageLightbox(src: string, alt: string): void {
   lightbox.classList.remove('hidden');
 }
 
+export function parseRulesMarkdown(md: string): string {
+  return md
+    .replace(/^\s*!\[(.*?)\]\((.*?)\)/gim, '<div class="rules-image-container"><img src="$2" alt="$1" class="rules-pic" /></div>')
+    .replace(/^\s*#### (.*$)/gim, '<h4>$1</h4>')
+    .replace(/^\s*### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^\s*## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^\s*# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/^(?!<h|<!|<div)(?!$)(.*)$/gim, '<p>$1</p>')
+    .replace(/\*\*([^\*]+)\*\*/gim, '<strong>$1</strong>')
+    .replace(/\*\s+\*([^\*]+)\*\s+\*/gim, '<strong>$1</strong>')
+    .replace(/\*([^\*]+)\*/gim, '<em>$1</em>')
+    .replace(/\n/g, '');
+}
+
 export function toggleRulesModal(): void {
   let modal = document.getElementById('rules-overlay');
   if (!modal) {
@@ -274,23 +288,11 @@ export function toggleRulesModal(): void {
     modal.id = 'rules-overlay';
     modal.className = 'rules-backdrop hidden';
 
-    const parseMarkdown = (md: string) => {
-      return md
-        .replace(/^\s*!\[(.*?)\]\((.*?)\)/gim, '<div class="rules-image-container"><img src="$2" alt="$1" class="rules-pic" /></div>')
-        .replace(/^\s*### (.*$)/gim, '<h3>$1</h3>')
-        .replace(/^\s*## (.*$)/gim, '<h2>$1</h2>')
-        .replace(/^\s*# (.*$)/gim, '<h1>$1</h1>')
-        .replace(/^(?!<h|<!|<div)(?!$)(.*)$/gim, '<p>$1</p>')
-        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-        .replace(/\n/g, '');
-    };
-
-    const htmlContent = parseMarkdown(rulesText);
+    const htmlContent = parseRulesMarkdown(rulesText);
 
     modal.innerHTML = `
       <div class="rules-modal">
-        <button id="btn-close-rules" class="rules-close-btn">X Close</button>
+        <button id="btn-close-rules" class="rules-close-btn">❌ Close</button>
         <div class="rules-content">${htmlContent}</div>
       </div>
     `;

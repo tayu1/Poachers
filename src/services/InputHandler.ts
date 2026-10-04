@@ -1,5 +1,5 @@
 import { executeTrenchSingleCardSelect, getValidPromotionOptions } from '../core/engine';
-import { getTrenchSlotTopCard } from '../core/cards';
+import { getTrenchSlotTopCard, isValidCardSwap } from '../core/cards';
 import { HILL_SQUARE_INDICES, MAX_BUNKERS_PER_PLAYER } from '../core/constants';
 import { getLegalMoves1D, getPlayerBunkerCount, isPieceBunkerable, isPieceControllable } from '../core/moves';
 import { getPieceType, PieceType, PlayerSeat, Card } from '../core/types';
@@ -213,9 +213,12 @@ export class InputHandler {
     const baseSlot = 3 + index;
     const selectedLcr = this.store.selectedTrenchCardIndex;
     const selectedBase = this.store.selectedBaseCardIndex;
+    const player = state.players[activeSeat];
 
     if (selectedLcr !== null) {
-      this.executeCardSwap(selectedLcr, baseSlot);
+      if (isValidCardSwap(player, selectedLcr, baseSlot)) {
+        this.executeCardSwap(selectedLcr, baseSlot);
+      }
       this.store.selectTrenchCard(null);
       this.store.selectBaseCard(null);
       return;
@@ -225,7 +228,9 @@ export class InputHandler {
       if (selectedBase === index) {
         this.store.selectBaseCard(null);
       } else {
-        this.executeCardSwap(3 + selectedBase, baseSlot);
+        if (isValidCardSwap(player, 3 + selectedBase, baseSlot)) {
+          this.executeCardSwap(3 + selectedBase, baseSlot);
+        }
         this.store.selectBaseCard(null);
       }
       return;
@@ -252,7 +257,10 @@ export class InputHandler {
     const selectedLcr = this.store.selectedTrenchCardIndex;
 
     if (selectedBase !== null) {
-      this.executeCardSwap(3 + selectedBase, cardIndex);
+      const baseSlot = 3 + selectedBase;
+      if (isValidCardSwap(playerState, baseSlot, cardIndex)) {
+        this.executeCardSwap(baseSlot, cardIndex);
+      }
       this.store.selectBaseCard(null);
       this.store.selectTrenchCard(null);
       return;
@@ -262,7 +270,9 @@ export class InputHandler {
       if (selectedLcr === cardIndex) {
         this.store.selectTrenchCard(null);
       } else {
-        this.executeCardSwap(selectedLcr, cardIndex);
+        if (isValidCardSwap(playerState, selectedLcr, cardIndex)) {
+          this.executeCardSwap(selectedLcr, cardIndex);
+        }
         this.store.selectTrenchCard(null);
       }
       return;
@@ -366,6 +376,8 @@ export class InputHandler {
     const slot1 = from.type === 'trench' ? from.cardIndex : 3 + from.cardIndex;
     const slot2 = to.type === 'trench' ? to.cardIndex : 3 + to.cardIndex;
 
+    if (!isValidCardSwap(player, slot1, slot2)) return false;
+
     this.executeCardSwap(slot1, slot2);
     this.store.selectTrenchCard(null);
     this.store.selectBaseCard(null);
@@ -375,6 +387,8 @@ export class InputHandler {
   public executeCardSwap(slot1: number, slot2: number): void {
     const state = this.store.getState();
     if (state.hasSwappedThisTurn) return;
+    const player = state.players[state.activePlayer];
+    if (!isValidCardSwap(player, slot1, slot2)) return;
 
     this.turnManager.dispatchAction({ type: 'CARD_SWAP', input1: slot1, input2: slot2 });
   }

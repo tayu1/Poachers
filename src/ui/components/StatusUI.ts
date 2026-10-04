@@ -1,14 +1,17 @@
-import { isSeatOccupyingHill, isSeatKingAlive } from '../../core/engine';
-import { GameState, Pc, PlayerSeat } from '../../core/types';
+import { GameState, PlayerSeat } from '../../core/types';
 import { GameStore } from '../../store/store';
 
-interface SeatRowElements {
-  row: HTMLElement;
+export interface CompassSeatSlot {
+  slot: HTMLElement;
+  dirLabel: HTMLElement;
   nameLabel: HTMLElement;
-  turnBadge: HTMLElement;
-  kingLed: HTMLElement;
-  hillLed: HTMLElement;
-  baseDeckBox: HTMLElement;
+}
+
+export interface CompassSlots {
+  top: CompassSeatSlot;
+  right: CompassSeatSlot;
+  bottom: CompassSeatSlot;
+  left: CompassSeatSlot;
 }
 
 export class StatusUI {
@@ -21,15 +24,11 @@ export class StatusUI {
   private messageBox: HTMLElement | null = null;
   private messageContent: HTMLElement | null = null;
   private timerElement: HTMLElement | null = null;
-  private statusBox: HTMLElement | null = null;
-  private seatRowElements: SeatRowElements[] = [];
+  private compassBox: HTMLElement | null = null;
+  private compassSlots: CompassSlots | null = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
-  }
-
-  private isKingAlive(state: GameState, seat: PlayerSeat): boolean {
-    return isSeatKingAlive(state.board, seat);
   }
 
   public stopTimerCountdown(): void {
@@ -43,7 +42,6 @@ export class StatusUI {
 
   private initDOMStructure(): void {
     this.container.innerHTML = '';
-    this.seatRowElements = [];
 
     if (this.container.style.display !== 'none') {
       this.container.style.display = 'flex';
@@ -87,7 +85,9 @@ export class StatusUI {
     this.timerElement.style.padding = '4px 8px';
     this.timerElement.style.borderRadius = '4px';
     this.timerElement.style.fontSize = '12px';
-    this.timerElement.style.fontWeight = '800';
+    this.timerElement.style.fontWeight = '700';
+    this.timerElement.style.fontFamily = "var(--Font_card, 'Outfit', sans-serif)";
+    this.timerElement.style.fontVariantNumeric = 'tabular-nums';
     this.timerElement.style.letterSpacing = '0.5px';
     this.timerElement.style.transition = 'all 0.3s ease';
 
@@ -95,93 +95,44 @@ export class StatusUI {
     this.messageBox.appendChild(this.timerElement);
     this.container.appendChild(this.messageBox);
 
-    // Separation line between message+timer and status bars
-    const divider = document.createElement('div');
-    divider.className = 'panel-section-divider';
-    this.container.appendChild(divider);
+    // 2. Dedicated Compass Square Box (replacing the status bar)
+    this.compassBox = document.createElement('div');
+    this.compassBox.className = 'status-compass-box board-compass-box';
+    this.compassBox.title = 'Compass (North, East, South, West)';
 
-    // 2. Dedicated Players Status Box
-    this.statusBox = document.createElement('div');
-    this.statusBox.className = 'players-status-box';
+    const innerGrid = document.createElement('div');
+    innerGrid.className = 'compass-inner-grid';
 
-    const seats = [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST];
+    const createSlot = (slotClass: string): CompassSeatSlot => {
+      const slot = document.createElement('div');
+      slot.className = `compass-seat-slot ${slotClass}`;
 
-    seats.forEach((_, idx) => {
-      const row = document.createElement('div');
-      row.style.display = 'flex';
-      row.style.justifyContent = 'space-between';
-      row.style.alignItems = 'center';
-      row.style.marginBottom = idx < seats.length - 1 ? '6px' : '0px';
-      row.style.padding = '5px 8px';
-      row.style.borderRadius = '6px';
-      row.style.transition = 'all 0.25s ease';
+      const dirLabel = document.createElement('div');
+      dirLabel.className = 'compass-seat-direction';
 
-      const infoContainer = document.createElement('div');
-      infoContainer.style.display = 'flex';
-      infoContainer.style.alignItems = 'center';
+      const nameLabel = document.createElement('div');
+      nameLabel.className = 'compass-seat-player';
 
-      const nameLabel = document.createElement('span');
-      nameLabel.style.fontSize = '12px';
-      infoContainer.appendChild(nameLabel);
+      slot.appendChild(dirLabel);
+      slot.appendChild(nameLabel);
+      innerGrid.appendChild(slot);
 
-      const turnBadge = document.createElement('span');
-      turnBadge.className = 'status-turn-badge';
-      turnBadge.style.fontSize = '9px';
-      turnBadge.style.fontWeight = '800';
-      turnBadge.style.padding = '1px 5px';
-      turnBadge.style.borderRadius = '3px';
-      turnBadge.style.color = '#0b0f19';
-      turnBadge.style.marginLeft = '6px';
-      turnBadge.style.letterSpacing = '0.5px';
-      turnBadge.innerText = 'TURN';
-      turnBadge.style.display = 'none';
-      infoContainer.appendChild(turnBadge);
+      return { slot, dirLabel, nameLabel };
+    };
 
-      const indicatorsContainer = document.createElement('div');
-      indicatorsContainer.style.display = 'flex';
-      indicatorsContainer.style.alignItems = 'center';
-      indicatorsContainer.style.gap = '8px';
+    const top = createSlot('compass-slot-top compass-top');
+    const right = createSlot('compass-slot-right compass-right');
+    const bottom = createSlot('compass-slot-bottom compass-bottom');
+    const left = createSlot('compass-slot-left compass-left');
 
-      const kingLed = document.createElement('div');
-      kingLed.style.width = '8px';
-      kingLed.style.height = '8px';
-      kingLed.style.borderRadius = '50%';
+    const centerDot = document.createElement('div');
+    centerDot.className = 'compass-center-dot';
+    innerGrid.appendChild(centerDot);
 
-      const hillLed = document.createElement('div');
-      hillLed.style.width = '8px';
-      hillLed.style.height = '8px';
-      hillLed.style.borderRadius = '50%';
+    this.compassBox.appendChild(innerGrid);
+    this.container.appendChild(this.compassBox);
 
-      const baseDeckBox = document.createElement('div');
-      baseDeckBox.style.padding = '1px 6px';
-      baseDeckBox.style.borderRadius = '4px';
-      baseDeckBox.style.fontSize = '11px';
-      baseDeckBox.style.fontWeight = '700';
-      baseDeckBox.style.background = 'rgba(30, 41, 59, 0.8)';
-      baseDeckBox.style.border = '1px solid rgba(148, 163, 184, 0.25)';
-      baseDeckBox.style.color = '#cbd5e1';
-      baseDeckBox.style.minWidth = '18px';
-      baseDeckBox.style.textAlign = 'center';
-
-      indicatorsContainer.appendChild(kingLed);
-      indicatorsContainer.appendChild(hillLed);
-      indicatorsContainer.appendChild(baseDeckBox);
-
-      row.appendChild(infoContainer);
-      row.appendChild(indicatorsContainer);
-      this.statusBox!.appendChild(row);
-
-      this.seatRowElements.push({
-        row,
-        nameLabel,
-        turnBadge,
-        kingLed,
-        hillLed,
-        baseDeckBox
-      });
-    });
-
-    this.container.appendChild(this.statusBox);
+    this.compassSlots = { top, right, bottom, left };
   }
 
   public render(state: GameState, store?: GameStore): void {
@@ -253,19 +204,19 @@ export class StatusUI {
       this.messageContent.innerText = messageText;
       if (store?.isReplaying) {
         if (store.historyIndex === 0) {
-          this.messageContent.style.color = '#f59e0b';
+          this.messageContent.style.color = 'var(--Team_A_color, #ffd900)';
         } else if (store.activeLogIndex >= 0 && store.activeLogIndex < store.logs.length) {
           const currentLog = store.logs[store.activeLogIndex];
           const isTeamA = currentLog.seat === 'N' || currentLog.seat === 'S';
-          this.messageContent.style.color = isTeamA ? '#f59e0b' : '#06b6d4';
+          this.messageContent.style.color = isTeamA ? 'var(--Team_A_color, #ffd900)' : 'var(--Team_B_color, #00d9ff)';
         } else {
-          this.messageContent.style.color = '#f59e0b';
+          this.messageContent.style.color = 'var(--Team_A_color, #ffd900)';
         }
       } else if (state.isGameOver) {
-        this.messageContent.style.color = state.winnerTeam === 'A' ? '#f59e0b' : (state.winnerTeam === 'B' ? '#06b6d4' : '#f8fafc');
+        this.messageContent.style.color = state.winnerTeam === 'A' ? 'var(--Team_A_color, #ffd900)' : (state.winnerTeam === 'B' ? 'var(--Team_B_color, #00d9ff)' : '#f8fafc');
       } else {
         const activePlayerState = state.players[state.activePlayer];
-        this.messageContent.style.color = isMyTurn ? '#4ade80' : (activePlayerState?.team === 'A' ? '#f59e0b' : '#06b6d4');
+        this.messageContent.style.color = isMyTurn ? '#4ade80' : (activePlayerState?.team === 'A' ? 'var(--Team_A_color, #ffd900)' : 'var(--Team_B_color, #00d9ff)');
       }
     }
 
@@ -273,80 +224,69 @@ export class StatusUI {
       this.timerElement.style.display = (state.isGameOver || Boolean(store?.isReplaying)) ? 'none' : '';
     }
 
-    const seats = [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST];
+    // Compass Square rendering & rotation logic
+    if (this.compassSlots) {
+      const rawAngle = store ? store.boardRotationAngle : 0;
+      const angle = ((rawAngle % 360) + 360) % 360;
 
-    seats.forEach((seat, idx) => {
-      const el = this.seatRowElements[idx];
-      if (!el) return;
+      const ROTATION_SEAT_MAP: Record<number, { top: PlayerSeat; right: PlayerSeat; bottom: PlayerSeat; left: PlayerSeat }> = {
+        0:   { top: PlayerSeat.NORTH, right: PlayerSeat.EAST,  bottom: PlayerSeat.SOUTH, left: PlayerSeat.WEST },
+        90:  { top: PlayerSeat.WEST,  right: PlayerSeat.NORTH, bottom: PlayerSeat.EAST,  left: PlayerSeat.SOUTH },
+        180: { top: PlayerSeat.SOUTH, right: PlayerSeat.WEST,  bottom: PlayerSeat.NORTH, left: PlayerSeat.EAST },
+        270: { top: PlayerSeat.EAST,  right: PlayerSeat.SOUTH, bottom: PlayerSeat.WEST,  left: PlayerSeat.NORTH }
+      };
 
-      const playerState = state.players[seat];
-      const isTeamA = playerState?.team === 'A';
-      const teamColor = isTeamA ? '#f59e0b' : '#06b6d4';
-      const isTurn = !store?.isReplaying && activeSeat === seat;
+      const mapping = ROTATION_SEAT_MAP[angle] || ROTATION_SEAT_MAP[0];
 
-      if (isTurn) {
-        el.row.style.border = `1.5px solid ${teamColor}`;
-        el.row.style.background = isTeamA ? 'rgba(245, 158, 11, 0.16)' : 'rgba(6, 182, 212, 0.16)';
-        el.row.style.boxShadow = `0 0 10px ${isTeamA ? 'rgba(245, 158, 11, 0.28)' : 'rgba(6, 182, 212, 0.28)'}`;
-      } else {
-        el.row.style.border = '1.5px solid transparent';
-        el.row.style.background = 'rgba(15, 23, 42, 0.45)';
-        el.row.style.boxShadow = 'none';
-      }
+      const getOccupantName = (seat: PlayerSeat): string => {
+        const isBot = store ? Boolean(store.botSeats[seat]) : (seat === PlayerSeat.EAST || seat === PlayerSeat.WEST);
+        let occupantName = isBot ? 'Bot' : 'Player';
+        if (store && store.roomState && store.roomState.seats && store.roomState.seats[seat]?.name) {
+          occupantName = store.roomState.seats[seat].name!;
+        }
+        return occupantName;
+      };
 
-      const isBot = store ? Boolean(store.botSeats[seat]) : (seat === PlayerSeat.EAST || seat === PlayerSeat.WEST);
-      let occupantName = isBot ? 'Bot' : 'Player';
-      if (store && store.roomState && store.roomState.seats && store.roomState.seats[seat] && store.roomState.seats[seat].name) {
-        occupantName = store.roomState.seats[seat].name!;
-      }
+      const updateSlot = (slotElements: CompassSeatSlot, seat: PlayerSeat) => {
+        const playerState = state.players[seat];
+        const isTeamA = playerState ? playerState.team === 'A' : (seat === PlayerSeat.NORTH || seat === PlayerSeat.SOUTH);
+        const teamColor = isTeamA ? 'var(--Team_A_color, #ffd900)' : 'var(--Team_B_color, #00d9ff)';
+        const isTurn = !store?.isReplaying && !state.isGameOver && activeSeat === seat;
 
-      el.nameLabel.style.fontWeight = isTurn ? 'bold' : '500';
-      el.nameLabel.style.color = teamColor;
-      el.nameLabel.innerText = `${seatBaseNames[idx]} (${occupantName})`;
+        const directionName = seatBaseNames[seat];
+        slotElements.dirLabel.innerText = directionName;
+        slotElements.dirLabel.textContent = directionName;
 
-      if (isTurn) {
-        el.turnBadge.style.display = '';
-        el.turnBadge.style.background = teamColor;
-      } else {
-        el.turnBadge.style.display = 'none';
-      }
+        const occupant = getOccupantName(seat);
+        slotElements.nameLabel.innerText = occupant;
+        slotElements.nameLabel.textContent = occupant;
+        slotElements.nameLabel.title = occupant;
 
-      const isAlive = this.isKingAlive(state, seat);
-      const isHill = isSeatOccupyingHill(state.board, seat);
+        // Match team color the sits text
+        slotElements.dirLabel.style.color = teamColor;
+        slotElements.nameLabel.style.color = teamColor;
 
-      // King LED
-      el.kingLed.title = isAlive ? 'King Alive' : 'King Eliminated';
-      if (isAlive) {
-        el.kingLed.style.background = '#22c55e';
-        el.kingLed.style.boxShadow = '0 0 6px rgba(34, 197, 94, 0.7)';
-        el.kingLed.style.opacity = '1';
-      } else {
-        el.kingLed.style.background = '#ef4444';
-        el.kingLed.style.boxShadow = 'none';
-        el.kingLed.style.opacity = '0.35';
-      }
+        // Highlight current turn sit by making the other sits color text slightly transparent
+        if (state.isGameOver) {
+          slotElements.slot.style.opacity = '0.75';
+          slotElements.slot.style.fontWeight = '500';
+          slotElements.slot.style.filter = 'none';
+        } else if (isTurn) {
+          slotElements.slot.style.opacity = '1.0';
+          slotElements.slot.style.fontWeight = '700';
+          slotElements.slot.style.filter = 'none';
+        } else {
+          slotElements.slot.style.opacity = '0.35';
+          slotElements.slot.style.fontWeight = '500';
+          slotElements.slot.style.filter = 'none';
+        }
+      };
 
-      // Hill LED
-      el.hillLed.title = isHill ? 'On Hill' : 'Not on Hill';
-      if (isHill) {
-        el.hillLed.style.background = '#f59e0b';
-        el.hillLed.style.boxShadow = '0 0 6px rgba(245, 158, 11, 0.8)';
-        el.hillLed.style.opacity = '1';
-      } else {
-        el.hillLed.style.background = '#475569';
-        el.hillLed.style.boxShadow = 'none';
-        el.hillLed.style.opacity = '0.3';
-      }
-
-      // Total cards count (Trench cards + Backup cards: 0-6)
-      const trenchCount = playerState?.trenchCards ? playerState.trenchCards.filter(c => c !== null).length : 0;
-      const backupCount = playerState?.backupCards
-        ? playerState.backupCards.filter(c => c !== null).length
-        : (playerState?.baseDeck ? playerState.baseDeck.length : 0);
-      const totalCardCount = trenchCount + backupCount;
-      el.baseDeckBox.innerText = `${totalCardCount}`;
-      el.baseDeckBox.title = `Total Cards: ${totalCardCount} (Trench: ${trenchCount}, Backup: ${backupCount})`;
-    });
+      updateSlot(this.compassSlots.top, mapping.top);
+      updateSlot(this.compassSlots.right, mapping.right);
+      updateSlot(this.compassSlots.bottom, mapping.bottom);
+      updateSlot(this.compassSlots.left, mapping.left);
+    }
 
     this.startTimerCountdown(store);
   }

@@ -7,6 +7,8 @@ class MockElement {
   public tagName: string;
   public id: string = '';
   public className: string = '';
+  public alt: string = '';
+  public src: string = '';
   public children: MockElement[] = [];
   public childNodes: MockElement[] = [];
   public parentElement: MockElement | null = null;
@@ -157,19 +159,19 @@ describe('LogUI and ControlsUI requirements', () => {
 
     // Entry 0: 1. N] P : e2 -> e4
     expect(logEntries.children[0].children[0].innerText).toBe('1. N] P : e2 -> e4');
-    expect(logEntries.children[0].children[0].style.color).toBe('#e2e8f0');
+    expect(logEntries.children[0].children[0].style.color).toBe('var(--Log_Text_move)');
 
     // Entry 1: ---card change (no numbering like 2. E], grey color)
     expect(logEntries.children[1].children[0].innerText).toBe('---card change');
-    expect(logEntries.children[1].children[0].style.color).toBe('#888888');
+    expect(logEntries.children[1].children[0].style.color).toBe('var(--Log_Text_card)');
 
     // Entry 2: 3. S] P : Takes(N) : e3 -> e4(X)
     expect(logEntries.children[2].children[0].innerText).toBe('3. S] P : Takes(N) : e3 -> e4(X)');
-    expect(logEntries.children[2].children[0].style.color).toBe('#e2e8f0');
+    expect(logEntries.children[2].children[0].style.color).toBe('var(--Log_Text_move)');
 
     // Entry 3: ---card refill (no numbering like 3. S], grey color)
     expect(logEntries.children[3].children[0].innerText).toBe('---card refill');
-    expect(logEntries.children[3].children[0].style.color).toBe('#888888');
+    expect(logEntries.children[3].children[0].style.color).toBe('var(--Log_Text_card)');
 
     // Entry 4: current turn
     expect(logEntries.children[4].children[0].innerText).toBe('current turn');
@@ -196,9 +198,9 @@ describe('LogUI and ControlsUI requirements', () => {
 
     const logEntries = (container as any).querySelector('#log-entries');
     expect(logEntries.children[0].children[0].innerText).toBe('---card change');
-    expect(logEntries.children[0].children[0].style.color).toBe('#888888');
+    expect(logEntries.children[0].children[0].style.color).toBe('var(--Log_Text_card)');
     expect(logEntries.children[1].children[0].innerText).toBe('---card refill');
-    expect(logEntries.children[1].children[0].style.color).toBe('#888888');
+    expect(logEntries.children[1].children[0].style.color).toBe('var(--Log_Text_card)');
   });
 
   it('should render timer up random moves with normal notation and (timer) on the same line', () => {
@@ -217,6 +219,25 @@ describe('LogUI and ControlsUI requirements', () => {
     expect(logEntries.children[0].children[0].innerText).toBe('5. E] P : e2 -> e4 (timer)');
   });
 
+  it('should render pokerText with pokerhand theme color variable', () => {
+    const container = new MockElement('div') as unknown as HTMLElement;
+    const logUI = new LogUI(container, () => {});
+
+    store.addLogEntry({
+      turnNumber: 6,
+      seat: 'N',
+      text: 'P : Takes(E) : d4 -> e5(X)',
+      pokerText: 'Straight Flush (A♠ K♠ Q♠ J♠ 10♠)'
+    });
+
+    logUI.render(store.getState(), store);
+
+    const logEntries = (container as any).querySelector('#log-entries');
+    expect(logEntries.children[0].children.length).toBe(2);
+    expect(logEntries.children[0].children[1].innerText).toBe('Straight Flush (A♠ K♠ Q♠ J♠ 10♠)');
+    expect(logEntries.children[0].children[1].style.color).toBe('var(--Log_Text_pokerhand)');
+  });
+
   it('should NOT render "REVIEW / REPLAY MODE" banner in ControlsUI menu even when store.isReplaying is true', () => {
     const container = new MockElement('div') as unknown as HTMLElement;
     const controlsUI = new ControlsUI(container, () => {}, () => {});
@@ -232,7 +253,7 @@ describe('LogUI and ControlsUI requirements', () => {
     expect(bannerChild).toBeUndefined();
   });
 
-  it('should render POACHERS title and Rules button on the same line in ControlsUI', () => {
+  it('should render POACHERS logo and Rules button on the same line in ControlsUI', () => {
     const container = new MockElement('div') as unknown as HTMLElement;
     const controlsUI = new ControlsUI(container, () => {}, () => {});
 
@@ -246,7 +267,9 @@ describe('LogUI and ControlsUI requirements', () => {
     expect(headerRow.children.length).toBe(2);
 
     const titleEl = headerRow.children[0];
-    expect(titleEl.innerText).toBe('POACHERS');
+    expect(titleEl.tagName.toLowerCase()).toBe('img');
+    expect(titleEl.alt).toBe('POACHERS');
+    expect(titleEl.src.toLowerCase()).toContain('poachers_logo.svg');
 
     const rulesBtn = headerRow.children[1];
     expect(rulesBtn.innerText).toContain('RULES');
@@ -266,11 +289,11 @@ describe('LogUI and ControlsUI requirements', () => {
     const btnRow = panel.children[2] as MockElement;
     const actionBtn = btnRow.children[1] as MockElement;
 
-    expect(actionBtn.innerText).toBe('Resign');
+    expect(actionBtn.innerText).toBe('🏳️ Resign');
 
-    // First click: changes text to "Resign?!", does NOT resign
+    // First click: changes text to "⚠️ Resign?!", does NOT resign
     (actionBtn as any).listeners['click'][0]();
-    expect(actionBtn.innerText).toBe('Resign?!');
+    expect(actionBtn.innerText).toBe('⚠️ Resign?!');
     expect(resigned).toBe(false);
 
     // Second click: triggers onResign
@@ -292,11 +315,11 @@ describe('LogUI and ControlsUI requirements', () => {
     const actionBtn = btnRow.children[1] as MockElement;
     const otherElement = new MockElement('div');
 
-    expect(actionBtn.innerText).toBe('Resign');
+    expect(actionBtn.innerText).toBe('🏳️ Resign');
 
-    // First click: changes text to "Resign?!"
+    // First click: changes text to "⚠️ Resign?!"
     (actionBtn as any).listeners['click'][0]();
-    expect(actionBtn.innerText).toBe('Resign?!');
+    expect(actionBtn.innerText).toBe('⚠️ Resign?!');
     expect(resigned).toBe(false);
 
     // Outside click occurs on otherElement
@@ -304,13 +327,13 @@ describe('LogUI and ControlsUI requirements', () => {
     expect(outsideClickHandlers.length).toBeGreaterThan(0);
     outsideClickHandlers.forEach(handler => handler({ target: otherElement }));
 
-    // Button should revert to normal "Resign"
-    expect(actionBtn.innerText).toBe('Resign');
+    // Button should revert to normal "🏳️ Resign"
+    expect(actionBtn.innerText).toBe('🏳️ Resign');
     expect(resigned).toBe(false);
 
-    // Now clicking it again should require confirmation again (first click -> "Resign?!")
+    // Now clicking it again should require confirmation again (first click -> "⚠️ Resign?!")
     (actionBtn as any).listeners['click'][0]();
-    expect(actionBtn.innerText).toBe('Resign?!');
+    expect(actionBtn.innerText).toBe('⚠️ Resign?!');
     expect(resigned).toBe(false);
   });
 
@@ -382,7 +405,7 @@ describe('LogUI and ControlsUI requirements', () => {
     const logEntries = (container as any).querySelector('#log-entries');
     expect(logEntries.children.length).toBe(1);
     expect(logEntries.children[0].children[0].innerText).toBe('🏆 Team A Victorious! (King Captured)');
-    expect(logEntries.children[0].children[0].style.color).toBe('var(--accent-gold)');
+    expect(logEntries.children[0].children[0].style.color).toBe('var(--Team_A_color)');
     expect(logEntries.children[0].children[0].style.fontWeight).toBe('bold');
   });
 

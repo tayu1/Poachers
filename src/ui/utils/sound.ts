@@ -1,7 +1,8 @@
 export type SoundName = 'move-self' | 'capture' | 'promote' | 'tenseconds' | 'win';
 
 export class SoundManager {
-  private audioCache: Map<SoundName, HTMLAudioElement> = new Map();
+  private audioPool: Map<SoundName, HTMLAudioElement[]> = new Map();
+  private poolIndex: Map<SoundName, number> = new Map();
   private lastPlayedMoveKey: string | null = null;
   private lastTenSecondsTurnKey: string | null = null;
   private hasPlayedWinSound: boolean = false;
@@ -11,16 +12,22 @@ export class SoundManager {
     if (typeof window !== 'undefined') {
       const sounds: SoundName[] = ['move-self', 'capture', 'promote', 'tenseconds', 'win'];
       sounds.forEach((name) => {
-        const audio = new Audio(`/sound/${name}.mp3`);
-        audio.preload = 'auto';
-        this.audioCache.set(name, audio);
+        // Create 2 pre-allocated instances per sound to allow overlapping playback without leaking
+        const a1 = new Audio(`/sound/${name}.mp3`);
+        const a2 = new Audio(`/sound/${name}.mp3`);
+        a1.preload = 'auto';
+        a2.preload = 'auto';
+        this.audioPool.set(name, [a1, a2]);
+        this.poolIndex.set(name, 0);
       });
 
       const unlock = () => {
         if (this.unlocked) return;
         this.unlocked = true;
-        this.audioCache.forEach((audio) => {
-          audio.load();
+        this.audioPool.forEach((elements) => {
+          elements.forEach((audio) => {
+            audio.load();
+          });
         });
         window.removeEventListener('pointerdown', unlock);
         window.removeEventListener('keydown', unlock);
@@ -33,9 +40,11 @@ export class SoundManager {
   public play(name: SoundName): void {
     if (typeof window === 'undefined') return;
     try {
-      const original = this.audioCache.get(name);
-      if (original) {
-        const audio = original.cloneNode() as HTMLAudioElement;
+      const pool = this.audioPool.get(name);
+      if (pool && pool.length > 0) {
+        const idx = (this.poolIndex.get(name) ?? 0) % pool.length;
+        this.poolIndex.set(name, idx + 1);
+        const audio = pool[idx];
         audio.currentTime = 0;
         const playPromise = audio.play();
         if (playPromise !== undefined) {
@@ -46,14 +55,8 @@ export class SoundManager {
           });
         }
       } else {
-        const audio = new Audio(`/sound/${name}.mp3`);
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => {
-            if (name === 'win') {
-              this.playSynthesizedWinSound();
-            }
-          });
+        if (name === 'win') {
+          this.playSynthesizedWinSound();
         }
       }
     } catch {

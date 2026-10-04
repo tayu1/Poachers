@@ -1,5 +1,5 @@
 import { Card, PlayerSeat } from '../../core/types';
-import { getTrenchSlotTopCard, normalizePlayerTrenchAndBase } from '../../core/cards';
+import { getTrenchSlotTopCard, normalizePlayerTrenchAndBase, isValidCardSwap } from '../../core/cards';
 import { GameStore } from '../../store/store';
 
 export type CardRef =
@@ -145,6 +145,10 @@ export class CardDragManager {
       ? getTrenchSlotTopCard(player, to.cardIndex)
       : player.backupCards[to.cardIndex];
     if (targetCard && (targetCard.id === 'hidden' || targetCard.rank <= 0)) return false;
+
+    const slot1 = from.type === 'trench' ? from.cardIndex : 3 + from.cardIndex;
+    const slot2 = to.type === 'trench' ? to.cardIndex : 3 + to.cardIndex;
+    if (!isValidCardSwap(player, slot1, slot2)) return false;
 
     return true;
   }

@@ -190,28 +190,70 @@ export function getEmptyBackupSlotIndex(backup: (Card | null)[]): number | null 
   return null;
 }
 
-export function getTeammateEmptySlot(
+/**
+ * Priority order for filling slots: Center (1) -> Right (2) -> Left (0)
+ * Follows the standard slot refill logic:
+ * 1. Check for first empty Trench slot (starting from center: 1 -> 2 -> 0)
+ * 2. If Trench is full, check for first empty Backup/Base slot (starting from center: 1 -> 2 -> 0)
+ */
+export function getPlayerEmptySlot(
   player: PlayerState
 ): { slotType: 'trench' | 'backup'; slotIndex: number } | null {
   if (!player) return null;
-  // Priority order for filling slots: Center (1) -> Right (2) -> Left (0)
+  if (!player.backupCards) {
+    player.backupCards = [null, null, null];
+  }
+  if (!player.trenchCards) {
+    player.trenchCards = [null, null, null];
+  }
   const priority = [1, 2, 0];
 
   // 1. Check for empty trench slot
   for (const idx of priority) {
-    if (player.trenchCards && player.trenchCards[idx] === null) {
+    if (player.trenchCards[idx] === null) {
       return { slotType: 'trench', slotIndex: idx };
     }
   }
 
   // 2. Check for empty backup slot
   for (const idx of priority) {
-    if (player.backupCards && player.backupCards[idx] === null) {
+    if (player.backupCards[idx] === null) {
       return { slotType: 'backup', slotIndex: idx };
     }
   }
 
   return null;
+}
+
+export const getTeammateEmptySlot = getPlayerEmptySlot;
+
+/**
+ * Adds a new card (from card steal, hill bonus, card pass, etc.) to a player's slots
+ * following the standard slot refill logic (first empty slots, starting from center):
+ * 1. Empty trench slot starting from center (1 -> 2 -> 0)
+ * 2. Empty backup slot starting from center (1 -> 2 -> 0)
+ *
+ * Returns true if the card was successfully placed, false if all 6 slots are already full.
+ */
+export function addCardToPlayerSlots(player: PlayerState, card: Card): boolean {
+  if (!player || !card) return false;
+  if (!player.backupCards) {
+    player.backupCards = [null, null, null];
+  }
+  if (!player.trenchCards) {
+    player.trenchCards = [null, null, null];
+  }
+
+  const emptySlot = getPlayerEmptySlot(player);
+  if (!emptySlot) return false;
+
+  if (emptySlot.slotType === 'trench') {
+    player.trenchCards[emptySlot.slotIndex] = card;
+  } else {
+    player.backupCards[emptySlot.slotIndex] = card;
+  }
+  normalizePlayerTrenchAndBase(player);
+  return true;
 }
 
 export function syncPlayerReserve(player: PlayerState): void {
@@ -291,19 +333,8 @@ export function processPostCombat(state: GameState, combat: CombatResult): void 
     if (defCard) {
       if (winnerSeat === attackerSeat && seat === defenderSeat) {
         const attackerPlayer = state.players[attackerSeat];
-        // Prefer placing into the slot that was just used in combat (attCardIdx), otherwise first available slot
-        const targetSlot = (attackerPlayer.trenchCards[attCardIdx] === null || attackerPlayer.backupCards[attCardIdx] === null)
-          ? attCardIdx
-          : getEmptyBackupSlotIndex(attackerPlayer.backupCards);
-
-        if (targetSlot !== null) {
-          if (attackerPlayer.trenchCards[targetSlot] === null) {
-            attackerPlayer.trenchCards[targetSlot] = defCard;
-          } else {
-            attackerPlayer.backupCards[targetSlot] = defCard;
-          }
-          normalizePlayerTrenchAndBase(attackerPlayer);
-        } else {
+        const added = addCardToPlayerSlots(attackerPlayer, defCard);
+        if (!added) {
           state.deck.unshift(defCard);
         }
       } else {
@@ -344,13 +375,16 @@ export function grantHillCardReward(state: GameState, seat: PlayerSeat): boolean
     state.players[seat]
   ) {
     const player = state.players[seat];
-    const targetSlot = getEmptyBackupSlotIndex(player.backupCards);
-    if (targetSlot !== null) {
+    const emptySlot = getPlayerEmptySlot(player);
+    if (emptySlot !== null) {
       const topCard = state.deck.pop();
       if (topCard) {
-        player.backupCards[targetSlot] = topCard;
-        normalizePlayerTrenchAndBase(player);
-        return true;
+        const added = addCardToPlayerSlots(player, topCard);
+        if (added) {
+          return true;
+        } else {
+          state.deck.push(topCard);
+        }
       }
     }
   }
@@ -414,19 +448,28 @@ export function setSlotCard(player: PlayerState, slot: number, card: Card | null
  * - Swapping between two cards (exchange positions)
  * - Moving a card into an empty slot (other slot becomes empty)
  */
-export function swapPlayerCards(
-  state: GameState,
-  seat: PlayerSeat,
+/**
+ * Checks whether a card swap between slot1 and slot2 is legal for a player:
+ * - Slots must be within range 0..5 and distinct
+ * - At least one slot must contain a valid (non-hidden, rank > 0) card
+ * - Neither slot can contain a hidden/corrupt card
+ * - Rule: Cannot move a card from a Trench slot (0, 1, 2) without a backup behind it
+ *   to an empty Backup slot (3, 4, 5).
+ */
+export function isValidCardSwap(
+  player: PlayerState | null | undefined,
   slot1: number,
   slot2: number
 ): boolean {
+  if (!player) return false;
   if (slot1 < 0 || slot1 > 5 || slot2 < 0 || slot2 > 5 || slot1 === slot2) {
     return false;
   }
-  const player = state.players[seat];
-  if (!player) return false;
   if (!player.backupCards) {
     player.backupCards = [null, null, null];
+  }
+  if (!player.trenchCards) {
+    player.trenchCards = [null, null, null];
   }
 
   const c1 = getSlotCard(player, slot1);
@@ -438,6 +481,42 @@ export function swapPlayerCards(
   }
   if (c1 && !isValidCard(c1)) return false;
   if (c2 && !isValidCard(c2)) return false;
+
+  // Rule: Cannot move a card from a Trench slot without backup to an empty Backup slot
+  // Check slot1 -> slot2:
+  if (slot1 < 3 && slot2 >= 3) {
+    const hasBackup = Boolean(player.backupCards && player.backupCards[slot1]);
+    const isTargetEmpty = c2 === null;
+    if (c1 !== null && !hasBackup && isTargetEmpty) {
+      return false;
+    }
+  }
+  // Check slot2 -> slot1:
+  if (slot2 < 3 && slot1 >= 3) {
+    const hasBackup = Boolean(player.backupCards && player.backupCards[slot2]);
+    const isTargetEmpty = c1 === null;
+    if (c2 !== null && !hasBackup && isTargetEmpty) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function swapPlayerCards(
+  state: GameState,
+  seat: PlayerSeat,
+  slot1: number,
+  slot2: number
+): boolean {
+  const player = state.players[seat];
+  if (!player) return false;
+  if (!isValidCardSwap(player, slot1, slot2)) {
+    return false;
+  }
+
+  const c1 = getSlotCard(player, slot1);
+  const c2 = getSlotCard(player, slot2);
 
   setSlotCard(player, slot1, c2);
   setSlotCard(player, slot2, c1);

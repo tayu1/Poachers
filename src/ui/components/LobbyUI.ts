@@ -46,7 +46,7 @@ export class LobbyUI {
   private renderPublicRoomsList(): string {
     const rooms = socketClient.publicRooms;
     if (!rooms || rooms.length === 0) {
-      return `<div style="font-size: 13px; color: #64748b; font-style: italic; padding: 6px 0;">No active rooms right now. Create one above!</div>`;
+      return `<div style="font-size: 13px; color: var(--Color_Beige); font-style: italic; padding: 6px 0; opacity: 0.85;">No active rooms right now. Create one above!</div>`;
     }
 
     return `
@@ -56,23 +56,23 @@ export class LobbyUI {
       const isPrivate = r.isPublic === false;
       const displayCode = isPrivate ? '----' : r.roomCode;
       return `
-          <div class="public-room-row" style="border: 1px solid ${isPlaying ? 'rgba(71, 85, 105, 0.6)' : (isPrivate ? 'rgba(51, 65, 85, 0.6)' : 'rgba(56, 189, 248, 0.5)')}; opacity: ${isPlaying || isPrivate ? '0.85' : '1'};">
+          <div class="public-room-row" style="background: transparent; border: 1px solid var(--Color_Beige); opacity: ${isPlaying || isPrivate ? '0.85' : '1'};">
             <div>
-              <span style="font-weight: 700; color: #f59e0b; font-size: 14px;">ROOM ${displayCode}</span>
-              <span style="font-size: 12px; color: #94a3b8; margin-left: 8px;">Host: ${r.hostName}</span>
+              <span class="public-room-code" style="font-weight: 700; color: var(--Color_Beige); font-size: 14px; font-family: var(--Font_card); letter-spacing: 0.5px;">ROOM ${displayCode}</span>
+              <span style="font-size: 12px; color: var(--Color_Beige); margin-left: 8px; opacity: 0.85;">Host: ${r.hostName}</span>
               ${isPlaying
-          ? `<span style="font-size: 11px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; padding: 1px 6px; border-radius: 4px; font-weight: 700; margin-left: 8px;">IN GAME</span>`
+          ? `<span style="font-size: 11px; background: transparent; border: 1px solid var(--Color_Beige); color: var(--Color_Beige); padding: 1px 6px; border-radius: 4px; font-weight: 700; margin-left: 8px;">IN GAME</span>`
           : (isPrivate
-            ? `<span style="font-size: 11px; background: rgba(148, 163, 184, 0.2); border: 1px solid #64748b; color: #cbd5e1; padding: 1px 6px; border-radius: 4px; font-weight: 700; margin-left: 8px;">🔒 PRIVATE</span>`
-            : `<span style="font-size: 11px; color: #38bdf8; margin-left: 8px; font-weight: 600;">(${r.seatsTaken}/4 Seats)</span>`
+            ? `<span style="font-size: 11px; background: transparent; border: 1px solid var(--Color_Beige); color: var(--Color_Beige); padding: 1px 6px; border-radius: 4px; font-weight: 700; margin-left: 8px;">🔒 PRIVATE</span>`
+            : `<span style="font-size: 11px; color: var(--Color_Beige); margin-left: 8px; font-weight: 600;">(${r.seatsTaken}/4 Seats)</span>`
           )
         }
             </div>
             ${isPlaying
-          ? `<button class="copy-btn" disabled style="background: #334155; color: #64748b; padding: 4px 10px; font-weight: 600; cursor: not-allowed; opacity: 0.6;" title="Game is already in progress">In Game</button>`
+          ? `<button class="copy-btn" disabled style="background: transparent; border: 1px solid rgba(247, 251, 169, 0.4); color: rgba(247, 251, 169, 0.5); padding: 4px 10px; font-weight: 600; cursor: not-allowed;" title="Game is already in progress">⚔️ In Game</button>`
           : (isPrivate
-            ? `<button class="copy-btn" disabled style="background: #334155; color: #64748b; padding: 4px 10px; font-weight: 600; cursor: not-allowed; opacity: 0.6;" title="Private room - enter code below to join">Private</button>`
-            : `<button class="btn-join-public-room copy-btn" data-code="${r.roomCode}" style="background: #2563eb; color: #fff; padding: 4px 10px; font-weight: 600; cursor: pointer;">Join Game</button>`
+            ? `<button class="copy-btn" disabled style="background: transparent; border: 1px solid rgba(247, 251, 169, 0.4); color: rgba(247, 251, 169, 0.5); padding: 4px 10px; font-weight: 600; cursor: not-allowed;" title="Private room - enter code below to join">🔒 Private</button>`
+            : `<button class="btn-join-public-room copy-btn" data-code="${r.roomCode}">🎮 Join Game</button>`
           )
         }
           </div>
@@ -93,10 +93,19 @@ export class LobbyUI {
     this.container.innerHTML = `
       <div class="lobby-backdrop">
         <div class="lobby-modal">
-          <div class="lobby-header" style="position: relative;">
-            <button class="btn-show-rules copy-btn" style="position: absolute; right: 0; top: 0; background: #10b981; color: #fff; padding: 6px 12px; font-weight: bold; border-radius: 6px;">📜 RULES</button>
-            <h1 class="lobby-title">POACHERS - LOBBY</h1>
-            <p class="lobby-subtitle">Create a room or select an open room to join</p>
+          <div class="lobby-header">
+            <div class="lobby-header-bar">
+              <div class="lobby-header-left">
+                <div class="lobby-header-spacer" aria-hidden="true">📜 RULES</div>
+              </div>
+              <div class="lobby-header-center">
+                <img src="/assets/poachers_logo.svg" alt="POACHERS" class="lobby-menu-logo" />
+              </div>
+              <div class="lobby-header-right">
+                <button class="btn-show-rules copy-btn">📜 RULES</button>
+              </div>
+            </div>
+            <div class="lobby-tag-title">♦ ♦ ♦ LOBBY ♦ ♦ ♦</div>
           </div>
 
           ${store.netError ? `<div class="error-banner">${store.netError}</div>` : ''}
@@ -107,12 +116,10 @@ export class LobbyUI {
               <input type="text" id="player-name-input" class="lobby-input" value="${this.playerNameInputVal || defaultName}" placeholder="Enter name..." />
             </div>
 
-
-
             <div class="form-actions-row" style="align-items: center;">
-              <button id="btn-create-room" class="btn-primary" style="flex: 2;">Create New Room</button>
-              <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #cbd5e1; cursor: pointer; flex: 1;">
-                <input type="checkbox" id="chk-is-public" ${this.isPublicRoomVal ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px;" />
+              <button id="btn-create-room" class="btn-primary" style="flex: 2;">➕ New Game Room</button>
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--Color_Beige); cursor: pointer; flex: 1;">
+                <input type="checkbox" id="chk-is-public" ${this.isPublicRoomVal ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: #f7fba9;" />
                 <span>Public Room</span>
               </label>
             </div>
@@ -120,29 +127,21 @@ export class LobbyUI {
             <!-- Public / Active Rooms Section -->
             <div class="public-rooms-section">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 12px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">🌐 ACTIVE ROOMS</span>
-                <button id="btn-refresh-rooms" class="copy-btn">Refresh</button>
+                <span style="font-size: 12px; font-weight: 700; color: var(--Color_Beige); text-transform: uppercase; letter-spacing: 0.5px;">🌐 ACTIVE ROOMS</span>
+                <button id="btn-refresh-rooms" class="copy-btn">🔄 Refresh</button>
               </div>
               ${this.renderPublicRoomsList()}
             </div>
 
-            <div style="display: flex; align-items: center; gap: 12px; margin: 4px 0;">
-              <div style="flex: 1; height: 1px; background: #334155;"></div>
-              <span style="font-size: 12px; color: #64748b; font-weight: 600;">OR JOIN BY PRIVATE CODE</span>
-              <div style="flex: 1; height: 1px; background: #334155;"></div>
-            </div>
+            <div style="height: 1px; background: var(--Color_Beige); opacity: 0.4; margin: 4px 0;"></div>
 
-            <div class="input-group">
-              <label class="input-label" for="room-code-input">4-Letter Room Code</label>
-              <input type="text" id="room-code-input" class="lobby-input" maxlength="4" style="text-transform: uppercase; letter-spacing: 2px; font-weight: 700;" value="${this.roomCodeInputVal}" placeholder="e.g. POAC" />
-            </div>
-
-            <div class="form-actions-row">
-              <button id="btn-join-room" class="btn-secondary">Join by Code</button>
+            <div class="form-actions-row" style="align-items: stretch;">
+              <input type="text" id="room-code-input" class="lobby-input" maxlength="4" style="flex: 1; min-width: 0; box-sizing: border-box; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; font-family: var(--Font_card);" value="${this.roomCodeInputVal}" placeholder="4 letter Code" />
+              <button id="btn-join-room" class="btn-secondary" style="flex: 1; box-sizing: border-box; white-space: nowrap;">🔑 Join by Code</button>
             </div>
           </div>
         </div>
-        <div style="position: absolute; bottom: 16px; left: 0; width: 100%; text-align: center; font-size: 11px; color: #7f9487ff; pointer-events: auto; user-select: text; -webkit-user-select: text; z-index: 10;">
+        <div style="position: absolute; bottom: 16px; left: 0; width: 100%; text-align: center; font-size: 11px; color: var(--Color_Beige); opacity: 0.75; pointer-events: auto; user-select: text; -webkit-user-select: text; z-index: 10;">
           All rights reserved . nitai.ieru@gmail.com
         </div>
       </div>
@@ -249,22 +248,31 @@ export class LobbyUI {
     this.container.innerHTML = `
       <div class="lobby-backdrop">
         <div class="lobby-modal">
-          <div class="lobby-header" style="position: relative;">
-            <button class="btn-show-rules copy-btn" style="position: absolute; right: 0; top: 0; background: #10b981; color: #fff; padding: 6px 12px; font-weight: bold; border-radius: 6px;">📜 RULES</button>
-            <h1 class="lobby-title">GAME ROOM</h1>
-            <p class="lobby-subtitle" style="font-size: 13px; color: #94a3b8; margin-top: 2px;">Pick seats and click READY to start match</p>
-            <div class="lobby-room-code-badge" style="margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <span style="display: inline-flex; align-items: center; gap: 4px;">
-                ROOM: ${roomState.roomCode}
-                <button id="btn-copy-code" class="copy-btn-icon" title="Copy Room Code" style="background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px; color: #cbd5e1;" aria-label="Copy Code">📋</button>
+          <div class="lobby-header">
+            <div class="lobby-header-bar">
+              <div class="lobby-header-left">
+                <div class="lobby-header-spacer" aria-hidden="true">📜 RULES</div>
+              </div>
+              <div class="lobby-header-center">
+                <img src="/assets/poachers_logo.svg" alt="POACHERS" class="lobby-menu-logo" />
+              </div>
+              <div class="lobby-header-right">
+                <button class="btn-show-rules copy-btn">📜 RULES</button>
+              </div>
+            </div>
+
+            <div class="lobby-room-code-badge" style="display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: none; color: var(--Color_Beige); font-family: var(--Font_card);">
+              <span class="room-code-display" style="display: inline-flex; align-items: center; gap: 4px; color: var(--Color_Beige); font-family: var(--Font_card); font-weight: 700; letter-spacing: 1px;">
+                Game Room : ${roomState.roomCode}
+                <button id="btn-copy-code" class="copy-btn-icon" title="Copy Room Code" style="background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px; color: var(--Color_Beige);" aria-label="Copy Code">📋</button>
               </span>
               ${isHost
-        ? `<button id="btn-toggle-privacy" class="copy-btn" style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(51, 65, 85, 0.8); color: ${roomState.isPublic ? '#38bdf8' : '#cbd5e1'}; padding: 2px 8px; border-radius: 4px; font-weight: 700; cursor: pointer;">${roomState.isPublic ? 'Public' : 'Private'}</button>`
-        : `<span style="font-size: 11px; background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(51, 65, 85, 0.8); padding: 2px 8px; border-radius: 4px; color: ${roomState.isPublic ? '#38bdf8' : '#cbd5e1'}; font-weight: 700;">${roomState.isPublic ? 'Public' : 'Private'}</span>`
+        ? `<button id="btn-toggle-timer" class="copy-btn" style="padding: 2px 8px; border-radius: 4px; font-weight: 700; cursor: pointer; font-family: var(--Font_card); font-variant-numeric: tabular-nums;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</button>`
+        : `<span class="room-timer-badge" style="font-size: 11px; background: transparent; border: 1px solid var(--Color_Beige); padding: 2px 8px; border-radius: 4px; color: var(--Color_Beige); font-weight: 700; font-family: var(--Font_card); font-variant-numeric: tabular-nums;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</span>`
       }
               ${isHost
-        ? `<button id="btn-toggle-timer" class="copy-btn" style="background: rgba(30, 41, 59, 0.7); border: 1px solid #d97706; padding: 2px 8px; border-radius: 4px; color: #f59e0b; font-weight: 700; cursor: pointer;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</button>`
-        : `<span style="font-size: 11px; background: rgba(30, 41, 59, 0.7); border: 1px solid #d97706; padding: 2px 8px; border-radius: 4px; color: #f59e0b; font-weight: 700;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</span>`
+        ? `<button id="btn-toggle-privacy" class="copy-btn" style="padding: 2px 8px; border-radius: 4px; font-weight: 700; cursor: pointer;">${roomState.isPublic ? '🌐 Public' : '🔒 Private'}</button>`
+        : `<span style="font-size: 11px; background: transparent; border: 1px solid var(--Color_Beige); padding: 2px 8px; border-radius: 4px; color: var(--Color_Beige); font-weight: 700;">${roomState.isPublic ? '🌐 Public' : '🔒 Private'}</span>`
       }
             </div>
           </div>
@@ -274,34 +282,38 @@ export class LobbyUI {
           <div class="teams-container">
             <!-- Team A Column -->
             <div class="team-column team-a">
+              <div class="team-header">Team A</div>
               ${this.renderSeatCard(PlayerSeat.NORTH, 'NORTH', roomState, store, isHost)}
               ${this.renderSeatCard(PlayerSeat.SOUTH, 'SOUTH', roomState, store, isHost)}
             </div>
 
+            <div class="teams-separator"></div>
+
             <!-- Team B Column -->
             <div class="team-column team-b">
+              <div class="team-header">Team B</div>
               ${this.renderSeatCard(PlayerSeat.EAST, 'EAST', roomState, store, isHost)}
               ${this.renderSeatCard(PlayerSeat.WEST, 'WEST', roomState, store, isHost)}
             </div>
           </div>
 
           <div class="lobby-footer">
-            <div style="text-align: center; font-size: 13px; color: #94a3b8; font-weight: 600; padding: 4px 0;">
+            <div style="text-align: center; font-size: 13px; color: var(--Color_Beige); font-weight: 600; padding: 4px 0;">
               ⚡ Game starts once all 4 seats are sat & READY.
             </div>
             <div class="lobby-controls-bar" style="display: flex; gap: 10px; flex-wrap: wrap;">
               ${isSeated
-        ? `<button id="btn-toggle-ready" class="btn-primary ${isMyReady ? 'btn-ready-active' : ''}" style="flex: 2; min-width: 140px; padding: 10px 16px; font-weight: 700; background: ${isMyReady ? '#22c55e' : '#f59e0b'}; color: #000;">${isMyReady ? '✓ READY' : '⚡ READY UP'}</button>`
+        ? `<button id="btn-toggle-ready" class="btn-primary ${isMyReady ? 'btn-ready-active' : ''}" style="flex: 2; min-width: 140px; padding: 10px 16px; font-weight: 700; box-shadow: none;">${isMyReady ? '✓ READY' : '⚡ READY UP'}</button>`
         : ''
       }
               ${isHost && [0, 1, 2, 3].some(s => !roomState.seats[s as PlayerSeat].isBot && !roomState.seats[s as PlayerSeat].playerId)
         ? (() => {
           const allHumansReady = Object.values(roomState.players).filter(p => p.isOnline).every(p => p.isReady);
-          return `<button id="btn-assign-bots-start" class="btn-primary" ${allHumansReady ? '' : 'disabled'} style="flex: 2; min-width: 180px; padding: 10px 16px; font-weight: 700; background: ${allHumansReady ? '#10b981' : '#334155'}; color: ${allHumansReady ? '#fff' : '#64748b'}; cursor: ${allHumansReady ? 'pointer' : 'not-allowed'}; opacity: ${allHumansReady ? '1' : '0.7'};" title="${allHumansReady ? 'Fill empty seats with bots and start match' : 'All players must be ready first'}">🤖 Assign Bots & Start</button>`;
+          return `<button id="btn-assign-bots-start" class="btn-primary" ${allHumansReady ? '' : 'disabled'} style="flex: 2; min-width: 180px; padding: 10px 16px; font-weight: 700; cursor: ${allHumansReady ? 'pointer' : 'not-allowed'}; opacity: ${allHumansReady ? '1' : '0.45'};" title="${allHumansReady ? 'Fill empty seats with bots and start match' : 'All players must be ready first'}">🤖 Assign Bots & Start</button>`;
         })()
         : ''
       }
-              <button id="btn-leave-lobby" class="btn-secondary" style="flex: 1; min-width: 100px;">Leave Room</button>
+              <button id="btn-leave-lobby" class="btn-secondary" style="flex: 1; min-width: 100px;">🚪 Leave Room</button>
             </div>
           </div>
         </div>
@@ -420,7 +432,7 @@ export class LobbyUI {
     const isClickable = canSit || isMySeat || slot.isBot;
 
     return `
-      <div id="seat-card-${seat}" class="seat-card ${isMySeat ? 'my-seat' : ''} ${isClickable ? 'clickable-seat' : ''}">
+      <div id="seat-card-${seat}" class="seat-card ${canSit ? 'empty empty-seat' : ''} ${isMySeat ? 'my-seat' : ''} ${isClickable ? 'clickable-seat' : ''}">
         <div class="seat-header">
           <span class="seat-name">${label}</span>
           <span class="seat-badge ${badgeClass}">${badgeText}</span>

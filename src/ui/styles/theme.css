@@ -1,494 +1,329 @@
 :root {
   /* ==========================================================================
-     SET 1: LOBBY & ROOM (Background & Texture Controls)
+     CORE COLOR & TYPOGRAPHY HELPERS (Foundation for All Other Settings)
      ========================================================================== */
-  --lobby-bg-color: #083238;
-  /* 🎨 Lobby Background Color */
-  --lobby-texture-color: #094745;
-  /* 🎨 Lobby Texture Symbol Color */
-  --lobby-texture-opacity: 1;
-  /* 👁️ Lobby Texture Opacity (0.0 to 1.0) */
-  --lobby-texture-size: 400px;
-  /* 📐 Lobby Texture Size (e.g. 400px = spacious) */
-  --lobby-modal-bg: rgba(0, 0, 0, 0.131);
-  /* 🪟 Lobby Modal Frosted Glass Background */
-  --lobby-modal-blur: 8px;
-  /* 🌫️ Lobby Modal Blur Radius */
-  --rules-bg-color: #001a24;
-  /* 📜 Rules Page Background Color */
-  --rules-backdrop-bg: rgba(0, 0, 0, 0.122);
-  /* 🪟 Rules Page Backdrop Background (rgba(5, 9, 18, 0.72) or transparent) */
-  --rules-backdrop-blur: 8px;
-  /* 🌫️ Rules Page Backdrop Blur Radius */
+  --Team_A_color: #ffd900;
+  /* Team A (Gold) Primary Accent */
+  --Team_B_color: #00d9ff;
+  /* Team B (Cyan) Primary Accent */
+  --Color_Beige: #f7fba9;
+  /* Brand Light Beige Color */
+
+  --Font_classic: "Merriweather", serif;
+  /* Classic Serif Font for Titles, Headers & Buttons */
+  --Font_card: 'Outfit', sans-serif;
+  /* Clean Sans-Serif Font for Cards, Timers & Digits */
 
   /* ==========================================================================
-     SET 2: GAME SCREEN (Background, Texture & Board Glass Controls)
+     UNIFIED UI COMPONENTS (Shared Features Across Screens)
      ========================================================================== */
-  --game-bg-color: #002f25;
-  /* 🎨 Game Screen Background Color */
-  --game-texture-color: #46ffdd0a;
-  /* 🎨 Game Texture Symbol Color */
-  --game-texture-opacity: 1;
-  /* 👁️ Game Texture Opacity (0.0 to 1.0) */
-  --game-texture-size: 300px;
-  /* 📐 Game Texture Size (e.g. 240px = smaller/denser symbols) */
-  --board-glass-blur: 0px;
-  /* 🌫️ Board Glass Panel Blur (0px = disabled for solid center) */
-  --board-glass-bg: #00000000;
-  /* 🪟 Center Board Area Background (Solid game background) */
-  --board-border-blur-color: transparent;
-  /* 🌑 Blurred Border Shadow Color between Center and Sides (transparent = no shadow) */
-  --board-border-blur-line: rgba(255, 255, 255, 0);
-  /* 🌫️ Blurred Border Line Glow between Center and Sides */
-  --board-border-blur-radius: 0px;
-  /* 📐 Blurred Border Blur Radius */
-  --board-glass-border: var(--board-border-blur-line);
-  --game-menu-glass-bg: #0000001f;
-  /* 🪟 Game Screen Sidebars / Menus Glass Background */
-  --game-menu-glass-blur: 5px;
-  /* 🌫️ Game Screen Sidebars / Menus Glass Blur Radius (0px = no blur) */
-  --game-menu-glass-border: rgba(255, 255, 255, 0.367);
-  /* 🖼️ Game Screen Sidebars / Menus Border & Separation Line Color */
-  --game-menu-glass-shadow: none;
-  /* 🌑 Game Screen Sidebars / Menus Shadow */
+  /* Shared Buttons */
+  --Button_classic_fill_color: #ffffff12;
+  /* Button Fill / Background Color */
+  --Button_classic_border_color: #ffffff41;
+  /* Button Border Color */
+  --Button_classic_text_color: var(--Color_Beige);
+  /* Button Text Color */
+  --Button_classic_border_width: 0.1px;
+  /* Button Border Width */
+  --Button_classic_hover_bg: #ffffff33;
+  /* Button Hover Fill Color */
+  --Button_classic_hover_shadow: none;
+  /* Button Hover Glow Shadow */
 
+  /* Shared Text Inputs */
+  --Input_fill_color: transparent;
+  /* Text Input Background / Fill Color */
+  --Input_border_color: #fff2ce4f;
+  /* Text Input Border Color */
+  --Input_text_color: var(--Color_Beige);
+  /* Text Input Text Color */
+  --Input_border_width: 1px;
+  /* Text Input Border Width */
+  --Input_placeholder_color: rgba(247, 251, 169, 0.55);
+  /* Text Input Placeholder Text Color */
+  --Input_focus_border_color: var(--Color_Beige);
+  /* Text Input Focus Border Color */
+  --Input_focus_shadow: 0 0 8px rgba(247, 251, 169, 0.3);
+  /* Text Input Focus Glow Shadow */
 
-  --game-end-bg-color: #0000008e;
-  /* 🏆 Game End Menu Background Color */
-  --game-end-backdrop-bg: rgba(5, 9, 18, 0);
-  /* 🪟 Game End Menu Backdrop Background (rgba(5, 9, 18, 0.72) or transparent) */
-  --game-end-backdrop-blur: 2px;
-  /* 🌫️ Game End Menu Backdrop Blur Radius */
+  /* Shared Frosted Glass Modals (Lobby, Rules, Game End) */
+  --Modal_Glass_bg_color: rgba(0, 0, 0, 0.131);
+  --Modal_Glass_blur: 8px;
+  --Modal_Glass_shadow: none;
 
-  /* Color Palette strictly adhering to specifications */
-  --bg-color: var(--game-bg-color);
-  --panel-bg: var(--game-menu-glass-bg);
-  --panel-border: var(--game-menu-glass-border);
-  --panel-blur: var(--game-menu-glass-blur);
-  --panel-shadow: var(--game-menu-glass-shadow);
-  --accent-gold: #ffd900;
-  --accent-cyan: #00d9ff;
-  --team-a-color: var(--accent-gold);
-  --team-b-color: var(--accent-cyan);
+  /* ==========================================================================
+     1. LOBBY & ROOM SCREEN
+     ========================================================================== */
+  --Lobby_BG_back_color: #0c2427;
+  /* Lobby Background Color */
+  --Lobby_BG_texture_color: #094745;
+  /* Lobby Texture Symbol Color */
+  --Lobby_BG_texture_opacity: 1;
+  /* Lobby Texture Opacity (0.0 to 1.0) */
+  --Lobby_BG_texture_size: 400px;
+  /* Lobby Texture Size */
+  --Lobby_Separator_color: rgba(247, 251, 169, 0.35);
+  /* Room Team Vertical Separation Line Color */
+  --Room_team_a_color: var(--Team_A_color);
+  /* Room Team A Header Text Color */
+  --Room_team_b_color: var(--Team_B_color);
+  /* Room Team B Header Text Color */
+  --Lobby_Seat_border_color: var(--Color_Beige);
+  /* Room Occupied Seat Box Border Color */
+  --Lobby_Seat_empty_border_color: rgba(247, 251, 169, 0.8);
+  /* Room Empty Seat Box Border Color (80% opacity) */
+  --Lobby_Seat_shadow: none;
+  /* Room Occupied Seat Box Glow Shadow */
+  --Lobby_Seat_hover_shadow: none;
+  /* Room Seat Box Hover Glow Shadow */
+  --Lobby_Rules_btn_font_size: 14px;
+  /* Lobby & Room Rules Button Font Size (1.5x original 12px) */
 
-  /* Typography */
-  --font-heading: 'Outfit', sans-serif;
-  --font-body: 'Inter', sans-serif;
+  --Rules_BG_back_color: #001a24;
+  /* Rules Page Background Color */
+  --Rules_backdrop_bg: rgba(0, 0, 0, 0.122);
+  /* Rules Page Backdrop Background */
+  --Rules_backdrop_blur: 8px;
+  /* Rules Page Backdrop Blur Radius */
 
-  /* Board & Square Colors */
-  --board-light: rgb(168, 98, 37);
-  --board-dark: rgb(142, 74, 15);
-  --board-border: none;
-  /* 🔲 Board Border Line (none = no border line around board) */
-  --hill-border-color: rgb(255, 255, 255);
-  --hill-border-width: 2px;
-  --hill-border-style: dotted;
-  --midline-border-width: 2px;
-  --midline-border-style: dotted;
-  --constant-midlines-color: rgba(255, 255, 255, 0.319);
-  --constant-midlines-thickness: 2px;
-  --constant-midline-color: var(--constant-midlines-color);
-  --constant-midline-thickness: var(--constant-midlines-thickness);
-  --constantmidlines-color: var(--constant-midlines-color);
-  --constantmidlines-thickness: var(--constant-midlines-thickness);
-  --contantmidlines-color: var(--constant-midlines-color);
-  --contantmidlines-thickness: var(--constant-midlines-thickness);
-  --contantmidlines-thicknees: var(--constant-midlines-thickness);
-  --trench_border_color: rgba(255, 255, 255, 0.25);
-  --trench-border-color: var(--trench_border_color);
-  --trench-border-width: 2px;
-  --trench-border-style: dotted;
+  /* ==========================================================================
+     2. GAME SCREEN BACKGROUND & SIDEBAR GLASS
+     ========================================================================== */
+  --Game_BG_back_color: #002f25;
+  /* Game Screen Background Color */
+  --Game_BG_texture_color: #46ffdd0a;
+  /* Game Texture Symbol Color */
+  --Game_BG_texture_opacity: 1;
+  /* Game Texture Opacity (0.0 to 1.0) */
+  --Game_BG_texture_size: 300px;
+  /* Game Texture Size */
 
-  /* Active Piece Rounded Square Controls */
-  --active-piece-team-a-color: #ffdd56;
-  --active-piece-team-b-color: #7cd3ff;
-  --active-piece-border-width: 1px;
-  --active-piece-border-radius: 6px;
-  --active-piece-inset: 3px;
+  --Game_Menu_Glass_bg_color: #0000003c;
+  /* Game Screen Sidebars / Menus Glass Background */
+  --Game_Menu_Glass_blur: 5px;
+  /* Game Screen Sidebars / Menus Glass Blur Radius */
+  --Game_Menu_Glass_border_color: rgba(255, 255, 255, 0.367);
+  /* Game Screen Sidebars / Menus Border & Separation Line Color */
+  --Game_Menu_separation_line_width: 1.5px;
+  /* Game Screen Menus Separation Line Width */
+  --Game_Menu_Glass_shadow: none;
+  /* Game Screen Sidebars / Menus Shadow */
 
-  /* Chosen Origin Square (Selected Cell) Controls */
-  --selected-origin-color: #ffffff;
-  --selected-origin-team-a-color: var(--selected-origin-color);
-  --selected-origin-team-b-color: var(--selected-origin-color);
-  --selected-origin-border-width: 2.5px;
-  --selected-origin-border-radius: 6px;
-  --selected-origin-inset: 3px;
+  --Game_Scoreboard_font: var(--Font_classic);
+  /* Game Menu Scoreboard Font */
+  --Game_Scoreboard_team_a_color: var(--Team_A_color);
+  /* Game Menu Scoreboard Team A Color */
+  --Game_Scoreboard_team_b_color: var(--Team_B_color);
+  /* Game Menu Scoreboard Team B Color */
+  --Game_Scoreboard_divider_color: var(--Color_Beige);
+  /* Game Menu Scoreboard Divider Color */
+  --Game_Scoreboard_team_gap: 12px;
+  /* Game Menu Space Between Team and Score */
 
-  /* Chosen Target Square (Drag Hover Target) Controls */
-  --drop-target-color: var(--accent-gold);
-  --drop-target-border-width: 2.5px;
-  --drop-target-border-radius: 6px;
-  --drop-target-inset: 3px;
+  --Game_End_bg_color: #012f2fde;
+  /* Game End Menu Background Color */
+  --Game_End_backdrop_bg: rgba(5, 9, 18, 0);
+  /* Game End Menu Backdrop Background */
+  --Game_End_backdrop_blur: 2px;
+  /* Game End Menu Backdrop Blur Radius */
 
-  /* Bunkered Piece Circle Controls */
-  --bunker-circle-size: 24px;
-  --bunker-circle-team-a-color: rgba(255, 170, 0, 0.2);
-  --bunker-circle-team-b-color: rgba(0, 140, 255, 0.2);
-  --bunker-circle-team-a-outline-color: #ffffffc9;
-  --bunker-circle-team-b-outline-color: var(--bunker-circle-team-a-outline-color);
-  --bunker-circle-outline-width: 2.5px;
-  --bunker-circle-outline-style: dotted;
+  /* ==========================================================================
+     3. BOARD CENTER GLASS & GRID LINES
+     ========================================================================== */
+  --Board_Glass_bg_color: #00000000;
+  /* Center Board Area Background */
+  --Board_Glass_blur: 0px;
+  /* Board Glass Panel Blur */
+  --Board_Glass_border_color: transparent;
+  /* Blurred Border Shadow Color */
+  --Board_Glass_border_line: rgba(255, 255, 255, 0);
+  /* Blurred Border Line Glow */
+  --Board_Glass_border_radius: 0px;
+  /* Blurred Border Blur Radius */
 
-  /* Bunker Setting Candidate Square Controls */
-  --bunker-candidate-color: #ffffffd7;
-  --bunker-candidate-border-width: 2.5px;
-  --bunker-candidate-border-style: dashed;
-  --bunker-candidate-border-radius: 5px;
-  --bunker-candidate-inset: 5px;
+  --Board_Grid_light_color: rgb(176, 104, 40);
+  --Board_Grid_dark_color: rgb(149, 84, 28);
+  --Board_Grid_border: none;
 
-  /* Threatened King Piece Highlight Controls */
-  --threatened-king-color: #ff0000;
-  --threatened-king-border-width: 3px;
-  --threatened-king-border-radius: 4px;
-  --threatened-king-border-inset: 3.5px;
+  --Board_Hill_border_color: rgb(255, 255, 255);
+  --Board_Hill_border_width: 2px;
+  --Board_Hill_border_style: dotted;
 
-  /* Active Player Board Edge Glow Line */
-  --board-glow-line-thickness: 2.5px;
-  --board-glow-line-shadow-small: 6px;
-  --board-glow-line-shadow-large: 14px;
+  --Board_Midline_border_width: 2px;
+  --Board_Midline_border_style: dotted;
+  --Board_Midline_constant_color: rgba(255, 255, 255, 0.319);
+  --Board_Midline_constant_thickness: 2px;
 
-  /* Move & Tactical Markers (Colors, Sizes, Border Widths & Radii) */
-  --legal-move-color: #0a5430c0;
-  --legal-move-circle-size: 16px;
+  --Board_Trench_border_color: rgba(255, 255, 255, 0.25);
+  --Board_Trench_border_width: 2px;
+  --Board_Trench_border_style: dotted;
 
-  /* Capture / Attack Move Target Marker Controls (Unified with King Capture) */
-  --attack-move-color: #ff0000;
-  --attack-move-border-width: 3px;
-  --attack-marker-border-radius: 6px;
-  --attack-marker-inset: 3px;
-  --king-capture-color: var(--attack-move-color);
-  --king-capture-border-width: var(--attack-move-border-width);
-  --king-capture-marker-border-radius: var(--attack-marker-border-radius);
-  --king-capture-marker-inset: var(--attack-marker-inset);
+  --Board_Glow_line_thickness: 2.5px;
+  --Board_Glow_shadow_small: 6px;
+  --Board_Glow_shadow_large: 14px;
 
-  /* Promotion Target Marker Controls */
-  --promotion-target-color: #ae00ffbc;
-  --promotion-target-border-width: 2px;
-  --promotion-target-border-radius: 6px;
-  --promotion-target-inset: 3px;
-  --promotion-available-color: rgb(191, 0, 255);
+  /* ==========================================================================
+     4. PIECE, SQUARE & BUNKER CONTROLS
+     ========================================================================== */
+  --Piece_Active_team_a_color: #ffdd56;
+  --Piece_Active_team_b_color: #7cd3ff;
+  --Piece_Active_border_width: 1px;
+  --Piece_Active_border_radius: 6px;
+  --Piece_Active_inset: 3px;
 
-  /* Card Colors, Sizing & Border Thicknesses */
-  --card-width: 40px;
-  --card-height: 50px;
-  --color-card-black: #1e293b;
-  --card-suit-red-color: #c50606;
-  --bg-card-face: rgb(255, 233, 176);
-  --card-empty-bg: rgba(11, 19, 37, 0.224);
-  --card-val-font-size: 1.3rem;
-  --card-suit-font-size: 1.4rem;
-  --card-border-width: 1.5px;
-  --card-border-team-a-color: var(--team-a-color);
-  --card-border-team-b-color: var(--team-b-color);
-  --combat-dimmed-opacity: 0.6;
+  --Square_Origin_color: #ffffff;
+  --Square_Origin_border_width: 2.5px;
+  --Square_Origin_border_radius: 6px;
+  --Square_Origin_inset: 3px;
 
-  /* Double Card Trench Slots: Backup Card Stack Offset Controls */
-  --bco_offset: 8px;
-  --backup-card-offset-north-x: 0px;
-  --backup-card-offset-north-y: calc(-1 * var(--bco_offset));
+  --Square_Target_color: var(--Team_A_color);
+  --Square_Target_border_width: 2.5px;
+  --Square_Target_border_radius: 6px;
+  --Square_Target_inset: 3px;
 
-  --backup-card-offset-south-x: 0px;
-  --backup-card-offset-south-y: var(--bco_offset);
+  --Bunker_Circle_size: 24px;
+  --Bunker_Circle_team_a_color: rgba(255, 170, 0, 0.2);
+  --Bunker_Circle_team_b_color: rgba(0, 140, 255, 0.2);
+  --Bunker_Circle_outline_color: #ffffffc9;
+  --Bunker_Circle_outline_width: 2.5px;
+  --Bunker_Circle_outline_style: dotted;
 
-  --backup-card-offset-east-x: var(--bco_offset);
-  --backup-card-offset-east-y: 0px;
+  --Bunker_Candidate_color: #ffffffd7;
+  --Bunker_Candidate_border_width: 2.5px;
+  --Bunker_Candidate_border_style: dashed;
+  --Bunker_Candidate_border_radius: 5px;
+  --Bunker_Candidate_inset: 5px;
 
-  --backup-card-offset-west-x: calc(-1 * var(--bco_offset));
-  --backup-card-offset-west-y: 0px;
+  --Threatened_King_color: #ff0000;
+  --Threatened_King_border_width: 3px;
+  --Threatened_King_border_radius: 4px;
+  --Threatened_King_inset: 3.5px;
 
+  /* ==========================================================================
+     5. TACTICAL & MOVEMENT MARKERS
+     ========================================================================== */
+  --Marker_Move_color: #0a5430c0;
+  --Marker_Move_circle_size: 16px;
 
-  /* Chosen Card for Swapping Controls */
-  --chosen-swap-card-border-color: #fff6c6;
-  --chosen-swap-card-border-width: 2.5px;
+  --Marker_Attack_color: #ff0000;
+  --Marker_Attack_border_width: 3px;
+  --Marker_Attack_border_radius: 6px;
+  --Marker_Attack_inset: 3px;
 
-  /* Available Cards for Swapping Highlight Controls */
-  --swap-card-border-width: 3px;
+  --Marker_Promotion_color: #ae00ffbc;
+  --Marker_Promotion_border_width: 2px;
+  --Marker_Promotion_border_radius: 6px;
+  --Marker_Promotion_inset: 3px;
+  --Marker_Promotion_available_color: rgb(191, 0, 255);
 
-  /* Winning Card Highlight Controls */
-  --winning-card-border-team-a: var(--team-a-color);
-  --winning-card-border-team-b: var(--team-b-color);
-  --winning-card-border-width: 3px;
+  /* ==========================================================================
+     6. CARD & COMPASS SYSTEM
+     ========================================================================== */
+  --Card_width: 40px;
+  --Card_height: 50px;
+  --Card_face_bg_color: rgb(255, 233, 176);
+  --Card_empty_bg_color: rgba(255, 255, 255, 0.028);
+  /* */
+  --Card_empty_slot_border_color: rgba(237, 218, 168, 0.371);
+  /* Card Empty Slot Border Color */
+  --Card_empty_slot_border_width: 1.5px;
+  /* Card Empty Slot Border Width */
 
-  /* Last Move Arrows */
-  --arrow-move-color: rgba(255, 255, 255, 0.25);
-  --arrow-move-width: 3;
-  --arrow-capture-color: rgba(248, 113, 113, 0.65);
-  --arrow-capture-width: 3;
-  --arrow-failed-color: rgba(245, 158, 11, 0.75);
-  --arrow-failed-width: 3;
-  --arrow-failed-dash: 6, 4;
+  --Card_backside_border_color: rgb(138, 143, 150);
+  /* Card Backside Border Color */
+  --Card_backside_border_width: 1px;
+  /* Card Backside Border Width */
 
-  /* Deadpool UI Piece Spacing Controls */
-  --gap-pieces: 0px;
-  --gap-similar-piece: -14px;
-  --gap-pawns: -18px;
+  --Card_val_font_size: 1.3rem;
+  --Card_suit_font_size: 1.4rem;
+  --Card_border_width: 1.5px;
+  --Card_border_team_a_color: var(--Team_A_color);
+  --Card_border_team_b_color: var(--Team_B_color);
+  --Card_suit_red_color: #c50606;
+  --Card_suit_black_color: #1e293b;
+  --Card_combat_dimmed_opacity: 0.6;
 
-  /* Log Box Scrollbar Controls */
-  --log-scrollbar-width: 4px;
-  --log-scrollbar-track-bg: rgba(0, 0, 0, 0.25);
-  --log-scrollbar-thumb-bg: rgba(255, 255, 255, 0.18);
-  --log-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
-  --log-scrollbar-thumb-radius: 4px;
+  --Card_backup_offset: 8px;
+  --Card_backup_offset_north_x: 0px;
+  --Card_backup_offset_north_y: calc(-1 * var(--Card_backup_offset));
+  --Card_backup_offset_south_x: 0px;
+  --Card_backup_offset_south_y: var(--Card_backup_offset);
+  --Card_backup_offset_east_x: var(--Card_backup_offset);
+  --Card_backup_offset_east_y: 0px;
+  --Card_backup_offset_west_x: calc(-1 * var(--Card_backup_offset));
+  --Card_backup_offset_west_y: 0px;
 
-  /* Card Swap/Switch Animation Duration */
-  --card-anim-duration: 140ms;
+  --Card_chosen_swap_border_color: #fff6c6;
+  --Card_chosen_swap_border_width: 2.5px;
+  --Card_swap_border_width: 3px;
+  --Card_winning_border_team_a: var(--Team_A_color);
+  --Card_winning_border_team_b: var(--Team_B_color);
+  --Card_winning_border_width: 3px;
 
-  /* Piece Movement Animation Duration */
-  --piece-anim-duration: 280ms;
+  --Compass_size: 200px;
+  --Compass_opacity: 1;
+  --Compass_box_bg: transparent;
+  --Compass_box_border_color: var(--Game_Menu_Glass_border_color);
+  /* Box Around Situation Map Border Color (matches separation line) */
+  --Compass_box_border_width: var(--Game_Menu_separation_line_width, 1.5px);
+  /* Box Around Situation Map Border Width (matches separation line) */
+  --Compass_box_border: var(--Compass_box_border_width) solid var(--Compass_box_border_color);
+  /* Box Around Situation Map Border */
+  --Compass_box_radius: 6px;
+  --Compass_box_shadow: none;
 
-  /* Aliases supporting snake_case variable names */
-  --gap_pieces: var(--gap-pieces);
-  --gap_similar_pice: var(--gap-similar-piece);
-  --gap_similar_piece: var(--gap-similar-piece);
-  --gap_pawns: var(--gap-pawns);
-  --card_anim_duration: var(--card-anim-duration);
-  --piece_anim_duration: var(--piece-anim-duration);
-  --card_empty_bg: var(--card-empty-bg);
-  --constant_midlines_color: var(--constant-midlines-color);
-  --constant_midlines_thickness: var(--constant-midlines-thickness);
-  --constant_midline_color: var(--constant-midlines-color);
-  --constant_midline_thickness: var(--constant-midlines-thickness);
-  --contantmidlines_color: var(--constant-midlines-color);
-  --contantmidlines_thickness: var(--constant-midlines-thickness);
-}
+  /* ==========================================================================
+     7. MOVE ARROWS & DEADPOOL SPACING
+     ========================================================================== */
+  --Arrow_move_color: rgba(255, 255, 255, 0.25);
+  --Arrow_move_width: 3;
+  --Arrow_capture_color: rgba(248, 113, 113, 0.65);
+  --Arrow_capture_width: 3;
+  --Arrow_failed_color: rgba(245, 158, 11, 0.75);
+  --Arrow_failed_width: 3;
+  --Arrow_failed_dash: 6, 4;
 
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--game-bg-color);
-  color: #f3f4f6;
-  font-family: var(--font-body);
-  user-select: none;
-  overflow: hidden;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  min-height: 100vh;
-  position: relative;
-}
+  --Deadpool_border_width: 1px;
+  /* Captured Pieces Bar Border Width */
+  --Deadpool_border_team_a_color: var(--Team_A_color);
+  /* Captured Pieces Bar Team A Border Color */
+  --Deadpool_border_team_b_color: var(--Team_B_color);
+  /* Captured Pieces Bar Team B Border Color */
+  --Deadpool_box_padding: 3px 6px;
+  /* Captured Pieces Bar Padding */
+  --Deadpool_bar_min_height: 30px;
+  /* Captured Pieces Bar Min Height */
+  --Deadpool_piece_size: 30px;
+  /* Captured Pieces Icon Size */
+  --Deadpool_box_bg: rgba(255, 255, 255, 0.15);
+  /* Captured Pieces Bar Background */
+  --Deadpool_box_shadow: none;
+  /* Captured Pieces Bar Glow Shadow */
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-color: var(--game-texture-color);
-  opacity: var(--game-texture-opacity);
-  mask-image: url('/assets/lobby_texture.svg');
-  -webkit-mask-image: url('/assets/lobby_texture.svg');
-  mask-repeat: repeat;
-  -webkit-mask-repeat: repeat;
-  mask-size: var(--game-texture-size) auto;
-  -webkit-mask-size: var(--game-texture-size) auto;
-  pointer-events: none;
-  z-index: 0;
-}
+  --Deadpool_gap_pieces: 0px;
+  --Deadpool_gap_similar_piece: -11px;
+  --Deadpool_gap_pawns: -14px;
 
-#app {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-}
+  /* ==========================================================================
+     8. LOG BOX & SCROLLBAR
+     ========================================================================== */
+  --Log_Scrollbar_width: 4px;
+  --Log_Scrollbar_track_bg: rgba(0, 0, 0, 0.25);
+  --Log_Scrollbar_thumb_bg: rgba(255, 255, 255, 0.18);
+  --Log_Scrollbar_thumb_hover: rgba(255, 255, 255, 0.38);
+  --Log_Scrollbar_thumb_radius: 4px;
 
-button,
-input,
-select,
-.sq,
-.piece-img,
-.public-card {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
+  --Log_Text_move: #e2e8f0;
+  /* Move Log Text Color */
+  --Log_Text_pokerhand: var(--Team_A_color);
+  /* Poker Hand Log Text Color */
+  --Log_Text_card: #888888;
+  /* Card Change / Refill Log Text Color */
 
-/* Combat Announcement Banner Styles */
-.combat-announcement-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  width: 100%;
-}
-
-.combat-announcement-text {
-  font-family: var(--font-heading);
-  font-size: 1.5rem;
-  font-weight: 800;
-  text-align: center;
-  letter-spacing: 0.05em;
-  color: #f3f4f6;
-}
-
-.combat-announcement-text.winning-team-a,
-.combat-announcement-text.attacker-win-msg {
-  color: var(--team-a-color);
-}
-
-.combat-announcement-text.winning-team-b,
-.combat-announcement-text.defender-win-msg {
-  color: var(--team-b-color);
-}
-
-/* Hide bunker and pass card buttons during combat announcement / poker win message */
-.base-deck-wrapper.in-combat-announcement .pass-card-btn,
-.base-deck-wrapper.in-combat-announcement .bunker-action-btn,
-.combat-announcement-wrapper:not([style*="display: none"])~.pass-card-btn,
-.combat-announcement-wrapper:not([style*="display: none"])~.bunker-action-btn {
-  display: none !important;
-}
-
-/* Pass Card Button */
-.pass-card-btn {
-  position: absolute;
-  left: 52px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  font-size: 16px;
-  line-height: 1;
-  border-radius: 8px;
-  border: 1px solid var(--panel-border, rgba(148, 163, 184, 0.3));
-  background: rgba(15, 23, 42, 0.85);
-  color: #cbd5e1;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  z-index: 2;
-}
-
-.pass-card-btn .pass-btn-icon {
-  font-size: 16px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pass-card-btn:hover {
-  transform: translateY(calc(-50% - 1px));
-  color: #ffffff;
-}
-
-.pass-card-btn.team-a,
-.pass-card-btn.card-team-a {
-  border-color: rgba(245, 158, 11, 0.6);
-  color: var(--accent-gold, #f59e0b);
-}
-
-.pass-card-btn.team-a:hover,
-.pass-card-btn.card-team-a:hover {
-  background: var(--accent-gold, #f59e0b);
-  color: #0f172a;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
-}
-
-.pass-card-btn.team-b,
-.pass-card-btn.card-team-b {
-  border-color: rgba(6, 182, 212, 0.6);
-  color: var(--accent-cyan, #06b6d4);
-}
-
-.pass-card-btn.team-b:hover,
-.pass-card-btn.card-team-b:hover {
-  background: var(--accent-cyan, #06b6d4);
-  color: #0f172a;
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
-}
-
-.pass-card-btn:active {
-  transform: translateY(-50%);
-}
-
-.pass-card-btn.disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  filter: grayscale(0.5);
-  pointer-events: none;
-}
-
-.pass-card-btn.disabled:hover {
-  transform: translateY(-50%);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-/* Bunker Action Button */
-.bunker-action-btn {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  font-size: 16px;
-  line-height: 1;
-  border-radius: 8px;
-  border: 1px solid var(--panel-border, rgba(148, 163, 184, 0.3));
-  background: rgba(15, 23, 42, 0.85);
-  color: #cbd5e1;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  z-index: 2;
-}
-
-.bunker-action-btn .bunker-btn-icon {
-  font-size: 16px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.bunker-action-btn:hover {
-  transform: translateY(calc(-50% - 1px));
-  color: #ffffff;
-}
-
-.bunker-action-btn.team-a {
-  border-color: rgba(245, 158, 11, 0.6);
-  color: var(--accent-gold, #f59e0b);
-}
-
-.bunker-action-btn.team-a:hover,
-.bunker-action-btn.team-a.active {
-  background: var(--accent-gold, #f59e0b);
-  color: #0f172a;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
-}
-
-.bunker-action-btn.team-b {
-  border-color: rgba(6, 182, 212, 0.6);
-  color: var(--accent-cyan, #06b6d4);
-}
-
-.bunker-action-btn.team-b:hover,
-.bunker-action-btn.team-b.active {
-  background: var(--accent-cyan, #06b6d4);
-  color: #0f172a;
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
-}
-
-.bunker-action-btn:active {
-  transform: translateY(-50%);
-}
-
-.bunker-action-btn.disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  filter: grayscale(0.5);
-  pointer-events: none;
-}
-
-.bunker-action-btn.disabled:hover {
-  transform: translateY(-50%);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  /* ==========================================================================
+     9. ANIMATION TIMINGS
+     ========================================================================== */
+  --Anim_card_duration: 140ms;
+  --Anim_piece_duration: 280ms;
 }

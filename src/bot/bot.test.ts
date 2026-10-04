@@ -503,6 +503,31 @@ describe('Next-Gen Bot Search & Evaluation Engine', () => {
     }
   });
 
+  it('should never choose to swap an unbacked trench card into an empty backup slot', () => {
+    const state = createInitialGameState({ skipSetup: true });
+    state.activePlayer = PlayerSeat.NORTH;
+    state.turnCount = 2;
+    state.hasSwappedThisTurn = false;
+
+    const north = state.players[PlayerSeat.NORTH];
+    // All backup slots are empty
+    north.backupCards = [null, null, null];
+
+    const candidate = getBestBotAction(state, DEFAULT_BOT_PROFILE);
+    if (candidate && (candidate.action.type === 'CARD_SWAP' || candidate.action.type === ActionType.CARD_SWAP)) {
+      const p1 = typeof candidate.action === 'number'
+        ? (candidate.action >>> 14) & 0x3F
+        : (candidate.action.input1 ?? candidate.action.origin);
+      const p2 = typeof candidate.action === 'number'
+        ? (candidate.action >>> 8) & 0x3F
+        : (candidate.action.input2 ?? candidate.action.end);
+      // Since all backup slots are empty and trench slots have no backup, no trench-base swap is legal!
+      // Any swap must be trench-trench (both < 3)
+      expect(Number(p1)).toBeLessThan(3);
+      expect(Number(p2)).toBeLessThan(3);
+    }
+  });
+
   it('should include moves for bunkered pieces in legal actions and unbunker them when moved', () => {
     const state = createInitialGameState({ skipSetup: true });
     state.activePlayer = PlayerSeat.NORTH;

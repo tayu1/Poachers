@@ -24,8 +24,8 @@ import { CARD_ANIMATION_TIME_MS, PIECE_ANIMATION_TIME_MS } from './config';
 
 // 0. Synchronize Configured Animation Timers to CSS Custom Properties
 if (typeof document !== 'undefined') {
-  document.documentElement.style.setProperty('--card-anim-duration', `${CARD_ANIMATION_TIME_MS}ms`);
-  document.documentElement.style.setProperty('--piece-anim-duration', `${PIECE_ANIMATION_TIME_MS}ms`);
+  document.documentElement.style.setProperty('--Anim_card_duration', `${CARD_ANIMATION_TIME_MS}ms`);
+  document.documentElement.style.setProperty('--Anim_piece_duration', `${PIECE_ANIMATION_TIME_MS}ms`);
 }
 
 // 1. Initialize UI Overlays & Menu
@@ -124,7 +124,13 @@ function updateBoardScale(): void {
   const naturalWidth = 532;
   const naturalHeight = 688;
   const availableWidth = Math.max(280, window.innerWidth - 16);
-  const scale = Math.min(1, availableWidth / naturalWidth);
+  const bottomBar = document.getElementById('mobile-bottom-menu-bar');
+  const bottomBarHeight = (bottomBar && getComputedStyle(bottomBar).display !== 'none') ? 64 : 0;
+  const availableHeight = Math.max(280, window.innerHeight - bottomBarHeight - 24);
+
+  const scaleWidth = availableWidth / naturalWidth;
+  const scaleHeight = availableHeight / naturalHeight;
+  const scale = Math.min(1, scaleWidth, scaleHeight);
 
   if (scale >= 0.99) {
     container.style.transform = '';
