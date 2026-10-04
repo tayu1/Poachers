@@ -65,6 +65,8 @@
   /* Lobby Texture Size */
   --Lobby_Separator_color: rgba(247, 251, 169, 0.35);
   /* Room Team Vertical Separation Line Color */
+  --Lobby_Header_line_color: rgba(247, 251, 169, 0.35);
+  /* Lobby Title & Room Upper Detail Row Horizontal Separation Lines Color */
   --Room_team_a_color: var(--Team_A_color);
   /* Room Team A Header Text Color */
   --Room_team_b_color: var(--Team_B_color);
@@ -79,6 +81,29 @@
   /* Room Seat Box Hover Glow Shadow */
   --Lobby_Rules_btn_font_size: 14px;
   /* Lobby & Room Rules Button Font Size (1.5x original 12px) */
+
+  --Lobby_DisplayName_text_color: #ffffff;
+  /* Lobby Display Name Text Input Text Color */
+
+  --Room_ready_btn_fill_color: rgba(74, 222, 128, 0.2);
+  /* Room Ready Up Button Fill Color (Transparent Light Green) */
+  --Room_ready_btn_border_color: rgba(134, 239, 172, 0.45);
+  /* Room Ready Up Button Border Color */
+  --Room_ready_btn_hover_bg: rgba(74, 222, 128, 0.35);
+  /* Room Ready Up Button Hover Fill Color */
+  --Room_ready_btn_active_bg: rgba(74, 222, 128, 0.32);
+  /* Room Ready Up Button Active Fill Color */
+  --Room_ready_btn_text_color: var(--Color_Beige);
+  /* Room Ready Up Button Text Color */
+
+  --Room_assign_bots_btn_fill_color: rgba(74, 222, 128, 0.2);
+  /* Room Assign Bots Button Fill Color (Transparent Light Green) */
+  --Room_assign_bots_btn_border_color: rgba(134, 239, 172, 0.45);
+  /* Room Assign Bots Button Border Color */
+  --Room_assign_bots_btn_hover_bg: rgba(74, 222, 128, 0.35);
+  /* Room Assign Bots Button Hover Fill Color */
+  --Room_assign_bots_btn_text_color: var(--Color_Beige);
+  /* Room Assign Bots Button Text Color */
 
   --Rules_BG_back_color: #001a24;
   /* Rules Page Background Color */

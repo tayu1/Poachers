@@ -112,6 +112,12 @@
 }
 
 .lobby-tag-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
   font-family: "Merriweather", serif;
   font-size: 19px;
   font-weight: 700;
@@ -121,7 +127,20 @@
   line-height: 1;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   text-align: center;
-  width: 100%;
+}
+
+.lobby-tag-title::before,
+.lobby-tag-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  min-width: 12px;
+  background-color: var(--Lobby_Header_line_color, var(--Lobby_Separator_color, rgba(247, 251, 169, 0.35)));
+}
+
+.lobby-tag-title-text {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .lobby-menu-logo {
@@ -172,18 +191,36 @@
 }
 
 .lobby-room-code-badge {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  width: 100%;
+  gap: 14px;
   background: transparent !important;
   border: none !important;
   padding: 0;
   border-radius: 0;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 2px;
+  box-sizing: border-box;
   color: var(--Color_Beige) !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--Font_card) !important;
+}
+
+.lobby-room-code-badge::before,
+.lobby-room-code-badge::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  min-width: 12px;
+  background-color: var(--Lobby_Header_line_color, var(--Lobby_Separator_color, rgba(247, 251, 169, 0.35)));
+}
+
+.lobby-room-details-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .lobby-room-code-badge span,
@@ -265,6 +302,14 @@
   background: var(--Input_fill_color) !important;
   border-color: var(--Input_focus_border_color) !important;
   box-shadow: var(--Input_focus_shadow) !important;
+}
+
+#player-name-input {
+  color: var(--Lobby_DisplayName_text_color, #ffffff) !important;
+}
+
+#player-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
 }
 
 /* Public Active Rooms Section */
@@ -661,71 +706,85 @@
   gap: 10px;
 }
 
-.btn-ready {
+.btn-ready,
+#btn-toggle-ready {
   flex: 1;
   font-family: var(--Font_classic);
-  background: var(--Button_classic_fill_color) !important;
-  color: var(--Button_classic_text_color) !important;
-  border: var(--Button_classic_border_width) solid var(--Button_classic_border_color) !important;
-  padding: 14px;
+  background: var(--Room_ready_btn_fill_color, rgba(74, 222, 128, 0.2)) !important;
+  background-color: var(--Room_ready_btn_fill_color, rgba(74, 222, 128, 0.2)) !important;
+  color: var(--Room_ready_btn_text_color, var(--Button_classic_text_color)) !important;
+  border: var(--Button_classic_border_width) solid var(--Room_ready_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
+  padding: 10px 16px;
   border-radius: 8px;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   box-shadow: none !important;
   transition: all 0.2s ease;
 }
 
-.btn-ready:hover:not(:disabled) {
-  background: var(--Button_classic_hover_bg) !important;
-  border-color: var(--Button_classic_border_color) !important;
+.btn-ready:hover:not(:disabled),
+#btn-toggle-ready:hover:not(:disabled) {
+  background: var(--Room_ready_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  background-color: var(--Room_ready_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  border-color: var(--Room_ready_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
   box-shadow: none !important;
 }
 
 .btn-ready.is-ready,
-.btn-ready-active {
-  background: var(--Button_classic_fill_color) !important;
-  border-color: var(--Button_classic_border_color) !important;
-  color: var(--Button_classic_text_color) !important;
+.btn-ready-active,
+#btn-toggle-ready.btn-ready-active {
+  background: var(--Room_ready_btn_active_bg, rgba(74, 222, 128, 0.32)) !important;
+  background-color: var(--Room_ready_btn_active_bg, rgba(74, 222, 128, 0.32)) !important;
+  border-color: var(--Room_ready_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
+  color: var(--Room_ready_btn_text_color, var(--Button_classic_text_color)) !important;
   box-shadow: none !important;
 }
 
 .btn-ready.is-ready:hover,
-.btn-ready-active:hover {
-  background: var(--Button_classic_hover_bg) !important;
-  border-color: var(--Button_classic_border_color) !important;
+.btn-ready-active:hover,
+#btn-toggle-ready.btn-ready-active:hover {
+  background: var(--Room_ready_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  background-color: var(--Room_ready_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  border-color: var(--Room_ready_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
   box-shadow: none !important;
 }
 
+.btn-assign-bots,
+#btn-assign-bots-start,
 .btn-start-game {
   flex: 2;
   font-family: var(--Font_classic);
-  background: var(--Button_classic_fill_color) !important;
-  color: var(--Button_classic_text_color) !important;
-  border: var(--Button_classic_border_width) solid var(--Button_classic_border_color) !important;
-  padding: 14px;
+  background: var(--Room_assign_bots_btn_fill_color, rgba(74, 222, 128, 0.2)) !important;
+  background-color: var(--Room_assign_bots_btn_fill_color, rgba(74, 222, 128, 0.2)) !important;
+  color: var(--Room_assign_bots_btn_text_color, var(--Button_classic_text_color)) !important;
+  border: var(--Button_classic_border_width) solid var(--Room_assign_bots_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
+  padding: 10px 16px;
   border-radius: 8px;
-  font-weight: 800;
-  font-size: 15px;
-  letter-spacing: 0.5px;
+  font-weight: 700;
+  font-size: 14px;
   cursor: pointer;
   box-shadow: none !important;
   transition: all 0.2s ease;
 }
 
+.btn-assign-bots:hover:not(:disabled),
+#btn-assign-bots-start:hover:not(:disabled),
 .btn-start-game:hover:not(:disabled) {
-  background: var(--Button_classic_hover_bg) !important;
-  border-color: var(--Button_classic_border_color) !important;
-  color: var(--Button_classic_text_color) !important;
+  background: var(--Room_assign_bots_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  background-color: var(--Room_assign_bots_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  border-color: var(--Room_assign_bots_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
   box-shadow: none !important;
 }
 
+.btn-assign-bots:disabled,
+#btn-assign-bots-start:disabled,
 .btn-start-game:disabled {
-  background: transparent !important;
+  opacity: 0.45 !important;
   color: rgba(247, 251, 169, 0.45) !important;
   border-color: rgba(247, 251, 169, 0.35) !important;
   box-shadow: none !important;
-  cursor: not-allowed;
+  cursor: not-allowed !important;
   transform: none;
 }
 
@@ -779,6 +838,103 @@
   color: var(--Input_text_color) !important;
 }
 
+.lobby-modal #player-name-input {
+  color: var(--Lobby_DisplayName_text_color, #ffffff) !important;
+}
+
+.lobby-modal #player-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.lobby-modal #btn-toggle-ready,
+.lobby-modal .btn-ready {
+  background: var(--Room_ready_btn_fill_color, rgba(74, 222, 128, 0.2)) !important;
+  background-color: var(--Room_ready_btn_fill_color, rgba(74, 222, 128, 0.2)) !important;
+  border: var(--Button_classic_border_width) solid var(--Room_ready_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
+  color: var(--Room_ready_btn_text_color, var(--Button_classic_text_color)) !important;
+}
+
+.lobby-modal #btn-toggle-ready:hover:not(:disabled),
+.lobby-modal .btn-ready:hover:not(:disabled) {
+  background: var(--Room_ready_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  background-color: var(--Room_ready_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  border-color: var(--Room_ready_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
+}
+
+.lobby-modal #btn-toggle-ready.btn-ready-active,
+.lobby-modal .btn-ready.is-ready,
+.lobby-modal .btn-ready-active {
+  background: var(--Room_ready_btn_active_bg, rgba(74, 222, 128, 0.32)) !important;
+  background-color: var(--Room_ready_btn_active_bg, rgba(74, 222, 128, 0.32)) !important;
+  border-color: var(--Room_ready_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
+}
+
+.lobby-modal #btn-toggle-ready.btn-ready-active:hover,
+.lobby-modal .btn-ready.is-ready:hover,
+.lobby-modal .btn-ready-active:hover {
+  background: var(--Room_ready_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  background-color: var(--Room_ready_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  border-color: var(--Room_ready_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
+}
+
+.lobby-modal #btn-assign-bots-start,
+.lobby-modal .btn-assign-bots,
+.lobby-modal .btn-start-game {
+  background: var(--Room_assign_bots_btn_fill_color, rgba(74, 222, 128, 0.2)) !important;
+  background-color: var(--Room_assign_bots_btn_fill_color, rgba(74, 222, 128, 0.2)) !important;
+  border: var(--Button_classic_border_width) solid var(--Room_assign_bots_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
+  color: var(--Room_assign_bots_btn_text_color, var(--Button_classic_text_color)) !important;
+}
+
+.lobby-modal #btn-assign-bots-start:hover:not(:disabled),
+.lobby-modal .btn-assign-bots:hover:not(:disabled),
+.lobby-modal .btn-start-game:hover:not(:disabled) {
+  background: var(--Room_assign_bots_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  background-color: var(--Room_assign_bots_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
+  border-color: var(--Room_assign_bots_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
+}
+
+/* Mobile & Tablet Vertical Layout for Lobby & Room Header */
+@media (max-width: 1150px), (orientation: portrait) {
+  .lobby-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 2px;
+  }
+
+  .lobby-header-left {
+    display: none;
+  }
+
+  .lobby-header-center {
+    justify-self: flex-start;
+    justify-content: flex-start;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .lobby-header-right {
+    justify-self: flex-end;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  .lobby-menu-logo {
+    height: 52px;
+    max-width: 100%;
+    object-fit: contain;
+    display: block;
+    margin: 0;
+  }
+}
+
 /* Mobile Vertical View for Lobby & Room Modal */
 @media (max-width: 640px) {
   .lobby-backdrop {
@@ -804,14 +960,48 @@
     box-sizing: border-box;
   }
 
+  .lobby-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 2px;
+  }
+
+  .lobby-header-left {
+    display: none;
+  }
+
+  .lobby-header-center {
+    justify-self: flex-start;
+    justify-content: flex-start;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .lobby-header-right {
+    justify-self: flex-end;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
   .lobby-tag-title {
     font-size: 16px;
     letter-spacing: 1.5px;
+    gap: 8px;
   }
 
   .lobby-menu-logo {
     height: 52px;
     max-width: 100%;
+    object-fit: contain;
+    display: block;
+    margin: 0;
   }
 
   .lobby-title {
@@ -830,13 +1020,15 @@
   }
 
   .lobby-room-code-badge {
-    flex-wrap: wrap;
-    justify-content: center;
-    font-size: 13px;
-    gap: 6px;
+    gap: 8px;
     padding: 0;
     width: 100%;
     box-sizing: border-box;
+  }
+
+  .lobby-room-details-row {
+    font-size: 13px;
+    gap: 6px;
   }
 
   .teams-container {

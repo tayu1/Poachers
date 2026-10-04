@@ -20,6 +20,26 @@ class MockElement {
       this.childNodes = [];
     }
   }
+  public classList = {
+    add: (cls: string) => {
+      const set = new Set(this.className.split(/\s+/).filter(Boolean));
+      set.add(cls);
+      this.className = Array.from(set).join(' ');
+    },
+    remove: (cls: string) => {
+      const set = new Set(this.className.split(/\s+/).filter(Boolean));
+      set.delete(cls);
+      this.className = Array.from(set).join(' ');
+    },
+    toggle: (cls: string, force?: boolean) => {
+      const set = new Set(this.className.split(/\s+/).filter(Boolean));
+      const shouldAdd = force !== undefined ? force : !set.has(cls);
+      if (shouldAdd) set.add(cls); else set.delete(cls);
+      this.className = Array.from(set).join(' ');
+      return shouldAdd;
+    },
+    contains: (cls: string) => this.className.split(/\s+/).includes(cls)
+  };
   private listeners: Record<string, ((e?: any) => void)[]> = {};
 
   constructor(tagName: string) {
@@ -128,17 +148,17 @@ describe('MobileMenuUI', () => {
   it('applies tab visibility correctly on mobile (<900px)', () => {
     const menu = new MobileMenuUI(container as unknown as HTMLElement);
 
-    // Initial state: 'board' -> showAll is true
+    // Initial state: 'board' -> only statusPanel (message-timer) is shown
     menu.applyTabVisibility();
     expect(statusPanel.style.display).toBe('flex');
-    expect(capturesPanel.style.display).toBe('flex');
-    expect(controlsPanel.style.display).toBe('flex');
-    expect(logPanel.style.display).toBe('flex');
+    expect(capturesPanel.style.display).toBe('none');
+    expect(controlsPanel.style.display).toBe('none');
+    expect(logPanel.style.display).toBe('none');
 
-    // Switch to 'status' tab
+    // Switch to 'status' tab -> entire right menu (statusPanel + capturesPanel) is shown
     menu.setTab('status');
     expect(statusPanel.style.display).toBe('flex');
-    expect(capturesPanel.style.display).toBe('none');
+    expect(capturesPanel.style.display).toBe('flex');
     expect(controlsPanel.style.display).toBe('none');
     expect(logPanel.style.display).toBe('none');
 
@@ -175,5 +195,21 @@ describe('MobileMenuUI', () => {
     expect(controlsPanel.style.display).toBe('');
     expect(logPanel.style.display).toBe('');
     expect(capturesPanel.style.display).toBe('');
+  });
+
+  it('toggles show-sit-map class on statusPanel only when status button is chosen', () => {
+    const menu = new MobileMenuUI(container as unknown as HTMLElement);
+
+    // Initial tab is 'board' - show-sit-map should be false
+    menu.applyTabVisibility();
+    expect(statusPanel.classList.contains('show-sit-map')).toBe(false);
+
+    // Click 'status' tab - show-sit-map should be true
+    menu.setTab('status');
+    expect(statusPanel.classList.contains('show-sit-map')).toBe(true);
+
+    // Switch back to 'board' tab - show-sit-map should be false
+    menu.setTab('board');
+    expect(statusPanel.classList.contains('show-sit-map')).toBe(false);
   });
 });

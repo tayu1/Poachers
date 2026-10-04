@@ -36,8 +36,16 @@ export class MobileMenuUI {
   }
 
   public applyTabVisibility(): void {
-    if (window.innerWidth > 1150) {
-      if (this.statusPanel) this.statusPanel.style.display = '';
+    const isVertical = window.innerWidth <= 1150 || (typeof window.matchMedia === 'function' && window.matchMedia('(orientation: portrait)').matches);
+    const tabs: MobileMenuTab[] = ['board', 'status', 'controls', 'log', 'captures'];
+    if (!isVertical) {
+      if (this.statusPanel) {
+        this.statusPanel.style.display = '';
+        this.statusPanel.classList?.remove('show-sit-map');
+      }
+      if (typeof document !== 'undefined' && document.body && document.body.classList) {
+        tabs.forEach(t => document.body.classList.remove(`tab-${t}-active`));
+      }
       if (this.controlsPanel) this.controlsPanel.style.display = '';
       if (this.logPanel) this.logPanel.style.display = '';
       if (this.capturesPanel) this.capturesPanel.style.display = '';
@@ -48,14 +56,27 @@ export class MobileMenuUI {
       return;
     }
 
-    const showAll = this.activeTab === 'board';
-    const showStatus = showAll || this.activeTab === 'status';
-    const showCaptures = showAll || this.activeTab === 'captures';
-    const showControls = showAll || this.activeTab === 'controls';
-    const showLog = showAll || this.activeTab === 'log';
+    const isBoard = this.activeTab === 'board';
+    const isStatus = this.activeTab === 'status';
+    const isCaptures = this.activeTab === 'captures';
+    const isControls = this.activeTab === 'controls';
+    const isLog = this.activeTab === 'log';
+
+    const showStatus = isBoard || isStatus;
+    const showCaptures = isStatus || isCaptures;
+    const showControls = isControls;
+    const showLog = isLog;
+    const showSitMap = isStatus;
 
     if (this.statusPanel) {
       this.statusPanel.style.display = showStatus ? 'flex' : 'none';
+      if (this.statusPanel.classList) {
+        this.statusPanel.classList.toggle('show-sit-map', showSitMap);
+      }
+    }
+    if (typeof document !== 'undefined' && document.body && document.body.classList) {
+      tabs.forEach(t => document.body.classList.remove(`tab-${t}-active`));
+      document.body.classList.add(`tab-${this.activeTab}-active`);
     }
     if (this.capturesPanel) {
       this.capturesPanel.style.display = showCaptures ? 'flex' : 'none';
@@ -86,13 +107,14 @@ export class MobileMenuUI {
   }
 
   private scrollToTab(tab: MobileMenuTab): void {
-    if (window.innerWidth > 1150) return;
+    const isVertical = window.innerWidth <= 1150 || (typeof window.matchMedia === 'function' && window.matchMedia('(orientation: portrait)').matches);
+    if (!isVertical) return;
 
     setTimeout(() => {
       if (tab === 'board' && this.centerArea) {
         this.centerArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (tab === 'status' && this.statusPanel) {
-        this.statusPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (tab === 'status' && (this.rightUnifiedPanel || this.statusPanel)) {
+        (this.rightUnifiedPanel || this.statusPanel)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else if (tab === 'controls' && this.controlsPanel) {
         this.controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else if (tab === 'log' && this.logPanel) {

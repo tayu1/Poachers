@@ -114,7 +114,8 @@ function updateBoardScale(): void {
 
   mobileMenuUI.applyTabVisibility();
 
-  if (window.innerWidth > 1150) {
+  const isVertical = window.innerWidth <= 1150 || (typeof window.matchMedia === 'function' && window.matchMedia('(orientation: portrait)').matches);
+  if (!isVertical) {
     container.style.transform = '';
     container.style.transformOrigin = '';
     centerArea.style.height = '';

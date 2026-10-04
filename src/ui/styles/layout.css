@@ -1879,7 +1879,7 @@ select,
 }
 
 /* Mobile & Tablet Vertical Layout & Responsive Sizing */
-@media (max-width: 1150px) {
+@media (max-width: 1150px), (orientation: portrait) {
   .game-container {
     display: flex;
     flex-direction: column;
@@ -1981,6 +1981,34 @@ select,
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;
+    max-width: 532px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* In vertical view, hide sit map (compass box) under the turn bar so just the turn bar is shown,
+     UNLESS the user chooses the status button */
+  .board-compass-box,
+  .status-compass-box {
+    display: none !important;
+  }
+
+  body.tab-status-active .board-compass-box,
+  body.tab-status-active .status-compass-box,
+  .tab-status-active .board-compass-box,
+  .tab-status-active .status-compass-box,
+  #status-panel.show-sit-map .board-compass-box,
+  #status-panel.show-sit-map .status-compass-box {
+    display: flex !important;
+  }
+
+  /* In board mode, unified-right-panel contains only the message-timer bar, so strip outer sidebar card styling */
+  body.tab-board-active .unified-sidebar-panel#unified-right-panel,
+  .tab-board-active .unified-sidebar-panel#unified-right-panel {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
   }
 
   .unified-sidebar-panel #log-panel {

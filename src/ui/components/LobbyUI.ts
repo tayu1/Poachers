@@ -105,7 +105,7 @@ export class LobbyUI {
                 <button class="btn-show-rules copy-btn">📜 RULES</button>
               </div>
             </div>
-            <div class="lobby-tag-title">♦ ♦ ♦ LOBBY ♦ ♦ ♦</div>
+            <div class="lobby-tag-title"><span class="lobby-tag-title-text">♦ ♦ ♦ LOBBY ♦ ♦ ♦</span></div>
           </div>
 
           ${store.netError ? `<div class="error-banner">${store.netError}</div>` : ''}
@@ -261,19 +261,21 @@ export class LobbyUI {
               </div>
             </div>
 
-            <div class="lobby-room-code-badge" style="display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: none; color: var(--Color_Beige); font-family: var(--Font_card);">
-              <span class="room-code-display" style="display: inline-flex; align-items: center; gap: 4px; color: var(--Color_Beige); font-family: var(--Font_card); font-weight: 700; letter-spacing: 1px;">
-                Game Room : ${roomState.roomCode}
-                <button id="btn-copy-code" class="copy-btn-icon" title="Copy Room Code" style="background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px; color: var(--Color_Beige);" aria-label="Copy Code">📋</button>
-              </span>
-              ${isHost
-        ? `<button id="btn-toggle-timer" class="copy-btn" style="padding: 2px 8px; border-radius: 4px; font-weight: 700; cursor: pointer; font-family: var(--Font_card); font-variant-numeric: tabular-nums;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</button>`
-        : `<span class="room-timer-badge" style="font-size: 11px; background: transparent; border: 1px solid var(--Color_Beige); padding: 2px 8px; border-radius: 4px; color: var(--Color_Beige); font-weight: 700; font-family: var(--Font_card); font-variant-numeric: tabular-nums;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</span>`
-      }
-              ${isHost
-        ? `<button id="btn-toggle-privacy" class="copy-btn" style="padding: 2px 8px; border-radius: 4px; font-weight: 700; cursor: pointer;">${roomState.isPublic ? '🌐 Public' : '🔒 Private'}</button>`
-        : `<span style="font-size: 11px; background: transparent; border: 1px solid var(--Color_Beige); padding: 2px 8px; border-radius: 4px; color: var(--Color_Beige); font-weight: 700;">${roomState.isPublic ? '🌐 Public' : '🔒 Private'}</span>`
-      }
+            <div class="lobby-room-code-badge">
+              <div class="lobby-room-details-row">
+                <span class="room-code-display" style="display: inline-flex; align-items: center; gap: 4px; color: var(--Color_Beige); font-family: var(--Font_card); font-weight: 700; letter-spacing: 1px;">
+                  Game Room : ${roomState.roomCode}
+                  <button id="btn-copy-code" class="copy-btn-icon" title="Copy Room Code" style="background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px; color: var(--Color_Beige);" aria-label="Copy Code">📋</button>
+                </span>
+                ${isHost
+          ? `<button id="btn-toggle-timer" class="copy-btn" style="padding: 2px 8px; border-radius: 4px; font-weight: 700; cursor: pointer; font-family: var(--Font_card); font-variant-numeric: tabular-nums;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</button>`
+          : `<span class="room-timer-badge" style="font-size: 11px; background: transparent; border: 1px solid var(--Color_Beige); padding: 2px 8px; border-radius: 4px; color: var(--Color_Beige); font-weight: 700; font-family: var(--Font_card); font-variant-numeric: tabular-nums;">⏱️ ${roomState.turnTimeLimit === 0 ? '∞' : (roomState.turnTimeLimit ?? DEFAULT_TURN_TIME_LIMIT)}s</span>`
+        }
+                ${isHost
+          ? `<button id="btn-toggle-privacy" class="copy-btn" style="padding: 2px 8px; border-radius: 4px; font-weight: 700; cursor: pointer;">${roomState.isPublic ? '🌐 Public' : '🔒 Private'}</button>`
+          : `<span style="font-size: 11px; background: transparent; border: 1px solid var(--Color_Beige); padding: 2px 8px; border-radius: 4px; color: var(--Color_Beige); font-weight: 700;">${roomState.isPublic ? '🌐 Public' : '🔒 Private'}</span>`
+        }
+              </div>
             </div>
           </div>
 
@@ -303,13 +305,13 @@ export class LobbyUI {
             </div>
             <div class="lobby-controls-bar" style="display: flex; gap: 10px; flex-wrap: wrap;">
               ${isSeated
-        ? `<button id="btn-toggle-ready" class="btn-primary ${isMyReady ? 'btn-ready-active' : ''}" style="flex: 2; min-width: 140px; padding: 10px 16px; font-weight: 700; box-shadow: none;">${isMyReady ? '✓ READY' : '⚡ READY UP'}</button>`
+        ? `<button id="btn-toggle-ready" class="btn-primary btn-ready ${isMyReady ? 'btn-ready-active' : ''}" style="flex: 2; min-width: 140px; padding: 10px 16px; font-weight: 700; box-shadow: none;">${isMyReady ? '✓ READY' : '⚡ READY UP'}</button>`
         : ''
       }
               ${isHost && [0, 1, 2, 3].some(s => !roomState.seats[s as PlayerSeat].isBot && !roomState.seats[s as PlayerSeat].playerId)
         ? (() => {
           const allHumansReady = Object.values(roomState.players).filter(p => p.isOnline).every(p => p.isReady);
-          return `<button id="btn-assign-bots-start" class="btn-primary" ${allHumansReady ? '' : 'disabled'} style="flex: 2; min-width: 180px; padding: 10px 16px; font-weight: 700; cursor: ${allHumansReady ? 'pointer' : 'not-allowed'}; opacity: ${allHumansReady ? '1' : '0.45'};" title="${allHumansReady ? 'Fill empty seats with bots and start match' : 'All players must be ready first'}">🤖 Assign Bots & Start</button>`;
+          return `<button id="btn-assign-bots-start" class="btn-primary btn-assign-bots" ${allHumansReady ? '' : 'disabled'} style="flex: 2; min-width: 180px; padding: 10px 16px; font-weight: 700; cursor: ${allHumansReady ? 'pointer' : 'not-allowed'}; opacity: ${allHumansReady ? '1' : '0.45'};" title="${allHumansReady ? 'Fill empty seats with bots and start match' : 'All players must be ready first'}">🤖 Assign Bots & Start</button>`;
         })()
         : ''
       }
