@@ -19,11 +19,29 @@ export class LogUI {
   private entryElements: HTMLElement[] = [];
 
   private currentTurnElement: HTMLElement | null = null;
+  private currentStore: GameStore | null = null;
+  private currentState: GameState | null = null;
+  private boundKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
   constructor(container: HTMLElement, onScrubClick: (historyIndex: number) => void) {
     this.container = container;
     this.onScrubClick = onScrubClick;
     this.injectStyles();
+    this.initKeyboardNavigation();
+  }
+
+  private initKeyboardNavigation(): void {
+    this.boundKeyDown = (e: KeyboardEvent) => this.handleKeyDown(e);
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      document.addEventListener('keydown', this.boundKeyDown);
+    }
+  }
+
+  public destroy(): void {
+    if (this.boundKeyDown && typeof document !== 'undefined' && document.removeEventListener) {
+      document.removeEventListener('keydown', this.boundKeyDown);
+      this.boundKeyDown = null;
+    }
   }
 
   private injectStyles() {
@@ -141,6 +159,8 @@ export class LogUI {
   }
 
   public render(_state: GameState, store: GameStore): void {
+    this.currentState = _state;
+    this.currentStore = store;
     if (!this.initialized) {
       this.initElements(store);
     }
@@ -337,6 +357,79 @@ export class LogUI {
         }
       } else if (wasAtBottom) {
         // Sticky scroll: If user was at the bottom (or newly populated) in live mode, keep scrolled to bottom
+        this.logList.scrollTop = this.logList.scrollHeight;
+      }
+    } else if (isReplaying && currentLogIdx === -1) {
+      this.logList.scrollTop = 0;
+    }
+  }
+
+  public isInReviewOrReplay(): boolean {
+    if (!this.currentStore) return false;
+    const state = this.currentState || this.currentStore.getState();
+    const hasVictory = this.currentStore.logs.some(
+      l => l.text.includes('Victorious') || l.text.includes('Game Over')
+    );
+    const isGameOver = Boolean(state?.isGameOver || hasVictory);
+    const isViewingPastFrame =
+      this.currentStore.isReplaying ||
+      (this.currentStore.historyLength > 0 &&
+        this.currentStore.historyIndex < this.currentStore.historyLength - 1);
+
+    return isGameOver || isViewingPastFrame;
+  }
+
+  private handleKeyDown(e: KeyboardEvent): void {
+    if (!this.currentStore) return;
+
+    // Do not intercept keystrokes if typing inside an input, textarea, or contentEditable element
+    const activeEl = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+    if (
+      activeEl &&
+      (activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.tagName === 'SELECT' ||
+        (activeEl as any).isContentEditable)
+    ) {
+      return;
+    }
+    const target = e.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        (target as any).isContentEditable)
+    ) {
+      return;
+    }
+
+    if (!this.isInReviewOrReplay()) return;
+
+    if (e.key === 'ArrowLeft') {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      this.prevHistoryIndex = null;
+      this.currentStore.stepReplay('prev');
+    } else if (e.key === 'ArrowRight') {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      this.prevHistoryIndex = null;
+      this.currentStore.stepReplay('next');
+    } else if (e.key === 'ArrowUp' || e.key === 'Home') {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      this.prevHistoryIndex = null;
+      if (this.currentStore.logs.length > 0) {
+        this.currentStore.scrubToHistoryIndex(this.currentStore.logs[0].historyIndex);
+      } else if (this.currentStore.historyLength > 0) {
+        this.currentStore.scrubToHistoryIndex(0);
+      }
+      if (this.logList) {
+        this.logList.scrollTop = 0;
+      }
+    } else if (e.key === 'ArrowDown' || e.key === 'End') {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      this.prevHistoryIndex = null;
+      this.currentStore.stepReplay('live');
+      if (this.logList) {
         this.logList.scrollTop = this.logList.scrollHeight;
       }
     }

@@ -94,6 +94,7 @@ export class BaseDeckUI {
     this.passBtn.style.display = 'none';
     this.passBtn.addEventListener('click', (e: MouseEvent) => {
       e.stopPropagation();
+      if (this.passBtn?.className.includes('disabled')) return;
       if (this.onPassCardClick) {
         this.onPassCardClick();
       }
@@ -319,9 +320,20 @@ export class BaseDeckUI {
       if (canPass && !inCombat) {
         this.passBtn.style.display = 'inline-flex';
         const teamCls = activePlayerState.team === 'A' ? 'team-a' : 'team-b';
-        this.passBtn.className = `pass-card-btn ${teamCls}`;
         const teammateCode = getSeatCode(teammateSeat);
-        this.passBtn.title = `Pass card to teammate (${teammateCode})`;
+        const selectedCard = store.selectedBaseCardIndex !== null
+          ? activePlayerState.backupCards[store.selectedBaseCardIndex]
+          : null;
+        const hasSelectedBackupCard = Boolean(
+          selectedCard &&
+          selectedCard.id !== 'hidden' &&
+          selectedCard.rank > 0
+        );
+
+        this.passBtn.className = `pass-card-btn ${teamCls}${hasSelectedBackupCard ? '' : ' disabled'}`;
+        this.passBtn.title = hasSelectedBackupCard
+          ? `Pass card to teammate (${teammateCode})`
+          : `Select a backup card to pass to teammate (${teammateCode})`;
       } else {
         this.passBtn.style.display = 'none';
       }

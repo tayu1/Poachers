@@ -1176,12 +1176,6 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   display: block;
   cursor: zoom-in;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.rules-pic:hover {
-  transform: scale(1.01);
-  box-shadow: 0 10px 28px rgba(247, 251, 169, 0.25);
 }
 
 /* Image Lightbox for Rules Diagram with Touch Zoom & Pan */

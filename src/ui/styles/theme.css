@@ -1,354 +1,354 @@
 :root {
-  /* ==========================================================================
+   /* ==========================================================================
      CORE COLOR & TYPOGRAPHY HELPERS (Foundation for All Other Settings)
      ========================================================================== */
-  --Team_A_color: #ffd900;
-  /* Team A (Gold) Primary Accent */
-  --Team_B_color: #00d9ff;
-  /* Team B (Cyan) Primary Accent */
-  --Color_Beige: #f7fba9;
-  /* Brand Light Beige Color */
+   --Team_A_color: #ffd900;
+   /* Team A (Gold) Primary Accent */
+   --Team_B_color: #00d9ff;
+   /* Team B (Cyan) Primary Accent */
+   --Color_Beige: #f7fba9;
+   /* Brand Light Beige Color */
 
-  --Font_classic: "Merriweather", serif;
-  /* Classic Serif Font for Titles, Headers & Buttons */
-  --Font_card: 'Outfit', sans-serif;
-  /* Clean Sans-Serif Font for Cards, Timers & Digits */
+   --Font_classic: "Merriweather", serif;
+   /* Classic Serif Font for Titles, Headers & Buttons */
+   --Font_card: 'Outfit', sans-serif;
+   /* Clean Sans-Serif Font for Cards, Timers & Digits */
 
-  /* ==========================================================================
+   /* ==========================================================================
      UNIFIED UI COMPONENTS (Shared Features Across Screens)
      ========================================================================== */
-  /* Shared Buttons */
-  --Button_classic_fill_color: #ffffff12;
-  /* Button Fill / Background Color */
-  --Button_classic_border_color: #ffffff41;
-  /* Button Border Color */
-  --Button_classic_text_color: var(--Color_Beige);
-  /* Button Text Color */
-  --Button_classic_border_width: 0.1px;
-  /* Button Border Width */
-  --Button_classic_hover_bg: #ffffff33;
-  /* Button Hover Fill Color */
-  --Button_classic_hover_shadow: none;
-  /* Button Hover Glow Shadow */
+   /* Shared Buttons */
+   --Button_classic_fill_color: #ffffff12;
+   /* Button Fill / Background Color */
+   --Button_classic_border_color: #ffffff41;
+   /* Button Border Color */
+   --Button_classic_text_color: var(--Color_Beige);
+   /* Button Text Color */
+   --Button_classic_border_width: 0.1px;
+   /* Button Border Width */
+   --Button_classic_hover_bg: #ffffff33;
+   /* Button Hover Fill Color */
+   --Button_classic_hover_shadow: none;
+   /* Button Hover Glow Shadow */
 
-  /* Shared Text Inputs */
-  --Input_fill_color: transparent;
-  /* Text Input Background / Fill Color */
-  --Input_border_color: #fff2ce4f;
-  /* Text Input Border Color */
-  --Input_text_color: var(--Color_Beige);
-  /* Text Input Text Color */
-  --Input_border_width: 1px;
-  /* Text Input Border Width */
-  --Input_placeholder_color: rgba(247, 251, 169, 0.55);
-  /* Text Input Placeholder Text Color */
-  --Input_focus_border_color: var(--Color_Beige);
-  /* Text Input Focus Border Color */
-  --Input_focus_shadow: 0 0 8px rgba(247, 251, 169, 0.3);
-  /* Text Input Focus Glow Shadow */
+   /* Shared Text Inputs */
+   --Input_fill_color: transparent;
+   /* Text Input Background / Fill Color */
+   --Input_border_color: #fff2ce4f;
+   /* Text Input Border Color */
+   --Input_text_color: var(--Color_Beige);
+   /* Text Input Text Color */
+   --Input_border_width: 1px;
+   /* Text Input Border Width */
+   --Input_placeholder_color: rgba(247, 251, 169, 0.55);
+   /* Text Input Placeholder Text Color */
+   --Input_focus_border_color: var(--Color_Beige);
+   /* Text Input Focus Border Color */
+   --Input_focus_shadow: 0 0 8px rgba(247, 251, 169, 0.3);
+   /* Text Input Focus Glow Shadow */
 
-  /* Shared Frosted Glass Modals (Lobby, Rules, Game End) */
-  --Modal_Glass_bg_color: rgba(0, 0, 0, 0.131);
-  --Modal_Glass_blur: 8px;
-  --Modal_Glass_shadow: none;
+   /* Shared Frosted Glass Modals (Lobby, Rules, Game End) */
+   --Modal_Glass_bg_color: rgba(0, 0, 0, 0.131);
+   --Modal_Glass_blur: 8px;
+   --Modal_Glass_shadow: none;
 
-  /* ==========================================================================
+   /* ==========================================================================
      1. LOBBY & ROOM SCREEN
      ========================================================================== */
-  --Lobby_BG_back_color: #0c2427;
-  /* Lobby Background Color */
-  --Lobby_BG_texture_color: #094745;
-  /* Lobby Texture Symbol Color */
-  --Lobby_BG_texture_opacity: 1;
-  /* Lobby Texture Opacity (0.0 to 1.0) */
-  --Lobby_BG_texture_size: 400px;
-  /* Lobby Texture Size */
-  --Lobby_Separator_color: rgba(247, 251, 169, 0.35);
-  /* Room Team Vertical Separation Line Color */
-  --Lobby_Header_line_color: rgba(247, 251, 169, 0.35);
-  /* Lobby Title & Room Upper Detail Row Horizontal Separation Lines Color */
-  --Room_team_a_color: var(--Team_A_color);
-  /* Room Team A Header Text Color */
-  --Room_team_b_color: var(--Team_B_color);
-  /* Room Team B Header Text Color */
-  --Lobby_Seat_border_color: var(--Color_Beige);
-  /* Room Occupied Seat Box Border Color */
-  --Lobby_Seat_empty_border_color: rgba(247, 251, 169, 0.8);
-  /* Room Empty Seat Box Border Color (80% opacity) */
-  --Lobby_Seat_shadow: none;
-  /* Room Occupied Seat Box Glow Shadow */
-  --Lobby_Seat_hover_shadow: none;
-  /* Room Seat Box Hover Glow Shadow */
-  --Lobby_Rules_btn_font_size: 14px;
-  /* Lobby & Room Rules Button Font Size (1.5x original 12px) */
+   --Lobby_BG_back_color: #0c2427;
+   /* Lobby Background Color */
+   --Lobby_BG_texture_color: #094745;
+   /* Lobby Texture Symbol Color */
+   --Lobby_BG_texture_opacity: 1;
+   /* Lobby Texture Opacity (0.0 to 1.0) */
+   --Lobby_BG_texture_size: 400px;
+   /* Lobby Texture Size */
+   --Lobby_Separator_color: rgba(247, 251, 169, 0.35);
+   /* Room Team Vertical Separation Line Color */
+   --Lobby_Header_line_color: rgba(247, 251, 169, 0.35);
+   /* Lobby Title & Room Upper Detail Row Horizontal Separation Lines Color */
+   --Room_team_a_color: var(--Team_A_color);
+   /* Room Team A Header Text Color */
+   --Room_team_b_color: var(--Team_B_color);
+   /* Room Team B Header Text Color */
+   --Lobby_Seat_border_color: var(--Color_Beige);
+   /* Room Occupied Seat Box Border Color */
+   --Lobby_Seat_empty_border_color: rgba(247, 251, 169, 0.8);
+   /* Room Empty Seat Box Border Color (80% opacity) */
+   --Lobby_Seat_shadow: none;
+   /* Room Occupied Seat Box Glow Shadow */
+   --Lobby_Seat_hover_shadow: none;
+   /* Room Seat Box Hover Glow Shadow */
+   --Lobby_Rules_btn_font_size: 14px;
+   /* Lobby & Room Rules Button Font Size (1.5x original 12px) */
 
-  --Lobby_DisplayName_text_color: #ffffff;
-  /* Lobby Display Name Text Input Text Color */
+   --Lobby_DisplayName_text_color: #ffffff;
+   /* Lobby Display Name Text Input Text Color */
 
-  --Room_ready_btn_fill_color: rgba(74, 222, 128, 0.2);
-  /* Room Ready Up Button Fill Color (Transparent Light Green) */
-  --Room_ready_btn_border_color: rgba(134, 239, 172, 0.45);
-  /* Room Ready Up Button Border Color */
-  --Room_ready_btn_hover_bg: rgba(74, 222, 128, 0.35);
-  /* Room Ready Up Button Hover Fill Color */
-  --Room_ready_btn_active_bg: rgba(74, 222, 128, 0.32);
-  /* Room Ready Up Button Active Fill Color */
-  --Room_ready_btn_text_color: var(--Color_Beige);
-  /* Room Ready Up Button Text Color */
+   --Room_ready_btn_fill_color: rgba(74, 222, 128, 0.2);
+   /* Room Ready Up Button Fill Color (Transparent Light Green) */
+   --Room_ready_btn_border_color: rgba(134, 239, 172, 0.45);
+   /* Room Ready Up Button Border Color */
+   --Room_ready_btn_hover_bg: rgba(74, 222, 128, 0.35);
+   /* Room Ready Up Button Hover Fill Color */
+   --Room_ready_btn_active_bg: rgba(74, 222, 128, 0.32);
+   /* Room Ready Up Button Active Fill Color */
+   --Room_ready_btn_text_color: var(--Color_Beige);
+   /* Room Ready Up Button Text Color */
 
-  --Room_assign_bots_btn_fill_color: rgba(74, 222, 128, 0.2);
-  /* Room Assign Bots Button Fill Color (Transparent Light Green) */
-  --Room_assign_bots_btn_border_color: rgba(134, 239, 172, 0.45);
-  /* Room Assign Bots Button Border Color */
-  --Room_assign_bots_btn_hover_bg: rgba(74, 222, 128, 0.35);
-  /* Room Assign Bots Button Hover Fill Color */
-  --Room_assign_bots_btn_text_color: var(--Color_Beige);
-  /* Room Assign Bots Button Text Color */
+   --Room_assign_bots_btn_fill_color: rgba(74, 222, 128, 0.2);
+   /* Room Assign Bots Button Fill Color (Transparent Light Green) */
+   --Room_assign_bots_btn_border_color: rgba(134, 239, 172, 0.45);
+   /* Room Assign Bots Button Border Color */
+   --Room_assign_bots_btn_hover_bg: rgba(74, 222, 128, 0.35);
+   /* Room Assign Bots Button Hover Fill Color */
+   --Room_assign_bots_btn_text_color: var(--Color_Beige);
+   /* Room Assign Bots Button Text Color */
 
-  --Rules_BG_back_color: #001a24;
-  /* Rules Page Background Color */
-  --Rules_backdrop_bg: rgba(0, 0, 0, 0.122);
-  /* Rules Page Backdrop Background */
-  --Rules_backdrop_blur: 8px;
-  /* Rules Page Backdrop Blur Radius */
+   --Rules_BG_back_color: #23292c;
+   /* Rules Page Background Color */
+   --Rules_backdrop_bg: rgba(0, 0, 0, 0.122);
+   /* Rules Page Backdrop Background */
+   --Rules_backdrop_blur: 8px;
+   /* Rules Page Backdrop Blur Radius */
 
-  /* ==========================================================================
+   /* ==========================================================================
      2. GAME SCREEN BACKGROUND & SIDEBAR GLASS
      ========================================================================== */
-  --Game_BG_back_color: #002f25;
-  /* Game Screen Background Color */
-  --Game_BG_texture_color: #46ffdd0a;
-  /* Game Texture Symbol Color */
-  --Game_BG_texture_opacity: 1;
-  /* Game Texture Opacity (0.0 to 1.0) */
-  --Game_BG_texture_size: 300px;
-  /* Game Texture Size */
+   --Game_BG_back_color: #002f25;
+   /* Game Screen Background Color */
+   --Game_BG_texture_color: #46ffdd0a;
+   /* Game Texture Symbol Color */
+   --Game_BG_texture_opacity: 1;
+   /* Game Texture Opacity (0.0 to 1.0) */
+   --Game_BG_texture_size: 300px;
+   /* Game Texture Size */
 
-  --Game_Menu_Glass_bg_color: #0000003c;
-  /* Game Screen Sidebars / Menus Glass Background */
-  --Game_Menu_Glass_blur: 5px;
-  /* Game Screen Sidebars / Menus Glass Blur Radius */
-  --Game_Menu_Glass_border_color: rgba(255, 255, 255, 0.367);
-  /* Game Screen Sidebars / Menus Border & Separation Line Color */
-  --Game_Menu_separation_line_width: 1.5px;
-  /* Game Screen Menus Separation Line Width */
-  --Game_Menu_Glass_shadow: none;
-  /* Game Screen Sidebars / Menus Shadow */
+   --Game_Menu_Glass_bg_color: #0000003c;
+   /* Game Screen Sidebars / Menus Glass Background */
+   --Game_Menu_Glass_blur: 5px;
+   /* Game Screen Sidebars / Menus Glass Blur Radius */
+   --Game_Menu_Glass_border_color: rgba(255, 255, 255, 0.367);
+   /* Game Screen Sidebars / Menus Border & Separation Line Color */
+   --Game_Menu_separation_line_width: 1.5px;
+   /* Game Screen Menus Separation Line Width */
+   --Game_Menu_Glass_shadow: none;
+   /* Game Screen Sidebars / Menus Shadow */
 
-  --Game_Scoreboard_font: var(--Font_classic);
-  /* Game Menu Scoreboard Font */
-  --Game_Scoreboard_team_a_color: var(--Team_A_color);
-  /* Game Menu Scoreboard Team A Color */
-  --Game_Scoreboard_team_b_color: var(--Team_B_color);
-  /* Game Menu Scoreboard Team B Color */
-  --Game_Scoreboard_divider_color: var(--Color_Beige);
-  /* Game Menu Scoreboard Divider Color */
-  --Game_Scoreboard_team_gap: 12px;
-  /* Game Menu Space Between Team and Score */
+   --Game_Scoreboard_font: var(--Font_classic);
+   /* Game Menu Scoreboard Font */
+   --Game_Scoreboard_team_a_color: var(--Team_A_color);
+   /* Game Menu Scoreboard Team A Color */
+   --Game_Scoreboard_team_b_color: var(--Team_B_color);
+   /* Game Menu Scoreboard Team B Color */
+   --Game_Scoreboard_divider_color: var(--Color_Beige);
+   /* Game Menu Scoreboard Divider Color */
+   --Game_Scoreboard_team_gap: 12px;
+   /* Game Menu Space Between Team and Score */
 
-  --Game_End_bg_color: #012f2fde;
-  /* Game End Menu Background Color */
-  --Game_End_backdrop_bg: rgba(5, 9, 18, 0);
-  /* Game End Menu Backdrop Background */
-  --Game_End_backdrop_blur: 2px;
-  /* Game End Menu Backdrop Blur Radius */
+   --Game_End_bg_color: #012f2fde;
+   /* Game End Menu Background Color */
+   --Game_End_backdrop_bg: rgba(5, 9, 18, 0);
+   /* Game End Menu Backdrop Background */
+   --Game_End_backdrop_blur: 2px;
+   /* Game End Menu Backdrop Blur Radius */
 
-  /* ==========================================================================
+   /* ==========================================================================
      3. BOARD CENTER GLASS & GRID LINES
      ========================================================================== */
-  --Board_Glass_bg_color: #00000000;
-  /* Center Board Area Background */
-  --Board_Glass_blur: 0px;
-  /* Board Glass Panel Blur */
-  --Board_Glass_border_color: transparent;
-  /* Blurred Border Shadow Color */
-  --Board_Glass_border_line: rgba(255, 255, 255, 0);
-  /* Blurred Border Line Glow */
-  --Board_Glass_border_radius: 0px;
-  /* Blurred Border Blur Radius */
+   --Board_Glass_bg_color: #00000000;
+   /* Center Board Area Background */
+   --Board_Glass_blur: 0px;
+   /* Board Glass Panel Blur */
+   --Board_Glass_border_color: transparent;
+   /* Blurred Border Shadow Color */
+   --Board_Glass_border_line: rgba(255, 255, 255, 0);
+   /* Blurred Border Line Glow */
+   --Board_Glass_border_radius: 0px;
+   /* Blurred Border Blur Radius */
 
-  --Board_Grid_light_color: rgb(176, 104, 40);
-  --Board_Grid_dark_color: rgb(149, 84, 28);
-  --Board_Grid_border: none;
+   --Board_Grid_light_color: rgb(176, 104, 40);
+   --Board_Grid_dark_color: rgb(149, 84, 28);
+   --Board_Grid_border: none;
 
-  --Board_Hill_border_color: rgb(255, 255, 255);
-  --Board_Hill_border_width: 2px;
-  --Board_Hill_border_style: dotted;
+   --Board_Hill_border_color: rgb(255, 255, 255);
+   --Board_Hill_border_width: 2px;
+   --Board_Hill_border_style: dotted;
 
-  --Board_Midline_border_width: 2px;
-  --Board_Midline_border_style: dotted;
-  --Board_Midline_constant_color: rgba(255, 255, 255, 0.319);
-  --Board_Midline_constant_thickness: 2px;
+   --Board_Midline_border_width: 2px;
+   --Board_Midline_border_style: dotted;
+   --Board_Midline_constant_color: rgba(255, 255, 255, 0.319);
+   --Board_Midline_constant_thickness: 2px;
 
-  --Board_Trench_border_color: rgba(255, 255, 255, 0.25);
-  --Board_Trench_border_width: 2px;
-  --Board_Trench_border_style: dotted;
+   --Board_Trench_border_color: rgba(255, 255, 255, 0.25);
+   --Board_Trench_border_width: 2px;
+   --Board_Trench_border_style: dotted;
 
-  --Board_Glow_line_thickness: 2.5px;
-  --Board_Glow_shadow_small: 6px;
-  --Board_Glow_shadow_large: 14px;
+   --Board_Glow_line_thickness: 2.5px;
+   --Board_Glow_shadow_small: 6px;
+   --Board_Glow_shadow_large: 14px;
 
-  /* ==========================================================================
+   /* ==========================================================================
      4. PIECE, SQUARE & BUNKER CONTROLS
      ========================================================================== */
-  --Piece_Active_team_a_color: #ffdd56;
-  --Piece_Active_team_b_color: #7cd3ff;
-  --Piece_Active_border_width: 1px;
-  --Piece_Active_border_radius: 6px;
-  --Piece_Active_inset: 3px;
+   --Piece_Active_team_a_color: #ffdd56;
+   --Piece_Active_team_b_color: #7cd3ff;
+   --Piece_Active_border_width: 1px;
+   --Piece_Active_border_radius: 6px;
+   --Piece_Active_inset: 3px;
 
-  --Square_Origin_color: #ffffff;
-  --Square_Origin_border_width: 2.5px;
-  --Square_Origin_border_radius: 6px;
-  --Square_Origin_inset: 3px;
+   --Square_Origin_color: #ffffff;
+   --Square_Origin_border_width: 2.5px;
+   --Square_Origin_border_radius: 6px;
+   --Square_Origin_inset: 3px;
 
-  --Square_Target_color: var(--Team_A_color);
-  --Square_Target_border_width: 2.5px;
-  --Square_Target_border_radius: 6px;
-  --Square_Target_inset: 3px;
+   --Square_Target_color: var(--Team_A_color);
+   --Square_Target_border_width: 2.5px;
+   --Square_Target_border_radius: 6px;
+   --Square_Target_inset: 3px;
 
-  --Bunker_Circle_size: 24px;
-  --Bunker_Circle_team_a_color: rgba(255, 170, 0, 0.2);
-  --Bunker_Circle_team_b_color: rgba(0, 140, 255, 0.2);
-  --Bunker_Circle_outline_color: #ffffffc9;
-  --Bunker_Circle_outline_width: 2.5px;
-  --Bunker_Circle_outline_style: dotted;
+   --Bunker_Circle_size: 24px;
+   --Bunker_Circle_team_a_color: rgba(255, 170, 0, 0.2);
+   --Bunker_Circle_team_b_color: rgba(0, 140, 255, 0.2);
+   --Bunker_Circle_outline_color: #ffffffc9;
+   --Bunker_Circle_outline_width: 2.5px;
+   --Bunker_Circle_outline_style: dotted;
 
-  --Bunker_Candidate_color: #ffffffd7;
-  --Bunker_Candidate_border_width: 2.5px;
-  --Bunker_Candidate_border_style: dashed;
-  --Bunker_Candidate_border_radius: 5px;
-  --Bunker_Candidate_inset: 5px;
+   --Bunker_Candidate_color: #ffffffd7;
+   --Bunker_Candidate_border_width: 2.5px;
+   --Bunker_Candidate_border_style: dashed;
+   --Bunker_Candidate_border_radius: 5px;
+   --Bunker_Candidate_inset: 5px;
 
-  --Threatened_King_color: #ff0000;
-  --Threatened_King_border_width: 3px;
-  --Threatened_King_border_radius: 4px;
-  --Threatened_King_inset: 3.5px;
+   --Threatened_King_color: #ff0000;
+   --Threatened_King_border_width: 3px;
+   --Threatened_King_border_radius: 4px;
+   --Threatened_King_inset: 3.5px;
 
-  /* ==========================================================================
+   /* ==========================================================================
      5. TACTICAL & MOVEMENT MARKERS
      ========================================================================== */
-  --Marker_Move_color: #0a5430c0;
-  --Marker_Move_circle_size: 16px;
+   --Marker_Move_color: #0a5430c0;
+   --Marker_Move_circle_size: 16px;
 
-  --Marker_Attack_color: #ff0000;
-  --Marker_Attack_border_width: 3px;
-  --Marker_Attack_border_radius: 6px;
-  --Marker_Attack_inset: 3px;
+   --Marker_Attack_color: #ff0000;
+   --Marker_Attack_border_width: 3px;
+   --Marker_Attack_border_radius: 6px;
+   --Marker_Attack_inset: 3px;
 
-  --Marker_Promotion_color: #ae00ffbc;
-  --Marker_Promotion_border_width: 2px;
-  --Marker_Promotion_border_radius: 6px;
-  --Marker_Promotion_inset: 3px;
-  --Marker_Promotion_available_color: rgb(191, 0, 255);
+   --Marker_Promotion_color: #ae00ffbc;
+   --Marker_Promotion_border_width: 2px;
+   --Marker_Promotion_border_radius: 6px;
+   --Marker_Promotion_inset: 3px;
+   --Marker_Promotion_available_color: rgb(191, 0, 255);
 
-  /* ==========================================================================
+   /* ==========================================================================
      6. CARD & COMPASS SYSTEM
      ========================================================================== */
-  --Card_width: 40px;
-  --Card_height: 50px;
-  --Card_face_bg_color: rgb(255, 233, 176);
-  --Card_empty_bg_color: rgba(255, 255, 255, 0.028);
-  /* */
-  --Card_empty_slot_border_color: rgba(237, 218, 168, 0.371);
-  /* Card Empty Slot Border Color */
-  --Card_empty_slot_border_width: 1.5px;
-  /* Card Empty Slot Border Width */
+   --Card_width: 40px;
+   --Card_height: 50px;
+   --Card_face_bg_color: rgb(255, 233, 176);
+   --Card_empty_bg_color: rgba(255, 255, 255, 0.028);
+   /* */
+   --Card_empty_slot_border_color: rgba(237, 218, 168, 0.371);
+   /* Card Empty Slot Border Color */
+   --Card_empty_slot_border_width: 1.5px;
+   /* Card Empty Slot Border Width */
 
-  --Card_backside_border_color: rgb(138, 143, 150);
-  /* Card Backside Border Color */
-  --Card_backside_border_width: 1px;
-  /* Card Backside Border Width */
+   --Card_backside_border_color: rgb(138, 143, 150);
+   /* Card Backside Border Color */
+   --Card_backside_border_width: 1px;
+   /* Card Backside Border Width */
 
-  --Card_val_font_size: 1.3rem;
-  --Card_suit_font_size: 1.4rem;
-  --Card_border_width: 1.5px;
-  --Card_border_team_a_color: var(--Team_A_color);
-  --Card_border_team_b_color: var(--Team_B_color);
-  --Card_suit_red_color: #c50606;
-  --Card_suit_black_color: #1e293b;
-  --Card_combat_dimmed_opacity: 0.6;
+   --Card_val_font_size: 1.3rem;
+   --Card_suit_font_size: 1.4rem;
+   --Card_border_width: 1.5px;
+   --Card_border_team_a_color: var(--Team_A_color);
+   --Card_border_team_b_color: var(--Team_B_color);
+   --Card_suit_red_color: #c50606;
+   --Card_suit_black_color: #1e293b;
+   --Card_combat_dimmed_opacity: 0.6;
 
-  --Card_backup_offset: 8px;
-  --Card_backup_offset_north_x: 0px;
-  --Card_backup_offset_north_y: calc(-1 * var(--Card_backup_offset));
-  --Card_backup_offset_south_x: 0px;
-  --Card_backup_offset_south_y: var(--Card_backup_offset);
-  --Card_backup_offset_east_x: var(--Card_backup_offset);
-  --Card_backup_offset_east_y: 0px;
-  --Card_backup_offset_west_x: calc(-1 * var(--Card_backup_offset));
-  --Card_backup_offset_west_y: 0px;
+   --Card_backup_offset: 8px;
+   --Card_backup_offset_north_x: 0px;
+   --Card_backup_offset_north_y: calc(-1 * var(--Card_backup_offset));
+   --Card_backup_offset_south_x: 0px;
+   --Card_backup_offset_south_y: var(--Card_backup_offset);
+   --Card_backup_offset_east_x: var(--Card_backup_offset);
+   --Card_backup_offset_east_y: 0px;
+   --Card_backup_offset_west_x: calc(-1 * var(--Card_backup_offset));
+   --Card_backup_offset_west_y: 0px;
 
-  --Card_chosen_swap_border_color: #fff6c6;
-  --Card_chosen_swap_border_width: 2.5px;
-  --Card_swap_border_width: 3px;
-  --Card_winning_border_team_a: var(--Team_A_color);
-  --Card_winning_border_team_b: var(--Team_B_color);
-  --Card_winning_border_width: 3px;
+   --Card_chosen_swap_border_color: #fff6c6;
+   --Card_chosen_swap_border_width: 2.5px;
+   --Card_swap_border_width: 3px;
+   --Card_winning_border_team_a: var(--Team_A_color);
+   --Card_winning_border_team_b: var(--Team_B_color);
+   --Card_winning_border_width: 3px;
 
-  --Compass_size: 200px;
-  --Compass_opacity: 1;
-  --Compass_box_bg: transparent;
-  --Compass_box_border_color: var(--Game_Menu_Glass_border_color);
-  /* Box Around Situation Map Border Color (matches separation line) */
-  --Compass_box_border_width: var(--Game_Menu_separation_line_width, 1.5px);
-  /* Box Around Situation Map Border Width (matches separation line) */
-  --Compass_box_border: var(--Compass_box_border_width) solid var(--Compass_box_border_color);
-  /* Box Around Situation Map Border */
-  --Compass_box_radius: 6px;
-  --Compass_box_shadow: none;
+   --Compass_size: 200px;
+   --Compass_opacity: 1;
+   --Compass_box_bg: transparent;
+   --Compass_box_border_color: var(--Game_Menu_Glass_border_color);
+   /* Box Around Situation Map Border Color (matches separation line) */
+   --Compass_box_border_width: var(--Game_Menu_separation_line_width, 1.5px);
+   /* Box Around Situation Map Border Width (matches separation line) */
+   --Compass_box_border: var(--Compass_box_border_width) solid var(--Compass_box_border_color);
+   /* Box Around Situation Map Border */
+   --Compass_box_radius: 6px;
+   --Compass_box_shadow: none;
 
-  /* ==========================================================================
+   /* ==========================================================================
      7. MOVE ARROWS & DEADPOOL SPACING
      ========================================================================== */
-  --Arrow_move_color: rgba(255, 255, 255, 0.25);
-  --Arrow_move_width: 3;
-  --Arrow_capture_color: rgba(248, 113, 113, 0.65);
-  --Arrow_capture_width: 3;
-  --Arrow_failed_color: rgba(245, 158, 11, 0.75);
-  --Arrow_failed_width: 3;
-  --Arrow_failed_dash: 6, 4;
+   --Arrow_move_color: rgba(255, 255, 255, 0.25);
+   --Arrow_move_width: 3;
+   --Arrow_capture_color: rgba(248, 113, 113, 0.65);
+   --Arrow_capture_width: 3;
+   --Arrow_failed_color: rgba(245, 158, 11, 0.75);
+   --Arrow_failed_width: 3;
+   --Arrow_failed_dash: 6, 4;
 
-  --Deadpool_border_width: 1px;
-  /* Captured Pieces Bar Border Width */
-  --Deadpool_border_team_a_color: var(--Team_A_color);
-  /* Captured Pieces Bar Team A Border Color */
-  --Deadpool_border_team_b_color: var(--Team_B_color);
-  /* Captured Pieces Bar Team B Border Color */
-  --Deadpool_box_padding: 3px 6px;
-  /* Captured Pieces Bar Padding */
-  --Deadpool_bar_min_height: 30px;
-  /* Captured Pieces Bar Min Height */
-  --Deadpool_piece_size: 30px;
-  /* Captured Pieces Icon Size */
-  --Deadpool_box_bg: rgba(255, 255, 255, 0.15);
-  /* Captured Pieces Bar Background */
-  --Deadpool_box_shadow: none;
-  /* Captured Pieces Bar Glow Shadow */
+   --Deadpool_border_width: 1px;
+   /* Captured Pieces Bar Border Width */
+   --Deadpool_border_team_a_color: var(--Team_A_color);
+   /* Captured Pieces Bar Team A Border Color */
+   --Deadpool_border_team_b_color: var(--Team_B_color);
+   /* Captured Pieces Bar Team B Border Color */
+   --Deadpool_box_padding: 3px 6px;
+   /* Captured Pieces Bar Padding */
+   --Deadpool_bar_min_height: 30px;
+   /* Captured Pieces Bar Min Height */
+   --Deadpool_piece_size: 30px;
+   /* Captured Pieces Icon Size */
+   --Deadpool_box_bg: rgba(255, 255, 255, 0.15);
+   /* Captured Pieces Bar Background */
+   --Deadpool_box_shadow: none;
+   /* Captured Pieces Bar Glow Shadow */
 
-  --Deadpool_gap_pieces: 0px;
-  --Deadpool_gap_similar_piece: -11px;
-  --Deadpool_gap_pawns: -14px;
+   --Deadpool_gap_pieces: 0px;
+   --Deadpool_gap_similar_piece: -11px;
+   --Deadpool_gap_pawns: -14px;
 
-  /* ==========================================================================
+   /* ==========================================================================
      8. LOG BOX & SCROLLBAR
      ========================================================================== */
-  --Log_Scrollbar_width: 4px;
-  --Log_Scrollbar_track_bg: rgba(0, 0, 0, 0.25);
-  --Log_Scrollbar_thumb_bg: rgba(255, 255, 255, 0.18);
-  --Log_Scrollbar_thumb_hover: rgba(255, 255, 255, 0.38);
-  --Log_Scrollbar_thumb_radius: 4px;
+   --Log_Scrollbar_width: 4px;
+   --Log_Scrollbar_track_bg: rgba(0, 0, 0, 0.25);
+   --Log_Scrollbar_thumb_bg: rgba(255, 255, 255, 0.18);
+   --Log_Scrollbar_thumb_hover: rgba(255, 255, 255, 0.38);
+   --Log_Scrollbar_thumb_radius: 4px;
 
-  --Log_Text_move: #e2e8f0;
-  /* Move Log Text Color */
-  --Log_Text_pokerhand: var(--Team_A_color);
-  /* Poker Hand Log Text Color */
-  --Log_Text_card: #888888;
-  /* Card Change / Refill Log Text Color */
+   --Log_Text_move: #e2e8f0;
+   /* Move Log Text Color */
+   --Log_Text_pokerhand: var(--Team_A_color);
+   /* Poker Hand Log Text Color */
+   --Log_Text_card: #888888;
+   /* Card Change / Refill Log Text Color */
 
-  /* ==========================================================================
+   /* ==========================================================================
      9. ANIMATION TIMINGS
      ========================================================================== */
-  --Anim_card_duration: 140ms;
-  --Anim_piece_duration: 280ms;
+   --Anim_card_duration: 140ms;
+   --Anim_piece_duration: 280ms;
 }

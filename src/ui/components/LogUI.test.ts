@@ -120,6 +120,9 @@ describe('LogUI and ControlsUI requirements', () => {
 
   beforeEach(() => {
     store = new GameStore();
+    for (const k in docListeners) {
+      delete docListeners[k];
+    }
   });
 
   it('should render standard moves with turn and seat numbering, but unnumbered for card swap and card refill', () => {
@@ -502,4 +505,163 @@ describe('LogUI and ControlsUI requirements', () => {
     expect(logEntries.children[1].children[0].innerText).toBe('🏆 Team A Victorious! (King Captured)');
     expect(logEntries.children[1].classList.contains('log-ui-entry-selected')).toBe(true);
   });
+
+  describe('Replay / Review keyboard navigation', () => {
+    const dispatchKey = (key: string, target?: any) => {
+      if (docListeners['keydown']) {
+        docListeners['keydown'].forEach(cb =>
+          cb({
+            key,
+            target,
+            preventDefault: () => {}
+          })
+        );
+      }
+    };
+
+    it('should NOT navigate replay via arrow keys during live game when not viewing past frame', () => {
+      const container = new MockElement('div') as unknown as HTMLElement;
+      const logUI = new LogUI(container, () => {});
+
+      store.resetGame(false, true);
+      store.recordSnapshot();
+      store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'P : e2 -> e4' });
+      store.recordSnapshot();
+      store.addLogEntry({ turnNumber: 2, seat: 'E', text: 'P : e7 -> e5' });
+
+      // Live mode at latest move
+      logUI.render(store.getState(), store);
+      expect(store.isReplaying).toBe(false);
+      expect(store.historyIndex).toBe(2);
+
+      // Pressing arrow keys in live mode should do nothing
+      dispatchKey('ArrowLeft');
+      expect(store.isReplaying).toBe(false);
+      expect(store.historyIndex).toBe(2);
+
+      dispatchKey('ArrowUp');
+      expect(store.isReplaying).toBe(false);
+      expect(store.historyIndex).toBe(2);
+
+      dispatchKey('ArrowRight');
+      expect(store.isReplaying).toBe(false);
+      expect(store.historyIndex).toBe(2);
+
+      dispatchKey('ArrowDown');
+      expect(store.isReplaying).toBe(false);
+      expect(store.historyIndex).toBe(2);
+    });
+
+    it('should navigate replay via arrow keys when viewing past frame in active game', () => {
+      const container = new MockElement('div') as unknown as HTMLElement;
+      const logUI = new LogUI(container, () => {});
+
+      store.resetGame(false, true);
+      store.recordSnapshot(); // history 1: Move 1
+      store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'P : e2 -> e4' });
+      store.recordSnapshot(); // history 2: Move 2
+      store.addLogEntry({ turnNumber: 2, seat: 'E', text: 'P : e7 -> e5' });
+      store.recordSnapshot(); // history 3: Move 3
+      store.addLogEntry({ turnNumber: 3, seat: 'S', text: 'N : g1 -> f3' });
+      store.recordSnapshot(); // history 4: Live Turn 4
+
+      // Scrub back to Move 2 (history 2)
+      store.scrubToHistoryIndex(2);
+      expect(store.isReplaying).toBe(true);
+      expect(store.activeLogIndex).toBe(1);
+
+      logUI.render(store.getState(), store);
+
+      // 1. ArrowLeft: steps back to Move 1 (Log index 0)
+      dispatchKey('ArrowLeft');
+      expect(store.activeLogIndex).toBe(0);
+      expect(store.historyIndex).toBe(1);
+
+      // 2. ArrowRight: steps forward to Move 2 (Log index 1)
+      dispatchKey('ArrowRight');
+      expect(store.activeLogIndex).toBe(1);
+      expect(store.historyIndex).toBe(2);
+
+      // 3. ArrowUp: sends to first turn log entry (Log index 0, history 1)
+      dispatchKey('ArrowUp');
+      expect(store.activeLogIndex).toBe(0);
+      expect(store.historyIndex).toBe(1);
+
+      // 4. ArrowDown: sends to current/last live turn
+      dispatchKey('ArrowDown');
+      expect(store.isReplaying).toBe(false);
+      expect(store.historyIndex).toBe(4);
+    });
+
+    it('should navigate replay via arrow keys in game over review mode', () => {
+      const container = new MockElement('div') as unknown as HTMLElement;
+      const logUI = new LogUI(container, () => {});
+
+      store.resetGame(false, true);
+      store.recordSnapshot(); // history 1
+      store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'P : e2 -> e4' });
+      store.recordSnapshot(); // history 2
+      store.addLogEntry({ turnNumber: 2, seat: 'E', text: 'P : e7 -> e5' });
+      store.recordSnapshot(); // history 3
+      store.addLogEntry({ turnNumber: 3, seat: 'S', text: '🏆 Team A Victorious! (King Captured)' });
+      store.getState().isGameOver = true;
+
+      // Start review at end of game
+      store.stepReplay('live');
+      logUI.render(store.getState(), store);
+      expect(store.activeLogIndex).toBe(2);
+
+      // ArrowLeft steps back
+      dispatchKey('ArrowLeft');
+      expect(store.activeLogIndex).toBe(1);
+      expect(store.historyIndex).toBe(2);
+
+      // ArrowUp sends to first turn log entry
+      dispatchKey('ArrowUp');
+      expect(store.activeLogIndex).toBe(0);
+      expect(store.historyIndex).toBe(1);
+
+      // ArrowRight steps forward
+      dispatchKey('ArrowRight');
+      expect(store.activeLogIndex).toBe(1);
+      expect(store.historyIndex).toBe(2);
+
+      // ArrowDown sends to last turn (game over victory entry)
+      dispatchKey('ArrowDown');
+      expect(store.activeLogIndex).toBe(2);
+      expect(store.historyIndex).toBe(3);
+    });
+
+    it('should NOT intercept arrow keys if user is typing in an input or textarea', () => {
+      const container = new MockElement('div') as unknown as HTMLElement;
+      const logUI = new LogUI(container, () => {});
+
+      store.resetGame(false, true);
+      store.recordSnapshot();
+      store.addLogEntry({ turnNumber: 1, seat: 'N', text: 'P : e2 -> e4' });
+      store.recordSnapshot();
+      store.addLogEntry({ turnNumber: 2, seat: 'E', text: 'P : e7 -> e5' });
+      store.scrubToHistoryIndex(1);
+      expect(store.isReplaying).toBe(true);
+
+      logUI.render(store.getState(), store);
+
+      // Keydown on an input element should be ignored
+      dispatchKey('ArrowLeft', { tagName: 'INPUT' });
+      expect(store.historyIndex).toBe(1);
+
+      dispatchKey('ArrowUp', { tagName: 'TEXTAREA' });
+      expect(store.historyIndex).toBe(1);
+    });
+
+    it('should clean up keydown listener on destroy', () => {
+      const container = new MockElement('div') as unknown as HTMLElement;
+      const logUI = new LogUI(container, () => {});
+      expect(docListeners['keydown']?.length).toBe(1);
+
+      logUI.destroy();
+      expect(docListeners['keydown']?.length).toBe(0);
+    });
+  });
 });
+

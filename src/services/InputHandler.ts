@@ -404,23 +404,8 @@ export class InputHandler {
     const activePlayerState = state.players[activeSeat];
     if (!activePlayerState) return;
 
-    let selectedBase = this.store.selectedBaseCardIndex;
-    if (selectedBase === null || !activePlayerState.backupCards[selectedBase]) {
-      // If no card is selected, pick highest rank card from active player's backupCards
-      let bestIdx = -1;
-      let highestRank = -1;
-      for (let i = 0; i < 3; i++) {
-        const c = activePlayerState.backupCards[i];
-        if (c && c.id !== 'hidden' && c.rank > highestRank) {
-          highestRank = c.rank;
-          bestIdx = i;
-        }
-      }
-      if (bestIdx !== -1) {
-        selectedBase = bestIdx;
-      }
-    }
-    if (selectedBase === null) return;
+    const selectedBase = this.store.selectedBaseCardIndex;
+    if (selectedBase === null || !activePlayerState.backupCards[selectedBase]) return;
 
     const card = activePlayerState.backupCards[selectedBase];
     if (!card || card.id === 'hidden' || card.rank <= 0) return;

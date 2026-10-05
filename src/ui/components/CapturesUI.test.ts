@@ -240,6 +240,40 @@ describe('Promotion and Resurrect Piece Icons (Team Color Support)', () => {
     // Click pass button
     passBtn?.click();
     expect(onPassSpy).toHaveBeenCalledTimes(1);
+    expect(passBtn?.className).not.toContain('disabled');
+  });
+
+  it('BaseDeckUI renders pass button as disabled before a backup card is selected, and enables it when selected', () => {
+    const container = document.createElement('div') as unknown as MockElement;
+    const onPassSpy = vi.fn();
+    const baseDeckUI = new BaseDeckUI(container as unknown as HTMLElement, () => {}, () => {}, onPassSpy);
+    const state = createInitialGameState({ skipSetup: true });
+    const store = new GameStore();
+    store.botSeats[PlayerSeat.NORTH] = false;
+
+    state.activePlayer = PlayerSeat.NORTH;
+    state.players[PlayerSeat.SOUTH].baseDeck = state.players[PlayerSeat.SOUTH].baseDeck.slice(0, 2);
+    state.players[PlayerSeat.SOUTH].backupCards[2] = null;
+    store.selectedBaseCardIndex = null;
+
+    baseDeckUI.render(state, store);
+
+    const passBtn = container.querySelector('.pass-card-btn');
+    expect(passBtn).not.toBeNull();
+    expect(passBtn?.style.display).toBe('inline-flex');
+    expect(passBtn?.className).toContain('disabled');
+
+    // Clicking while disabled should not invoke onPass
+    passBtn?.click();
+    expect(onPassSpy).not.toHaveBeenCalled();
+
+    // Select a backup card and re-render
+    store.selectedBaseCardIndex = 0;
+    baseDeckUI.render(state, store);
+
+    expect(passBtn?.className).not.toContain('disabled');
+    passBtn?.click();
+    expect(onPassSpy).toHaveBeenCalledTimes(1);
   });
 
   it('BaseDeckUI hides pass button when teammate already has 3 cards', () => {
