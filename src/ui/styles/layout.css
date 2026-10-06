@@ -321,7 +321,7 @@ select,
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: var(--Public_cards_board_gap, 8px);
 }
 
 .public-cards-vertical {
@@ -338,12 +338,20 @@ select,
 .public-cards-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--Public_cards_gap, 6px);
   align-items: center;
   justify-content: center;
   position: relative;
-  height: 100%;
-  width: 100%;
+  top: calc(-1 * var(--Public_cards_elevation, 34px));
+  width: auto;
+  height: auto;
+  box-sizing: border-box;
+  padding: var(--Public_cards_box_padding, 3px);
+  margin: 0;
+  background: var(--Public_cards_box_bg, transparent);
+  border: var(--Public_cards_box_border, var(--Card_empty_slot_border_width, 1.5px) solid var(--Card_empty_slot_border_color, rgba(237, 218, 168, 0.371)));
+  border-radius: var(--Public_cards_box_radius, 6px);
+  box-shadow: var(--Public_cards_box_shadow, none);
 }
 
 /* Dedicated Compass Box (where status bar was in the right sidebar) */
@@ -530,7 +538,7 @@ select,
   background: var(--Game_Menu_Glass_bg_color);
   backdrop-filter: blur(var(--Game_Menu_Glass_blur));
   -webkit-backdrop-filter: blur(var(--Game_Menu_Glass_blur));
-  border: 1px solid var(--Game_Menu_Glass_border_color);
+  border: var(--Game_Menu_Glass_border_width, 1px) solid var(--Game_Menu_Glass_border_color);
   border-radius: 14px;
   padding: 14px;
   box-shadow: var(--Game_Menu_Glass_shadow);
@@ -543,7 +551,7 @@ select,
   background: var(--Game_Menu_Glass_bg_color);
   backdrop-filter: blur(var(--Game_Menu_Glass_blur));
   -webkit-backdrop-filter: blur(var(--Game_Menu_Glass_blur));
-  border: 1px solid var(--Game_Menu_Glass_border_color);
+  border: var(--Game_Menu_Glass_border_width, 1px) solid var(--Game_Menu_Glass_border_color);
   border-radius: 14px;
   padding: 14px;
   box-shadow: var(--Game_Menu_Glass_shadow);
@@ -588,10 +596,10 @@ select,
   box-shadow: none !important;
 }
 
-/* Subtle, slightly thicker line matching panel border, staying inside margins */
+/* Line matching panel border, staying inside margins */
 .panel-section-divider {
   width: calc(100% - 12px);
-  height: var(--Game_Menu_separation_line_width, 1.5px);
+  height: var(--Game_Menu_separation_line_width, 1px);
   background: var(--Game_Menu_Glass_border_color);
   margin: 10px auto;
   border: none;
@@ -676,8 +684,8 @@ select,
 }
 
 #unified-left-panel .panel-section-divider {
-  background: var(--Color_Beige) !important;
-  opacity: 0.35;
+  background: var(--Game_Menu_Glass_border_color) !important;
+  opacity: 1;
 }
 
 #unified-left-panel button,
@@ -1719,12 +1727,6 @@ select,
   filter: grayscale(40%);
 }
 
-.public-cards-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
 .public-cards-header {
   font-weight: bold;
   font-size: 14px;
@@ -1959,9 +1961,10 @@ select,
 
   .public-cards-container {
     flex-direction: row;
-    gap: 6px;
-    width: 100%;
-    height: 100%;
+    gap: var(--Public_cards_gap, 6px);
+    width: auto;
+    height: auto;
+    top: 0;
     align-items: center;
     justify-content: center;
     position: relative;
