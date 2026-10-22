@@ -115,32 +115,54 @@ function updateBoardScale(): void {
   mobileMenuUI.applyTabVisibility();
 
   const isVertical = window.innerWidth <= 1150 || (typeof window.matchMedia === 'function' && window.matchMedia('(orientation: portrait)').matches);
-  if (!isVertical) {
-    container.style.transform = '';
-    container.style.transformOrigin = '';
-    centerArea.style.height = '';
-    return;
-  }
 
-  const naturalWidth = 532;
-  const naturalHeight = 688;
-  const availableWidth = Math.max(280, window.innerWidth - 16);
-  const bottomBar = document.getElementById('mobile-bottom-menu-bar');
-  const bottomBarHeight = (bottomBar && getComputedStyle(bottomBar).display !== 'none') ? 64 : 0;
-  const availableHeight = Math.max(280, window.innerHeight - bottomBarHeight - 24);
+  if (isVertical) {
+    const naturalWidth = 532;
+    const naturalHeight = 692;
+    const availableWidth = Math.max(280, window.innerWidth - 16);
+    const bottomBar = document.getElementById('mobile-bottom-menu-bar');
+    const bottomBarHeight = (bottomBar && getComputedStyle(bottomBar).display !== 'none') ? 56 : 0;
+    // Status/turn message bar (~48px) and layout padding
+    const statusHeight = 52;
+    const paddingOffset = 24;
+    const availableHeight = Math.max(280, window.innerHeight - bottomBarHeight - statusHeight - paddingOffset);
 
-  const scaleWidth = availableWidth / naturalWidth;
-  const scaleHeight = availableHeight / naturalHeight;
-  const scale = Math.min(1, scaleWidth, scaleHeight);
+    const scaleWidth = availableWidth / naturalWidth;
+    const scaleHeight = availableHeight / naturalHeight;
+    const scale = Math.min(1, scaleWidth, scaleHeight);
 
-  if (scale >= 0.99) {
-    container.style.transform = '';
-    container.style.transformOrigin = '';
-    centerArea.style.height = '';
+    if (scale >= 0.99) {
+      container.style.transform = '';
+      container.style.transformOrigin = '';
+      centerArea.style.height = '';
+    } else {
+      container.style.transform = `scale(${scale}) translateZ(0)`;
+      container.style.transformOrigin = 'top center';
+      centerArea.style.height = `${Math.round(naturalHeight * scale) + 24}px`;
+    }
   } else {
-    container.style.transform = `scale(${scale}) translateZ(0)`;
-    container.style.transformOrigin = 'top center';
-    centerArea.style.height = `${Math.round(naturalHeight * scale) + 24}px`;
+    // Horizontal / Landscape mode (Tablets in landscape, laptops, desktops)
+    const naturalWidth = 594;
+    const naturalHeight = 616;
+    // Available width inside centerArea column
+    const centerAreaWidth = centerArea.clientWidth > 0 ? centerArea.clientWidth : (window.innerWidth - 640);
+    const availableWidth = Math.max(280, centerAreaWidth - 16);
+    // Available height inside centerArea (subtracting top padding and bottom margin)
+    const availableHeight = Math.max(280, window.innerHeight - 24);
+
+    const scaleWidth = availableWidth / naturalWidth;
+    const scaleHeight = availableHeight / naturalHeight;
+    const scale = Math.min(1, scaleWidth, scaleHeight);
+
+    if (scale >= 0.99) {
+      container.style.transform = '';
+      container.style.transformOrigin = '';
+      centerArea.style.height = '';
+    } else {
+      container.style.transform = `scale(${scale}) translateZ(0)`;
+      container.style.transformOrigin = 'top center';
+      centerArea.style.height = '';
+    }
   }
 }
 
@@ -154,7 +176,11 @@ function handleWindowResize(): void {
 }
 
 window.addEventListener('resize', handleWindowResize);
-window.addEventListener('orientationchange', handleWindowResize);
+window.addEventListener('orientationchange', () => {
+  handleWindowResize();
+  setTimeout(updateBoardScale, 150);
+  setTimeout(updateBoardScale, 350);
+});
 updateBoardScale();
 
 // Global click outside to clear selection

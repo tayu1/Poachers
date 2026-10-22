@@ -158,6 +158,8 @@
    /* ==========================================================================
      3. BOARD CENTER GLASS & GRID LINES
      ========================================================================== */
+   --Board_top_padding: 12px;
+   /* Top spacing for the board and cards box */
    --Board_Glass_bg_color: #00000000;
    /* Center Board Area Background */
    --Board_Glass_blur: 0px;

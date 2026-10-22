@@ -245,7 +245,7 @@ select,
 
 .game-container {
   display: grid;
-  grid-template-columns: 300px 1fr 300px;
+  grid-template-columns: minmax(240px, 300px) 1fr minmax(240px, 300px);
   height: 100vh;
   gap: 16px;
   padding: 0 16px;
@@ -284,7 +284,8 @@ select,
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: var(--Board_top_padding, 12px);
   position: relative;
   width: 100%;
   height: 100vh;
@@ -322,6 +323,8 @@ select,
   align-items: center;
   justify-content: center;
   gap: var(--Public_cards_board_gap, 8px);
+  transform-origin: top center;
+  will-change: transform;
 }
 
 .public-cards-vertical {
@@ -1909,7 +1912,7 @@ select,
     justify-content: flex-start;
     overflow: visible;
     border: none;
-    padding: 12px 0;
+    padding: var(--Board_top_padding, 12px) 0;
     box-shadow: none;
   }
 
