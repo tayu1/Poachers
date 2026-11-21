@@ -366,38 +366,56 @@ export function isSeatOccupyingHill(board: Board1D, seat: PlayerSeat): boolean {
   return false;
 }
 
-export function grantHillCardReward(state: GameState, seat: PlayerSeat): boolean {
-  if (
-    isSeatOccupyingHill(state.board, seat) &&
-    state.deck &&
-    state.deck.length > 0 &&
-    state.players &&
-    state.players[seat]
-  ) {
-    const player = state.players[seat];
-    const emptySlot = getPlayerEmptySlot(player);
-    if (emptySlot !== null) {
-      const topCard = state.deck.pop();
-      if (topCard) {
-        const added = addCardToPlayerSlots(player, topCard);
-        if (added) {
-          return true;
-        } else {
-          state.deck.push(topCard);
-        }
-      }
-    }
+export function getPlayerCardCount(player: PlayerState | undefined | null): number {
+  if (!player) return 0;
+  const trenchCount = player.trenchCards
+    ? player.trenchCards.filter(c => c !== null && c !== undefined).length
+    : 0;
+  const backupCount = player.backupCards
+    ? player.backupCards.filter(c => c !== null && c !== undefined).length
+    : 0;
+  return trenchCount + backupCount;
+}
+
+function drawTurnEndCard(state: GameState, seat: PlayerSeat): boolean {
+  if (!state.deck || state.deck.length === 0 || !state.players || !state.players[seat]) {
+    return false;
   }
+  const player = state.players[seat];
+  const emptySlot = getPlayerEmptySlot(player);
+  if (emptySlot === null) {
+    return false;
+  }
+  const topCard = state.deck.pop();
+  if (!topCard) {
+    return false;
+  }
+  const added = addCardToPlayerSlots(player, topCard);
+  if (added) {
+    return true;
+  }
+  state.deck.push(topCard);
   return false;
+}
+
+export function grantHillCardReward(state: GameState, seat: PlayerSeat): boolean {
+  if (!isSeatOccupyingHill(state.board, seat)) {
+    return false;
+  }
+  return drawTurnEndCard(state, seat);
 }
 
 export function grantTurnEndCardRewards(
   state: GameState,
   seat: PlayerSeat
 ): { standardGranted: boolean; hillGranted: boolean } {
-  const standardGranted = false;
+  const player = state.players?.[seat];
+  if (getPlayerCardCount(player) < 3) {
+    const standardGranted = drawTurnEndCard(state, seat);
+    return { standardGranted, hillGranted: false };
+  }
   const hillGranted = grantHillCardReward(state, seat);
-  return { standardGranted, hillGranted };
+  return { standardGranted: false, hillGranted };
 }
 
 /**

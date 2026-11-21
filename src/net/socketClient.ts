@@ -351,25 +351,6 @@ class SocketClient {
     });
   }
 
-  public toggleBotSeat(seat: PlayerSeat): Promise<{ success: boolean; error?: string }> {
-    return new Promise((resolve) => {
-      if (store.isOfflineSolo && store.roomState) {
-        const slot = store.roomState.seats[seat];
-        if (slot.playerId === store.myPlayerId) return resolve({ success: false });
-        slot.isBot = !slot.isBot;
-        slot.isReady = slot.isBot;
-        store.setRoomState({ ...store.roomState });
-        return resolve({ success: true });
-      }
-
-      const roomCode = store.roomState?.roomCode;
-      const playerId = store.myPlayerId;
-      if (!this.socket || !roomCode || !playerId) return resolve({ success: false, error: 'Not in a room' });
-
-      this.socket.emit('toggle_bot_seat', { roomCode, playerId, seat }, resolve);
-    });
-  }
-
   public toggleReady(): Promise<{ success: boolean; error?: string }> {
     return new Promise((resolve) => {
       if (store.isOfflineSolo && store.roomState && store.myPlayerId) {

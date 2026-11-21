@@ -12,7 +12,7 @@ import { PlayerSeat } from '../src/core/types';
 import { ClientToServerEvents, ServerToClientEvents } from '../src/net/events';
 
 import { checkAndAutoStartMatch, clearTurnTimeout, recordRoomSnapshot, startMatch, startTurnTimeout, triggerBotTurnIfNeeded } from './gameLoop';
-import { assignInitialHostSeats, assignSeat, autoAssignSeat, broadcastPublicRooms, clearPlayerSeats, createEmptySeats, emitGameStateToRoom, ensureAllHumansSeated, findRoom, generateRoomCode, getPublicRoomsSummary, getSeatTeam, getSeatsForPlayer, rooms, sanitizeGameStateForClient, serializeRoomState, toggleBot } from './roomManager';
+import { assignInitialHostSeats, assignSeat, autoAssignSeat, broadcastPublicRooms, clearPlayerSeats, createEmptySeats, emitGameStateToRoom, ensureAllHumansSeated, findRoom, generateRoomCode, getPublicRoomsSummary, getSeatTeam, getSeatsForPlayer, rooms, sanitizeGameStateForClient, serializeRoomState } from './roomManager';
 
 import { ServerPlayer, ServerRoom } from './types';
 import { getSocketIp, logMatchCompletion } from './analytics';
@@ -291,27 +291,6 @@ io.on('connection', (socket) => {
     checkAndAutoStartMatch(room, io);
   });
 
-  socket.on('toggle_bot_seat', ({ roomCode, playerId, seat }, callback) => {
-    const room = findRoom(roomCode);
-    if (!room) {
-      if (callback) callback({ success: false, error: 'Room not found' });
-      return;
-    }
-    const code = room.roomCode;
-
-    const res = toggleBot(room, playerId, seat);
-    if (!res.success) {
-      if (callback) callback({ success: false, error: res.error });
-      return;
-    }
-
-    io.to(code).emit('room_state_update', serializeRoomState(room));
-    broadcastPublicRooms(io);
-    if (callback) callback({ success: true });
-
-    checkAndAutoStartMatch(room, io);
-  });
-
   socket.on('toggle_public', ({ roomCode, playerId }) => {
     const room = findRoom(roomCode);
     if (room && room.hostPlayerId === playerId) {
@@ -353,6 +332,12 @@ io.on('connection', (socket) => {
     const player = room.players.get(playerId);
     if (!player) {
       if (callback) callback({ success: false, error: 'Player not in room' });
+      return;
+    }
+
+    if (getSeatsForPlayer(room, playerId).length === 0) {
+      player.isReady = false;
+      if (callback) callback({ success: false, error: 'Must be seated to ready up' });
       return;
     }
 

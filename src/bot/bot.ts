@@ -54,7 +54,6 @@ export interface BotProfile {
   randomnessTemperature?: number;
   randomnessP?: number;
   heuristicGapThreshold?: number;
-  initialEvalBlendWeight?: number;
   /**
    * Whether to produce search tracing and thinking diagnostics (plyScores, logSummary).
    * Paused (false) by default so the engine does not spend CPU cycles generating
@@ -143,7 +142,6 @@ export const DEFAULT_BOT_PROFILE: BotProfile = {
   topK: 8,
   adaptiveBranching: false,
   trenchStrategy: 'BOT_DEFAULT_DRAFT',
-  initialEvalBlendWeight: 0.07,
   diagnostics: false,
   verbose: false,
   logToConsole: false
@@ -1188,9 +1186,7 @@ export function getBestBotAction(
     };
   }
 
-  const blendWeight = profile.initialEvalBlendWeight !== undefined
-    ? profile.initialEvalBlendWeight
-    : (DEFAULT_BOT_PROFILE.initialEvalBlendWeight ?? 0.08);
+  const blendWeight = pvals[24] ?? DEFAULT_PVALS[24] ?? 0.07;
   const scoredCandidates: { actionInt: ActionInt; score: number; searchScore: number; ply1Score: number }[] = [];
   let bestDeepScore = -Infinity;
   const evaluatedActionInts = new Set<ActionInt>();

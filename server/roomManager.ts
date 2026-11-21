@@ -104,7 +104,7 @@ export function autoAssignSeat(room: ServerRoom, player: ServerPlayer): PlayerSe
 
   const seatPriority = [PlayerSeat.NORTH, PlayerSeat.SOUTH, PlayerSeat.EAST, PlayerSeat.WEST];
 
-  // 1. Look for an open empty seat
+  // Look for an open empty seat (empty seats are filled with bots only when the host starts the match)
   const openSeat = seatPriority.find(s => !room.seats[s].isBot && room.seats[s].playerId === null);
   if (openSeat !== undefined) {
     room.seats[openSeat] = {
@@ -118,21 +118,7 @@ export function autoAssignSeat(room: ServerRoom, player: ServerPlayer): PlayerSe
     return openSeat;
   }
 
-  // 2. Look for a bot seat to replace
-  const botSeat = seatPriority.find(s => room.seats[s].isBot);
-  if (botSeat !== undefined) {
-    room.seats[botSeat] = {
-      playerId: player.playerId,
-      name: player.name,
-      isBot: false,
-      isReady: false
-    };
-    player.seat = botSeat;
-    player.team = getSeatTeam(botSeat);
-    return botSeat;
-  }
-
-  // 3. Room full of human players
+  // Room full of human players
   return null;
 }
 
@@ -150,22 +136,29 @@ export function assignSeat(
     return { success: false, error: 'Game already in progress' };
   }
 
-  const currentSeats = getSeatsForPlayer(room, playerId);
-
   if (seat === null) {
-    return { success: false, error: 'You must maintain at least one assigned seat' };
+    clearPlayerSeats(room, playerId);
+    player.seat = null;
+    player.team = null;
+    player.isReady = false;
+    return { success: true };
   }
 
   const slot = room.seats[seat];
 
   if (slot.playerId === playerId) {
-    if (currentSeats.length <= 1) {
-      return { success: false, error: 'You must maintain at least one assigned seat' };
-    }
     room.seats[seat] = { playerId: null, name: null, isBot: false, isReady: false };
     const remaining = getSeatsForPlayer(room, playerId);
-    player.seat = remaining[0];
-    player.team = getSeatTeam(remaining[0]);
+    if (remaining.length > 0) {
+      player.seat = remaining[0];
+      player.team = getSeatTeam(remaining[0]);
+    } else {
+      player.seat = null;
+      player.team = null;
+    }
+    for (const r of remaining) {
+      room.seats[r].isReady = false;
+    }
     player.isReady = false;
     return { success: true };
   }
@@ -181,60 +174,12 @@ export function assignSeat(
     isReady: false
   };
 
+  for (const s of getSeatsForPlayer(room, playerId)) {
+    room.seats[s].isReady = false;
+  }
   player.seat = seat;
   player.team = getSeatTeam(seat);
   player.isReady = false;
-
-  return { success: true };
-}
-
-export function toggleBot(
-  room: ServerRoom,
-  hostPlayerId: string,
-  seat: PlayerSeat
-): { success: boolean; error?: string } {
-  const host = room.players.get(hostPlayerId);
-  if (!host || !host.isHost) {
-    return { success: false, error: 'Only room host can toggle bots' };
-  }
-
-  if (room.gameStarted || room.status !== 'lobby') {
-    return { success: false, error: 'Cannot toggle bots during a game' };
-  }
-
-  const slot = room.seats[seat];
-
-  if (slot.playerId && !slot.isBot) {
-    const playerSeats = getSeatsForPlayer(room, slot.playerId);
-    if (playerSeats.length <= 1) {
-      return { success: false, error: 'Cannot replace a human player with a bot' };
-    }
-    const player = room.players.get(slot.playerId);
-    if (player) {
-      const remaining = playerSeats.filter(s => s !== seat);
-      player.seat = remaining[0];
-      player.team = getSeatTeam(remaining[0]);
-      player.isReady = false;
-    }
-  }
-
-  // Do not allow all 4 seats to become bots
-  if (!slot.isBot) {
-    let botCount = 0;
-    for (let s = 0; s < 4; s++) {
-      if (s === seat || room.seats[s as PlayerSeat].isBot) {
-        botCount++;
-      }
-    }
-    if (botCount >= 4) {
-      return { success: false, error: 'Cannot set all 4 seats to bots in a room' };
-    }
-  }
-
-  slot.isBot = !slot.isBot;
-  slot.playerId = slot.isBot ? `bot_${seat}` : null;
-  slot.name = slot.isBot ? `BOT (${getSeatCode(seat)})` : null;
-  slot.isReady = slot.isBot;
 
   return { success: true };
 }

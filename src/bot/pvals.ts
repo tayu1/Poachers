@@ -1,14 +1,14 @@
 export const DEFAULT_PVALS: number[] = [
-  /* 0:  RANDOMNESS_MARGIN (~ noise)          */ 30,
+  /* 0:  RANDOMNESS_MARGIN (~ noise)          */ 50,
   /* 1:  GAME_END_SCORE (+win/-loss)          */ 100000,
-  /* 2:  KING_ONBOARD                         */ 20000,
+  /* 2:  KING_ONBOARD                         */ 15000,
   /* 3:  KING_THREATENED_BY_PIECE (*)         */ 0.3,
-  /* 4:  KING_THREATENED_BUT_CAN_TAKE (*)     */ 0.8,
+  /* 4:  KING_THREATENED_BUT_CAN_TAKE (*)     */ 0.9,
   /* 5:  HILL_CONTROL_COUNT                   */ 1000,
   /* 6:  PAWN_ON_HILL                         */ 600,
-  /* 7:  PAWN_HILL_NO_KING                    */ 4000,
+  /* 7:  PAWN_HILL_NO_KING                    */ 2500,
   /* 8:  CENTER_THREAT_COUNT                  */ 300,
-  /* 9:  PIECE_BASE_COUNT                     */ 60,
+  /* 9:  PIECE_BASE_COUNT                     */ 150,
   /* 10: PIECE_PAWN (*)                       */ 0.3,
   /* 11: PIECE_KNIGHT (*)                     */ 0.99,
   /* 12: PIECE_BISHOP (*)                     */ 0.7,
@@ -22,5 +22,6 @@ export const DEFAULT_PVALS: number[] = [
   /* 20: GAP1_ROOT_TOP4                       */ 10000,
   /* 21: GAP2_ROOT_TOP8                       */ 3000,
   /* 22: GAP_DEEP_PLIES                       */ 3000,
-  /* 23: KING_BUNKERED_PENALTY (-)            */ 30
+  /* 23: KING_BUNKERED_PENALTY (-)            */ 30,
+  /* 24: INITIAL_EVAL_BLEND_WEIGHT (*)        */ 0.015
 ];

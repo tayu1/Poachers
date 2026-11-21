@@ -869,12 +869,21 @@
   border-color: var(--Room_ready_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
 }
 
-.lobby-modal #btn-toggle-ready.btn-ready-active:hover,
-.lobby-modal .btn-ready.is-ready:hover,
-.lobby-modal .btn-ready-active:hover {
+.lobby-modal #btn-toggle-ready.btn-ready-active:hover:not(:disabled),
+.lobby-modal .btn-ready.is-ready:hover:not(:disabled),
+.lobby-modal .btn-ready-active:hover:not(:disabled) {
   background: var(--Room_ready_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
   background-color: var(--Room_ready_btn_hover_bg, rgba(74, 222, 128, 0.35)) !important;
   border-color: var(--Room_ready_btn_border_color, rgba(134, 239, 172, 0.45)) !important;
+}
+
+.lobby-modal #btn-toggle-ready:disabled,
+.lobby-modal .btn-ready:disabled {
+  opacity: 0.45 !important;
+  color: rgba(247, 251, 169, 0.45) !important;
+  border-color: rgba(247, 251, 169, 0.35) !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
 }
 
 .lobby-modal #btn-assign-bots-start,

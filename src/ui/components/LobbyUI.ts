@@ -304,10 +304,7 @@ export class LobbyUI {
               ⚡ Game starts once all 4 seats are sat & READY.
             </div>
             <div class="lobby-controls-bar" style="display: flex; gap: 10px; flex-wrap: wrap;">
-              ${isSeated
-        ? `<button id="btn-toggle-ready" class="btn-primary btn-ready ${isMyReady ? 'btn-ready-active' : ''}" style="flex: 2; min-width: 140px; padding: 10px 16px; font-weight: 700; box-shadow: none;">${isMyReady ? '✓ READY' : '⚡ READY UP'}</button>`
-        : ''
-      }
+              <button id="btn-toggle-ready" class="btn-primary btn-ready ${isMyReady && isSeated ? 'btn-ready-active' : ''}" ${isSeated ? '' : 'disabled'} style="flex: 2; min-width: 140px; padding: 10px 16px; font-weight: 700; box-shadow: none; cursor: ${isSeated ? 'pointer' : 'not-allowed'}; opacity: ${isSeated ? '1' : '0.45'};" title="${isSeated ? (isMyReady ? 'Cancel ready status' : 'Mark yourself ready') : 'Select a seat first'}">${isMyReady && isSeated ? '✓ READY' : '⚡ READY UP'}</button>
               ${isHost && [0, 1, 2, 3].some(s => !roomState.seats[s as PlayerSeat].isBot && !roomState.seats[s as PlayerSeat].playerId)
         ? (() => {
           const allHumansReady = Object.values(roomState.players).filter(p => p.isOnline).every(p => p.isReady);
@@ -353,6 +350,7 @@ export class LobbyUI {
     const btnReadyToggle = this.container.querySelector('#btn-toggle-ready');
     if (btnReadyToggle) {
       btnReadyToggle.addEventListener('click', async () => {
+        if (!isSeated) return;
         await socketClient.toggleReady();
       });
     }
@@ -380,11 +378,7 @@ export class LobbyUI {
             return;
           }
           const slot = roomState.seats[seatEnum];
-          if (!slot.isBot && !slot.playerId) {
-            await socketClient.selectSeat(seatEnum);
-          } else if (slot.playerId === store.myPlayerId) {
-            await socketClient.selectSeat(seatEnum);
-          } else if (slot.isBot) {
+          if (!slot.playerId || slot.playerId === store.myPlayerId || slot.isBot) {
             await socketClient.selectSeat(seatEnum);
           }
         });

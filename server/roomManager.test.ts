@@ -15,7 +15,6 @@ import {
   getSeatAssignmentCode,
   getSeatsForPlayer,
   rooms,
-  toggleBot,
   emitGameStateToRoom,
   sanitizeGameStateForClient
 } from './roomManager';
@@ -212,15 +211,21 @@ describe('Server RoomManager - Unified Seat Management', () => {
     expect(getSeatAssignmentCode(room)).toBe('112E');
   });
 
-  it('should prevent a player with only 1 seat from unseating to 0 seats', () => {
+  it('should allow a player with only 1 seat to release it and become unseated (0 seats)', () => {
     const { room, host } = createMockRoom();
     autoAssignSeat(room, host); // North
+    host.isReady = true;
+    room.seats[PlayerSeat.NORTH].isReady = true;
 
-    // Host clicks their own seat
+    // Host clicks their own seat to release it
     const res = assignSeat(room, 'p1', PlayerSeat.NORTH);
-    expect(res.success).toBe(false);
-    expect(res.error).toBe('You must maintain at least one assigned seat');
-    expect(room.seats[PlayerSeat.NORTH].playerId).toBe('p1');
+    expect(res.success).toBe(true);
+    expect(room.seats[PlayerSeat.NORTH].playerId).toBeNull();
+    expect(room.seats[PlayerSeat.NORTH].isReady).toBe(false);
+    expect(host.seat).toBeNull();
+    expect(host.team).toBeNull();
+    expect(host.isReady).toBe(false);
+    expect(getSeatsForPlayer(room, 'p1')).toEqual([]);
   });
 
   it('should allow a player with 2 seats to unseat one of their seats', () => {
@@ -237,20 +242,6 @@ describe('Server RoomManager - Unified Seat Management', () => {
     expect(unseatRes.success).toBe(true);
     expect(getSeatsForPlayer(room, 'p1')).toEqual([PlayerSeat.NORTH]);
     expect(room.seats[PlayerSeat.SOUTH].playerId).toBeNull();
-  });
-
-  it('should prevent host from toggling a human player with 1 seat to a bot', () => {
-    const { room, host } = createMockRoom();
-    autoAssignSeat(room, host); // North
-
-    const p2: ServerPlayer = { playerId: 'p2', name: 'P2', socketId: 's2', seat: null, team: null, isHost: false, isReady: false, isOnline: true };
-    room.players.set('p2', p2);
-    autoAssignSeat(room, p2); // South
-
-    const toggleRes = toggleBot(room, 'p1', PlayerSeat.SOUTH);
-    expect(toggleRes.success).toBe(false);
-    expect(toggleRes.error).toBe('Cannot replace a human player with a bot');
-    expect(room.seats[PlayerSeat.SOUTH].playerId).toBe('p2');
   });
 
   it('should clear player seats when player leaves', () => {
@@ -300,32 +291,13 @@ describe('Server RoomManager - Unified Seat Management', () => {
     rooms.delete('SECRET');
   });
 
-  it('should prevent setting all 4 seats to bots', () => {
-    const { room, host } = createMockRoom();
-    autoAssignSeat(room, host); // North
-
-    // Toggle South, East, West to bots
-    toggleBot(room, 'p1', PlayerSeat.SOUTH);
-    toggleBot(room, 'p1', PlayerSeat.EAST);
-    toggleBot(room, 'p1', PlayerSeat.WEST);
-
-    expect(room.seats[PlayerSeat.SOUTH].isBot).toBe(true);
-    expect(room.seats[PlayerSeat.EAST].isBot).toBe(true);
-    expect(room.seats[PlayerSeat.WEST].isBot).toBe(true);
-
-    // North is the only non-bot seat. Attempting to make North a bot must fail.
-    const res = toggleBot(room, 'p1', PlayerSeat.NORTH);
-    expect(res.success).toBe(false);
-    expect(res.error).toBe('Cannot replace a human player with a bot');
-  });
-
   it('should only include distinct human player IDs in startingPlayerIds when bots are seated', () => {
     const { room, host } = createMockRoom();
     autoAssignSeat(room, host); // N = p1
 
-    toggleBot(room, 'p1', PlayerSeat.EAST);
-    toggleBot(room, 'p1', PlayerSeat.SOUTH);
-    toggleBot(room, 'p1', PlayerSeat.WEST);
+    for (const s of [PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST]) {
+      room.seats[s] = { playerId: `bot_${s}`, name: `BOT (${s})`, isBot: true, isReady: true };
+    }
 
     const seats = [PlayerSeat.NORTH, PlayerSeat.EAST, PlayerSeat.SOUTH, PlayerSeat.WEST];
     const startingHumans = Array.from(new Set(

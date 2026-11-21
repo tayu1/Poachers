@@ -59,7 +59,6 @@ export interface ClientToServerEvents {
   join_room: (data: { roomCode: string; playerName: string; playerId?: string }, callback?: (res: { success: boolean; roomState?: RoomState; playerId?: string; error?: string }) => void) => void;
   leave_room: (data: { roomCode: string; playerId: string }) => void;
   select_seat: (data: { roomCode: string; playerId: string; seat: PlayerSeat | null }, callback?: (res: { success: boolean; error?: string }) => void) => void;
-  toggle_bot_seat: (data: { roomCode: string; playerId: string; seat: PlayerSeat }, callback?: (res: { success: boolean; error?: string }) => void) => void;
   toggle_ready: (data: { roomCode: string; playerId: string }, callback?: (res: { success: boolean; error?: string }) => void) => void;
   toggle_public: (data: { roomCode: string; playerId: string }) => void;
   toggle_turn_time_limit: (data: { roomCode: string; playerId: string }) => void;

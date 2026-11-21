@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createInitialGameState, applyAction, completePostCombat, executeCombatResolution, fastCloneState, isSeatOccupyingHill, grantHillCardReward, autoFillEmptySlots, advanceTurn, getPlayerEmptySlot, addCardToPlayerSlots } from './engine';
-import { processPostCombat, dealCommunityCards, swapPlayerCards, syncPlayerReserve, isValidCardSwap } from './cards';
+import { processPostCombat, dealCommunityCards, swapPlayerCards, syncPlayerReserve, isValidCardSwap, getPlayerCardCount } from './cards';
 import { PlayerSeat } from './types';
 
 describe('Core Engine & Combat Integration', () => {
@@ -1052,6 +1052,128 @@ describe('Core Engine & Combat Integration', () => {
       expect(() => {
         applyAction(state, { type: 'CARD_SWAP', input1: 0, input2: 5 });
       }).toThrow('Invalid card swap action');
+    });
+  });
+
+  describe('Low-Card (< 3) End-of-Turn Draw Rule', () => {
+    const c = (id: string, rank: number) => ({ id, suit: 'S' as const, rank: rank as any });
+
+    it('should grant 1 card at end of your turn when you have < 3 cards even without a hill piece', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      state.activePlayer = PlayerSeat.NORTH;
+      const north = state.players[PlayerSeat.NORTH];
+      north.trenchCards = [c('n0', 10), c('n1', 11), null];
+      north.backupCards = [null, null, null];
+      syncPlayerReserve(north);
+
+      // Ensure South (not active) also has < 3 cards — South should NOT draw on North's turn
+      const south = state.players[PlayerSeat.SOUTH];
+      south.trenchCards = [c('s0', 9), null, null];
+      south.backupCards = [null, null, null];
+      syncPlayerReserve(south);
+
+      // Place North pawn away from hill and make a non-hill quiet move (e.g. 9 -> 17)
+      state.board = new Uint8Array(64);
+      state.board[3] = 5;  // North King
+      state.board[59] = 5; // South King
+      state.board[31] = 13; // East King
+      state.board[32] = 13; // West King
+      state.board[9] = 1;  // North Pawn on b2 (non-hill)
+
+      const deckBefore = state.deck.length;
+      applyAction(state, { type: 'MOVE', origin: 9, end: 17 });
+
+      expect(getPlayerCardCount(north)).toBe(3);
+      expect(north.trenchCards[2]).not.toBeNull();
+      expect(state.deck.length).toBe(deckBefore - 1);
+      // Other player (South) did not pick up a card
+      expect(getPlayerCardCount(south)).toBe(1);
+    });
+
+    it('should grant only 1 card (not 2) when you have < 3 cards AND occupy the hill', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      state.activePlayer = PlayerSeat.NORTH;
+      const north = state.players[PlayerSeat.NORTH];
+      north.trenchCards = [c('n0', 10), null, null];
+      north.backupCards = [null, null, null];
+      syncPlayerReserve(north);
+
+      state.board = new Uint8Array(64);
+      state.board[3] = 5;
+      state.board[59] = 5;
+      state.board[31] = 13;
+      state.board[32] = 13;
+      state.board[19] = 1; // North Pawn steps onto hill 27
+
+      const deckBefore = state.deck.length;
+      applyAction(state, { type: 'MOVE', origin: 19, end: 27 });
+
+      expect(getPlayerCardCount(north)).toBe(2);
+      expect(state.deck.length).toBe(deckBefore - 1);
+    });
+
+    it('should NOT grant a card without hill when you have 3, 4, or 5 cards, and should grant 1 with hill', () => {
+      for (const cardCount of [3, 4, 5]) {
+        const stateNoHill = createInitialGameState({ skipSetup: true });
+        stateNoHill.activePlayer = PlayerSeat.NORTH;
+        const northNoHill = stateNoHill.players[PlayerSeat.NORTH];
+        northNoHill.trenchCards = [c('t0', 2), c('t1', 3), c('t2', 4)];
+        northNoHill.backupCards = [
+          cardCount >= 4 ? c('b0', 5) : null,
+          cardCount >= 5 ? c('b1', 6) : null,
+          null
+        ];
+        syncPlayerReserve(northNoHill);
+        stateNoHill.board = new Uint8Array(64);
+        stateNoHill.board[3] = 5;
+        stateNoHill.board[59] = 5;
+        stateNoHill.board[31] = 13;
+        stateNoHill.board[32] = 13;
+        stateNoHill.board[9] = 1;
+
+        applyAction(stateNoHill, { type: 'MOVE', origin: 9, end: 17 });
+        expect(getPlayerCardCount(northNoHill)).toBe(cardCount);
+
+        const stateWithHill = createInitialGameState({ skipSetup: true });
+        stateWithHill.activePlayer = PlayerSeat.NORTH;
+        const northWithHill = stateWithHill.players[PlayerSeat.NORTH];
+        northWithHill.trenchCards = [c('t0', 2), c('t1', 3), c('t2', 4)];
+        northWithHill.backupCards = [
+          cardCount >= 4 ? c('b0', 5) : null,
+          cardCount >= 5 ? c('b1', 6) : null,
+          null
+        ];
+        syncPlayerReserve(northWithHill);
+        stateWithHill.board = new Uint8Array(64);
+        stateWithHill.board[3] = 5;
+        stateWithHill.board[59] = 5;
+        stateWithHill.board[31] = 13;
+        stateWithHill.board[32] = 13;
+        stateWithHill.board[19] = 1;
+
+        applyAction(stateWithHill, { type: 'MOVE', origin: 19, end: 27 });
+        expect(getPlayerCardCount(northWithHill)).toBe(cardCount + 1);
+      }
+    });
+
+    it('should NOT grant a card when you already have 6 cards even on the hill', () => {
+      const state = createInitialGameState({ skipSetup: true });
+      state.activePlayer = PlayerSeat.NORTH;
+      const north = state.players[PlayerSeat.NORTH];
+      expect(getPlayerCardCount(north)).toBe(6);
+
+      state.board = new Uint8Array(64);
+      state.board[3] = 5;
+      state.board[59] = 5;
+      state.board[31] = 13;
+      state.board[32] = 13;
+      state.board[19] = 1;
+
+      const deckBefore = state.deck.length;
+      applyAction(state, { type: 'MOVE', origin: 19, end: 27 });
+
+      expect(getPlayerCardCount(north)).toBe(6);
+      expect(state.deck.length).toBe(deckBefore);
     });
   });
 });

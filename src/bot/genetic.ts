@@ -46,17 +46,18 @@ export const PVAL_COMMENTS: string[] = [
   /* 20 */ '/* 20: GAP1_ROOT_TOP4                       */',
   /* 21 */ '/* 21: GAP2_ROOT_TOP8                       */',
   /* 22 */ '/* 22: GAP_DEEP_PLIES                       */',
-  /* 23 */ '/* 23: KING_BUNKERED_PENALTY (-)            */'
+  /* 23 */ '/* 23: KING_BUNKERED_PENALTY (-)            */',
+  /* 24 */ '/* 24: INITIAL_EVAL_BLEND_WEIGHT (*)        */'
 ];
 
 // All mutable parameter indices (skipping 1 which is fixed Game End value)
 export const MUTABLE_PVAL_INDICES: number[] = [
-  0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
+  0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
 ];
 
 // Multiplier parameters (*) that are floating point numbers
 export const MULTIPLIER_PVAL_INDICES: Set<number> = new Set([
-  3, 4, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+  3, 4, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 24
 ]);
 
 /**

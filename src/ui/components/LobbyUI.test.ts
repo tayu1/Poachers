@@ -89,5 +89,14 @@ describe('Lobby Display Name and Room Action Buttons Styling', () => {
 
     expect(cssContent).toMatch(/#btn-toggle-ready[\s\S]*?--Room_ready_btn_fill_color/);
     expect(cssContent).toMatch(/#btn-assign-bots-start[\s\S]*?--Room_assign_bots_btn_fill_color/);
+    expect(cssContent).toMatch(/#btn-toggle-ready:disabled/);
+  });
+
+  it('should always render #btn-toggle-ready and disable it when the player is not seated', () => {
+    const tsPath = path.resolve(__dirname, 'LobbyUI.ts');
+    const tsContent = fs.readFileSync(tsPath, 'utf-8');
+
+    expect(tsContent).toContain('id="btn-toggle-ready"');
+    expect(tsContent).toContain("${isSeated ? '' : 'disabled'}");
   });
 });

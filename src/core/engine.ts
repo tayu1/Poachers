@@ -741,7 +741,7 @@ function finalizeTurn(
 
     const skipOdds = options?.skipOddsRecompute ?? (reqType !== BotRequestType.UI_GAME);
     if (!skipOdds) {
-      if (!state.regionOdds || state.regionOdds.length === 0 || cardRewards.hillGranted) {
+      if (!state.regionOdds || state.regionOdds.length === 0 || cardRewards.standardGranted || cardRewards.hillGranted) {
         state.regionOdds = computeRegionProbabilities(state);
       }
     }
